@@ -520,6 +520,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="What is SOLLOL?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-task-distribution-load-balancing" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Task Distribution (Load Balancing)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-model-sharding-layer-level-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Model Sharding (Layer-Level Distribution)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1590,6 +1614,30 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="What is SOLLOL?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-task-distribution-load-balancing" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Task Distribution (Load Balancing)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-model-sharding-layer-level-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Model Sharding (Layer-Level Distribution)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1657,20 +1705,26 @@
 <p><a href="https://github.com/BenevolentJoker-JohnL/SOLLOL/actions/workflows/tests.yml"><img alt="Tests Passing" src="https://img.shields.io/badge/tests-57%20passing-success?style=for-the-badge&amp;logo=pytest" /></a>
 <a href="https://github.com/BenevolentJoker-JohnL/SOLLOL/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" /></a>
 <a href="https://www.python.org/"><img alt="Python 3.9+" src="https://img.shields.io/badge/python-3.9%2B-blue?style=for-the-badge&amp;logo=python&amp;logoColor=white" /></a></p>
-<p><strong>Production-Ready Intelligent Load Balancing for Ollama Clusters</strong></p>
+<p><strong>Hybrid Cluster Orchestrator: Task Routing + Distributed Model Inference</strong></p>
 <p><a class="md-button md-button--primary" href="getting-started/quick-start/">Quick Start</a>
 <a class="md-button" href="https://github.com/BenevolentJoker-JohnL/SOLLOL">View on GitHub</a></p>
 </div>
 <hr />
 <h2 id="what-is-sollol">What is SOLLOL?<a class="headerlink" href="#what-is-sollol" title="Permanent link">&para;</a></h2>
-<p><strong>SOLLOL transforms multiple Ollama nodes into a unified, intelligent AI inference cluster.</strong></p>
-<p>Instead of manually managing multiple Ollama instances or using simple round-robin load balancing, SOLLOL analyzes each request's requirements and automatically routes it to the optimal node based on:</p>
-<ul>
-<li><strong>Task complexity</strong> (embedding vs generation vs analysis)</li>
-<li><strong>Resource availability</strong> (GPU memory, CPU load)</li>
-<li><strong>Real-time performance</strong> (latency, success rate)</li>
-<li><strong>Historical patterns</strong> (adaptive learning from past executions)</li>
-</ul>
+<p><strong>SOLLOL is a hybrid cluster orchestrator that unifies task routing and distributed model inference for local LLM deployments.</strong></p>
+<p>SOLLOL provides two complementary distribution strategies:</p>
+<h3 id="1-task-distribution-load-balancing">1. Task Distribution (Load Balancing)<a class="headerlink" href="#1-task-distribution-load-balancing" title="Permanent link">&para;</a></h3>
+<p>Intelligently routes multiple agent requests across Ollama nodes based on:
+- <strong>Task complexity</strong> (embedding vs generation vs analysis)
+- <strong>Resource availability</strong> (GPU memory, CPU load)
+- <strong>Real-time performance</strong> (latency, success rate)
+- <strong>Historical patterns</strong> (adaptive learning from past executions)</p>
+<h3 id="2-model-sharding-layer-level-distribution">2. Model Sharding (Layer-Level Distribution)<a class="headerlink" href="#2-model-sharding-layer-level-distribution" title="Permanent link">&para;</a></h3>
+<p>Enables running models that don't fit on a single machine via llama.cpp RPC:
+- <strong>Layer distribution</strong> across multiple RPC backends
+- <strong>GGUF auto-extraction</strong> from Ollama blob storage
+- <strong>Verified with 13B models</strong> across 2-3 nodes
+- <strong>Trade-offs</strong>: Slower startup (2-5 min) and inference (~5 tok/s vs ~20 tok/s local)</p>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <div class="grid cards">
 <ul>
@@ -1790,7 +1844,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 3, 2025 11:27:50 UTC">October 3, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 5, 2025 14:15:07 UTC">October 5, 2025</span>
   </span>
 
     

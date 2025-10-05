@@ -2,14 +2,18 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://benevolentjoker-johnl.github.io/SOLLOL/</loc>
-         <lastmod>2025-10-03</lastmod>
+         <lastmod>2025-10-05</lastmod>
+    </url>
+    <url>
+         <loc>https://benevolentjoker-johnl.github.io/SOLLOL/layer_partitioning/</loc>
+         <lastmod>2025-10-05</lastmod>
     </url>
     <url>
          <loc>https://benevolentjoker-johnl.github.io/SOLLOL/enterprise/roadmap/</loc>
-         <lastmod>2025-10-03</lastmod>
+         <lastmod>2025-10-05</lastmod>
     </url>
     <url>
          <loc>https://benevolentjoker-johnl.github.io/SOLLOL/getting-started/quick-start/</loc>
-         <lastmod>2025-10-03</lastmod>
+         <lastmod>2025-10-05</lastmod>
     </url>
 </urlset>

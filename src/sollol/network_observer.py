@@ -325,7 +325,9 @@ class NetworkObserver:
             if event.event_type in [EventType.OLLAMA_REQUEST, EventType.OLLAMA_RESPONSE, EventType.OLLAMA_ERROR]:
                 channel = "sollol:dashboard:ollama:activity"
             elif event.event_type in [EventType.RPC_REQUEST, EventType.RPC_RESPONSE, EventType.RPC_ERROR,
-                                       EventType.RPC_BACKEND_CONNECT, EventType.RPC_BACKEND_DISCONNECT]:
+                                       EventType.RPC_BACKEND_CONNECT, EventType.RPC_BACKEND_DISCONNECT,
+                                       EventType.COORDINATOR_START, EventType.COORDINATOR_STOP,
+                                       EventType.COORDINATOR_MODEL_LOAD]:
                 channel = "sollol:dashboard:rpc:activity"
 
             if not channel:
@@ -342,6 +344,18 @@ class NetworkObserver:
 
             # Publish to Redis channel
             self.redis_client.publish(channel, json.dumps(message))
+
+            # Also publish coordinator events to routing_events channel for dashboard routing decisions
+            if event.event_type in [EventType.COORDINATOR_START, EventType.COORDINATOR_STOP,
+                                     EventType.COORDINATOR_MODEL_LOAD]:
+                routing_message = {
+                    "timestamp": event.timestamp,
+                    "event": event.event_type.value,
+                    "backend": event.backend,
+                    "details": event.details,
+                    "severity": event.severity
+                }
+                self.redis_client.publish("sollol:routing_events", json.dumps(routing_message))
 
         except Exception as e:
             logger.debug(f"Failed to publish event to Redis: {e}")

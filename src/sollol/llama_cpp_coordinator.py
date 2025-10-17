@@ -20,7 +20,9 @@ We manage starting the coordinator and intelligently selecting healthy RPC backe
 import asyncio
 import logging
 import os
+import re
 import subprocess
+import threading
 import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -196,11 +198,18 @@ class LlamaCppCoordinator:
         )
 
         try:
-            # Log llama-server output to file to avoid blocking on filled buffers
-            log_file = open("/tmp/llama-server.log", "w")
+            # Use subprocess.PIPE to capture output for parsing layer distribution
             self.process = subprocess.Popen(
-                cmd, stdout=log_file, stderr=subprocess.STDOUT, text=True
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
             )
+
+            # Start a thread to parse llama-server output for layer distribution
+            self._output_parser_task = threading.Thread(
+                target=self._parse_llama_output,
+                daemon=True,
+                name="LlamaServerOutputParser"
+            )
+            self._output_parser_task.start()
 
             # Wait for server to be ready
             try:
@@ -275,6 +284,112 @@ class LlamaCppCoordinator:
                 severity="error"
             )
             raise
+
+    def _parse_llama_output(self):
+        """
+        Parse llama-server output to extract layer distribution and memory allocation.
+
+        Publishes COORDINATOR_MODEL_LOAD events when model sharding is detected.
+        Also writes all output to /tmp/llama-server.log for debugging.
+        """
+        log_file = open("/tmp/llama-server.log", "w")
+        observer = get_observer()
+
+        # Regex patterns for layer distribution and memory info
+        # Example: "llm_load_tensors: offloading 32 repeating layers to GPU"
+        # Example: "llm_load_tensors: using CUDA for GPU acceleration"
+        # Example: "llama_model_load: total VRAM used: 4096 MB"
+        layer_pattern = re.compile(r"offloading (\d+) .*?layers? to (GPU|CPU|RPC)")
+        memory_pattern = re.compile(r"total (VRAM|RAM|memory) used:?\s*(\d+\.?\d*)\s*(MB|GB|KiB)", re.IGNORECASE)
+        backend_pattern = re.compile(r"RPC backend: ([\w\.\-]+:\d+)")
+
+        model_load_details = {
+            "layers_offloaded": {},
+            "memory_allocated": {},
+            "rpc_backends_used": []
+        }
+
+        try:
+            for line in iter(self.process.stdout.readline, ''):
+                if not line:
+                    break
+
+                # Write to log file for debugging
+                log_file.write(line)
+                log_file.flush()
+
+                # Parse layer distribution
+                layer_match = layer_pattern.search(line)
+                if layer_match:
+                    num_layers = int(layer_match.group(1))
+                    target = layer_match.group(2)
+                    model_load_details["layers_offloaded"][target] = num_layers
+
+                    logger.info(f"🧠 Offloading {num_layers} layers to {target}")
+
+                # Parse memory allocation
+                memory_match = memory_pattern.search(line)
+                if memory_match:
+                    mem_type = memory_match.group(1).upper()
+                    mem_value = float(memory_match.group(2))
+                    mem_unit = memory_match.group(3)
+
+                    # Convert to MB
+                    if mem_unit == "GB":
+                        mem_value *= 1024
+                    elif mem_unit == "KiB":
+                        mem_value /= 1024
+
+                    model_load_details["memory_allocated"][mem_type] = {
+                        "value_mb": mem_value,
+                        "display": f"{mem_value:.2f} MB"
+                    }
+
+                    logger.info(f"💾 {mem_type} allocated: {mem_value:.2f} MB")
+
+                # Parse RPC backend connections
+                backend_match = backend_pattern.search(line)
+                if backend_match:
+                    backend_addr = backend_match.group(1)
+                    if backend_addr not in model_load_details["rpc_backends_used"]:
+                        model_load_details["rpc_backends_used"].append(backend_addr)
+                        logger.info(f"🔗 Connected to RPC backend: {backend_addr}")
+
+                # Detect model load completion
+                if "model loaded" in line.lower() or "ready" in line.lower():
+                    # Publish model load event with sharding details
+                    if model_load_details["layers_offloaded"] or model_load_details["memory_allocated"]:
+                        observer.log_event(
+                            EventType.COORDINATOR_MODEL_LOAD,
+                            backend=f"{self.host}:{self.port}",
+                            details={
+                                "model": os.path.basename(self.model_path),
+                                "layers_offloaded": model_load_details["layers_offloaded"],
+                                "memory_allocated": model_load_details["memory_allocated"],
+                                "rpc_backends": len(self.rpc_backends),
+                                "rpc_addresses": [b.address for b in self.rpc_backends],
+                                "status": "loaded",
+                                "type": "model_sharding"
+                            },
+                            severity="info"
+                        )
+
+                        logger.info(
+                            f"✅ Model sharded across {len(self.rpc_backends)} RPC backends: "
+                            f"{model_load_details}"
+                        )
+
+                        # Reset for next model load
+                        model_load_details = {
+                            "layers_offloaded": {},
+                            "memory_allocated": {},
+                            "rpc_backends_used": []
+                        }
+
+        except Exception as e:
+            logger.error(f"Error parsing llama-server output: {e}")
+        finally:
+            log_file.close()
 
     async def _wait_for_ready(self, timeout: float = 1200.0):  # 20 minutes for large models
         """Wait for llama-server to be ready."""

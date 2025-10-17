@@ -616,6 +616,19 @@ response = await coordinator.generate(
 - 📖 [Complete llama.cpp Guide](docs/llama_cpp_guide.md) - Setup, optimization, troubleshooting
 - 💻 [Working Examples](examples/llama_cpp_distributed.py) - 5 complete examples including conversation, batch processing, error handling
 
+#### ⚠️ Known Limitation: llama.cpp Coordinator Bottleneck
+
+**The Problem:** llama.cpp's `--rpc` flag enables distributed *computation* but NOT distributed *storage*. The coordinator node must load the entire model into its own RAM before distributing layer computation to RPC workers.
+
+**Impact:**
+- ❌ 70B model (40GB GGUF) on coordinator with 8GB RAM → **Crashes**
+- ❌ Even with 48GB total across 4 workers, coordinator still needs 40GB locally
+- ✅ Works if coordinator node has sufficient RAM (e.g., 32GB+ for 70B models)
+
+**Workaround:** Run the llama-server coordinator on your machine with the most RAM (e.g., your GPU node with 32GB). The RPC workers can still be CPU-only nodes with less RAM.
+
+**Research Track (WIP):** SOLLOL includes experimental code (`src/sollol/distributed_pipeline.py`) exploring true distributed model loading where NO single node needs the full model. This uses Ray-based pipeline parallelism inspired by prima.cpp's architecture. See module documentation for technical details and path forward.
+
 ---
 
 ### 5. Batch Processing API

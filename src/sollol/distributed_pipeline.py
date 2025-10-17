@@ -1,29 +1,94 @@
 """
-Distributed Pipeline Inference for Large Models
+Distributed Pipeline Inference for Large Models (WIP/Research)
 
-Implements pipeline parallelism using Ray to distribute model layers across
-multiple nodes, enabling inference on models too large for any single machine.
+⚠️  EXPERIMENTAL: This module addresses a fundamental architectural limitation
+    in llama.cpp's distributed inference design.
+
+## The Problem: llama.cpp Coordinator Bottleneck
+
+llama.cpp's --rpc flag enables distributed *computation* but NOT distributed
+*storage*. The coordinator must load the entire model into its own RAM before
+distributing layer computation to RPC workers.
+
+Example failure case:
+    - 70B model (40GB GGUF file)
+    - Coordinator node: 8GB RAM available
+    - RPC workers: 4 nodes × 12GB RAM = 48GB total
+    - Result: Coordinator crashes loading 40GB into 8GB RAM ❌
+
+This defeats the purpose of distributed inference for memory-constrained setups.
+
+## Our Solution: Ray-Based Pipeline Parallelism
+
+Instead of using llama.cpp's RPC coordinator, we implement true distributed
+model loading where NO single node needs the full model:
 
 Architecture:
-    - Extract GGUF model from Ollama blob storage
-    - Split layers across Ray workers (each worker loads partial model)
-    - Pipeline activations through workers sequentially
-    - No single node needs full model in RAM
+    1. Analyze GGUF structure (identify layers, memory requirements)
+    2. Schedule layer assignment across workers based on available RAM
+    3. Split GGUF into mini-GGUFs, each containing a layer subset
+    4. Each Ray worker loads only its assigned mini-GGUF
+    5. Pipeline activations through workers sequentially
 
-Inspired by prima.cpp's piped-ring parallelism and distributed-llama's
-tensor distribution, but implemented using Ray for better integration
-with SOLLOL's existing infrastructure.
+Example with 70B model:
+    - Node 1 (GPU, 16GB): Loads layers 0-25 (15GB) + uses GPU acceleration
+    - Node 2 (CPU, 8GB): Loads layers 26-50 (7GB)
+    - Node 3 (CPU, 8GB): Loads layers 51-75 (7GB)
+    - Node 4 (CPU, 4GB): Loads layers 76-80 + output (3GB)
+    - Total: No single node exceeds its capacity ✅
+
+## Current Status: WIP
+
+✅ Working Components:
+    - GGUFLayerAnalyzer: Parses Ollama GGUF blobs, identifies layer boundaries
+    - LayerScheduler: Assigns layers proportionally to worker memory
+    - GGUFSplitter: Filters tensors by layer range (skeleton)
+
+🚧 Blocked Components:
+    - GGUF Writer: Creating valid mini-GGUFs requires quantization-aware
+      tensor validation. The gguf library's writer validates tensor shapes
+      against quantization block sizes, making naive tensor copying non-trivial.
+
+## Path Forward (Research Track)
+
+Two viable approaches for production implementation:
+
+1. **Deep GGUF Integration**: Properly handle quantized tensor metadata,
+   block size alignment, and architecture-specific tensor dependencies.
+   Requires deep understanding of GGML quantization formats (Q4_0, Q5_K, etc.).
+
+2. **Alternative Backend**: Integrate vLLM or DeepSpeed which support true
+   distributed model sharding out-of-the-box. Trade-off: requires model
+   conversion from GGUF to HuggingFace format.
+
+3. **Micro-Tensor Streaming**: Bypass GGUF files entirely - load tensors
+   into Ray object store and stream to workers on-demand via gRPC. Most
+   complex but most flexible approach.
+
+## Why This Matters for SOLLOL
+
+This positions SOLLOL as addressing a real limitation in local LLM infrastructure:
+running frontier models (70B+) on consumer hardware clusters without requiring
+any single machine to have 40GB+ RAM. This is a genuine research problem in
+the local inference space.
+
+Inspired by:
+    - prima.cpp's piped-ring parallelism (arXiv:2504.08791)
+    - distributed-llama's tensor parallelism (github.com/b4rtaz/distributed-llama)
+
+Implemented using Ray for better integration with SOLLOL's existing infrastructure.
 """
 
 import logging
 import os
+import struct
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 import numpy as np
 import ray
-from gguf import GGUFReader
+from gguf import GGUFReader, GGUFWriter, GGMLQuantizationType
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +205,165 @@ class GGUFLayerAnalyzer:
         )
 
         return analysis
+
+
+class GGUFSplitter:
+    """
+    Splits a GGUF file into mini-GGUFs, each containing a subset of layers.
+
+    This enables distributed inference where each worker loads only its
+    assigned layers from a separate GGUF file.
+    """
+
+    def __init__(self, source_gguf: str, output_dir: str):
+        """
+        Initialize splitter.
+
+        Args:
+            source_gguf: Path to source GGUF file (Ollama blob)
+            output_dir: Directory to write mini-GGUF files
+        """
+        self.source_gguf = source_gguf
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        self.reader = GGUFReader(source_gguf)
+        self.metadata = {}
+
+        # Extract metadata
+        for field in self.reader.fields.values():
+            self.metadata[field.name] = field.parts[field.data[0]]
+
+    def split(self, assignments: List[LayerAssignment]) -> List[str]:
+        """
+        Split GGUF into mini-GGUFs based on layer assignments.
+
+        Args:
+            assignments: List of layer assignments from LayerScheduler
+
+        Returns:
+            List of paths to generated mini-GGUF files
+        """
+        logger.info(f"Splitting {self.source_gguf} into {len(assignments)} mini-GGUFs...")
+
+        mini_gguf_paths = []
+
+        for assignment in assignments:
+            output_path = self.output_dir / f"worker_{assignment.worker_id}.gguf"
+            logger.info(
+                f"Creating {output_path} with layers {assignment.layer_start}-{assignment.layer_end-1}"
+            )
+
+            # Create mini-GGUF for this worker
+            self._create_mini_gguf(
+                output_path=str(output_path),
+                layer_start=assignment.layer_start,
+                layer_end=assignment.layer_end,
+                is_first_worker=(assignment.worker_id == 0),
+                is_last_worker=(assignment.worker_id == len(assignments) - 1)
+            )
+
+            mini_gguf_paths.append(str(output_path))
+            logger.info(f"Created {output_path} ({os.path.getsize(output_path) / (1024**3):.2f} GB)")
+
+        return mini_gguf_paths
+
+    def _create_mini_gguf(
+        self,
+        output_path: str,
+        layer_start: int,
+        layer_end: int,
+        is_first_worker: bool,
+        is_last_worker: bool
+    ):
+        """
+        Create a mini-GGUF file containing specific layers.
+
+        Args:
+            output_path: Where to write mini-GGUF
+            layer_start: First layer (inclusive)
+            layer_end: Last layer (exclusive)
+            is_first_worker: Include embedding layers
+            is_last_worker: Include output layers
+        """
+        # Get architecture as string (may be numpy array)
+        arch = self.metadata.get("general.architecture", "llama")
+        if hasattr(arch, 'tobytes'):
+            # It's a numpy array, decode it
+            arch = arch.tobytes().decode('utf-8').strip('\x00')
+
+        writer = GGUFWriter(output_path, arch=arch)
+
+        # Copy essential metadata
+        essential_keys = [
+            "general.name",
+            "general.architecture",
+            "general.file_type",
+            "tokenizer.ggml.model",
+            "tokenizer.ggml.tokens",
+            "tokenizer.ggml.scores",
+            "tokenizer.ggml.token_type",
+            "tokenizer.ggml.bos_token_id",
+            "tokenizer.ggml.eos_token_id",
+            "tokenizer.ggml.unknown_token_id",
+            "tokenizer.ggml.separator_token_id",
+            "tokenizer.ggml.padding_token_id",
+        ]
+
+        # Copy metadata (simplified - gguf library handles this better)
+        # For now, we'll let GGUFWriter auto-handle architecture defaults
+
+        # Filter and write tensors
+        tensors_written = 0
+
+        for tensor in self.reader.tensors:
+            tensor_name = tensor.name
+            should_include = False
+
+            # Check if this tensor belongs to our layer range
+            if ".blk." in tensor_name or "blk." in tensor_name:
+                # Extract layer ID
+                parts = tensor_name.split(".")
+                for i, part in enumerate(parts):
+                    if part == "blk" and i + 1 < len(parts):
+                        try:
+                            layer_id = int(parts[i + 1])
+                            if layer_start <= layer_id < layer_end:
+                                should_include = True
+                            break
+                        except ValueError:
+                            pass
+
+            # Include embeddings for first worker
+            elif is_first_worker and ("embed" in tensor_name or "token" in tensor_name):
+                should_include = True
+
+            # Include output layers for last worker
+            elif is_last_worker and ("output" in tensor_name or "lm_head" in tensor_name or "norm" in tensor_name):
+                should_include = True
+
+            # Write tensor if it belongs to this worker
+            if should_include:
+                # Load tensor data
+                tensor_data = tensor.data
+
+                # Add tensor to writer
+                writer.add_tensor(
+                    name=tensor.name,
+                    tensor=tensor_data,
+                    raw_shape=tensor.shape,
+                    raw_dtype=tensor.tensor_type
+                )
+
+                tensors_written += 1
+
+        # Write the file
+        writer.write_header_to_file()
+        writer.write_kv_data_to_file()
+        writer.write_tensors_to_file()
+        writer.close()
+
+        logger.debug(f"Wrote {tensors_written} tensors to {output_path}")
 
 
 class LayerScheduler:

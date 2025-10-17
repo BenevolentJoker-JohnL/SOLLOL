@@ -403,6 +403,10 @@
             <h3>Ray Workers</h3>
             <div class="value" id="ray-workers">-</div>
         </div>
+        <div class="status-card">
+            <h3>Dask Workers</h3>
+            <div class="value" id="dask-workers">-</div>
+        </div>
     </div>
 
     <div class="main-grid">
@@ -451,11 +455,51 @@
             <h2>📜 Real-Time Logs</h2>
             <pre id="log-container" style="max-height: 400px; overflow-y: auto; background: #0a0e27; padding: 15px; border-radius: 6px;"></pre>
         </div>
+
+        <div class="panel">
+            <h2>⚡ Ray Dashboard</h2>
+            <iframe id="ray-iframe" style="width: 100%; height: 600px; border: none; border-radius: 6px; background: #0a0e27;" src="http://localhost:8265"></iframe>
+        </div>
+
+        <div class="panel">
+            <h2>📊 Dask Dashboard</h2>
+            <iframe id="dask-iframe" style="width: 100%; height: 600px; border: none; border-radius: 6px; background: #0a0e27;"></iframe>
+        </div>
     </div>
 
     <script>
         const API_BASE = 'http://localhost:8080';
         let refreshInterval;
+        let dashboardConfigLoaded = false;
+
+        async function loadDashboardConfig() {
+            if (dashboardConfigLoaded) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/dashboard/config`);
+                const config = await response.json();
+
+                // Set Ray dashboard URL
+                if (config.ray_dashboard_url) {
+                    document.getElementById('ray-iframe').src = config.ray_dashboard_url;
+                }
+
+                // Set Dask dashboard URL if enabled
+                if (config.dask_dashboard_url) {
+                    document.getElementById('dask-iframe').src = config.dask_dashboard_url;
+                } else {
+                    // Hide Dask panel if not enabled
+                    const daskPanel = document.getElementById('dask-iframe').closest('.panel');
+                    if (daskPanel) {
+                        daskPanel.style.display = 'none';
+                    }
+                }
+
+                dashboardConfigLoaded = true;
+            } catch (error) {
+                console.error('Failed to load dashboard config:', error);
+            }
+        }
 
         async function fetchDashboard() {
             try {
@@ -557,6 +601,7 @@
                 document.getElementById('active-hosts').innerHTML =
                     `${data.status.available_hosts || 0}<span class="unit">/ ${data.status.total_hosts || 0}</span>`;
                 document.getElementById('ray-workers').textContent = data.status.ray_workers || 0;
+                document.getElementById('dask-workers').textContent = data.status.dask_workers || 0;
             }
             if (data.performance) {
                 document.getElementById('avg-latency').innerHTML =
@@ -636,6 +681,9 @@
 
             document.getElementById('task-count').textContent = data.routing.task_types_learned;
         }
+
+        // Load dashboard config first
+        loadDashboardConfig();
 
         // Start auto-refresh
         fetchDashboard();

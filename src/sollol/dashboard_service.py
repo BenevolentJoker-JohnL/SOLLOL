@@ -553,15 +553,56 @@ class DashboardService:
             """Combined dashboard data endpoint for compatibility with old HTML template."""
             try:
                 metadata_json = self.redis_client.get("sollol:router:metadata")
+                dashboard_data = {
+                    "metrics": {},
+                    "ollama_nodes": [],
+                    "rpc_backends": [],
+                    "status": {
+                        "healthy": True,
+                        "available_hosts": 0,
+                        "total_hosts": 0,
+                        "ray_workers": 0,
+                        "dask_workers": 0,
+                    },
+                    "performance": {
+                        "avg_latency_ms": 0,
+                        "avg_success_rate": 1.0,
+                        "total_gpu_memory_mb": 0,
+                    },
+                    "hosts": [],
+                    "alerts": [],
+                    "routing": {
+                        "patterns_available": [],
+                        "task_types_learned": 0,
+                    }
+                }
+
                 if metadata_json:
                     metadata = json.loads(metadata_json)
-                    return jsonify({
-                        "metrics": metadata.get("metrics", {}),
-                        "ollama_nodes": metadata.get("nodes", []),
-                        "rpc_backends": metadata.get("rpc_backends", []),
-                    })
-                return jsonify({"metrics": {}, "ollama_nodes": [], "rpc_backends": []})
+                    dashboard_data["metrics"] = metadata.get("metrics", {})
+                    dashboard_data["ollama_nodes"] = metadata.get("nodes", [])
+                    dashboard_data["rpc_backends"] = metadata.get("rpc_backends", [])
+
+                # Get Ray worker count (try Redis first, then ray.nodes())
+                try:
+                    ray_info = ray.nodes()
+                    ray_workers = sum(1 for node in ray_info if node.get("Alive", False))
+                    dashboard_data["status"]["ray_workers"] = ray_workers
+                except Exception as e:
+                    logger.debug(f"Could not get Ray worker count: {e}")
+
+                # Get Dask worker count
+                if self.enable_dask and self.dask_client:
+                    try:
+                        scheduler_info = self.dask_client.scheduler_info()
+                        dask_workers = len(scheduler_info.get("workers", {}))
+                        dashboard_data["status"]["dask_workers"] = dask_workers
+                    except Exception as e:
+                        logger.debug(f"Could not get Dask worker count: {e}")
+
+                return jsonify(dashboard_data)
             except Exception as e:
+                logger.error(f"Error in /api/dashboard: {e}")
                 return jsonify({"error": str(e)}), 500
 
         @self.app.route("/api/dashboard/config")
@@ -678,7 +719,7 @@ class DashboardService:
                         "router_type": data.get("router_type", "unknown"),
                         "version": data.get("version", "unknown"),
                         "metadata": data.get("metadata", {}),
-                        "start_time": time.time(),
+                        "started_at": time.time(),
                         "last_heartbeat": time.time()
                     }
                     logger.info(f"📱 Auto-registered application from heartbeat: {app_name} ({app_id})")

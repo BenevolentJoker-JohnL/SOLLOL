@@ -179,6 +179,22 @@ class LlamaCppCoordinator:
 
         logger.info(f"Starting llama-server coordinator: {' '.join(cmd)}")
 
+        # Log coordinator startup to routing decisions for dashboard visibility
+        observer = get_observer()
+        observer.log_event(
+            EventType.COORDINATOR_START,
+            model=os.path.basename(self.model_path),
+            details={
+                "coordinator": f"{self.host}:{self.port}",
+                "rpc_backends": [b.address for b in healthy_backends],
+                "num_backends": len(healthy_backends),
+                "model_path": self.model_path,
+                "ctx_size": self.ctx_size,
+                "command": ' '.join(cmd)
+            },
+            severity="info"
+        )
+
         try:
             # Log llama-server output to file to avoid blocking on filled buffers
             log_file = open("/tmp/llama-server.log", "w")
@@ -187,11 +203,57 @@ class LlamaCppCoordinator:
             )
 
             # Wait for server to be ready
-            await self._wait_for_ready()
+            try:
+                await self._wait_for_ready()
+            except TimeoutError as e:
+                # Coordinator failed to start - check if process crashed
+                if self.process.poll() is not None:
+                    # Process exited
+                    exit_code = self.process.returncode
+                    observer.log_event(
+                        EventType.COORDINATOR_STOP,
+                        model=os.path.basename(self.model_path),
+                        details={
+                            "coordinator": f"{self.host}:{self.port}",
+                            "reason": f"Crashed with exit code {exit_code}",
+                            "error": "Process terminated during startup",
+                            "log_file": "/tmp/llama-server.log"
+                        },
+                        severity="error"
+                    )
+                    raise RuntimeError(f"llama-server crashed with exit code {exit_code}. Check /tmp/llama-server.log for details")
+                else:
+                    # Still running but not responding
+                    observer.log_event(
+                        EventType.COORDINATOR_STOP,
+                        model=os.path.basename(self.model_path),
+                        details={
+                            "coordinator": f"{self.host}:{self.port}",
+                            "reason": "Timeout waiting for health endpoint",
+                            "error": str(e),
+                            "log_file": "/tmp/llama-server.log"
+                        },
+                        severity="error"
+                    )
+                    raise
 
             logger.info(
                 f"✅ llama-server coordinator started on {self.host}:{self.port} "
-                f"with {len(self.rpc_backends)} RPC backends"
+                f"with {len(healthy_backends)} RPC backends"
+            )
+
+            # Log successful startup with backend details
+            observer.log_event(
+                EventType.RPC_BACKEND_CONNECT,
+                backend=f"{self.host}:{self.port}",
+                details={
+                    "status": "ready",
+                    "rpc_backends": len(healthy_backends),
+                    "rpc_addresses": [b.address for b in healthy_backends],
+                    "model": os.path.basename(self.model_path),
+                    "type": "coordinator_ready"
+                },
+                severity="info"
             )
 
             # Start heartbeat loop for dashboard visibility
@@ -200,6 +262,18 @@ class LlamaCppCoordinator:
 
         except Exception as e:
             logger.error(f"Failed to start llama-server: {e}")
+            # Log failure to routing decisions
+            observer.log_event(
+                EventType.COORDINATOR_STOP,
+                model=os.path.basename(self.model_path),
+                details={
+                    "coordinator": f"{self.host}:{self.port}",
+                    "reason": "Startup failed",
+                    "error": str(e),
+                    "log_file": "/tmp/llama-server.log"
+                },
+                severity="error"
+            )
             raise
 
     async def _wait_for_ready(self, timeout: float = 1200.0):  # 20 minutes for large models

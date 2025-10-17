@@ -543,31 +543,80 @@ sudo systemctl start llama-rpc@50052.service
 
 See [SOLLOL_RPC_SETUP.md](https://github.com/BenevolentJoker-JohnL/FlockParser/blob/main/SOLLOL_RPC_SETUP.md) for complete installation guide.
 
-#### Architecture: How It Works
+#### Architecture: Hybrid GPU+CPU Parallelization 🚀
+
+**NEW:** SOLLOL now supports hybrid device parallelization - GPU nodes contribute BOTH their GPU (VRAM) AND CPU (RAM) as separate parallel workers!
+
+**Example: 3 Physical Nodes → 4 Parallel Workers (+33% throughput!)**
+
+```
+Traditional Setup (3 workers):
+CPU Node 1  → 1 worker (8GB RAM)
+CPU Node 2  → 1 worker (8GB RAM)
+GPU Node    → 1 worker (12GB VRAM)
+Total: 3 parallel workers
+
+Hybrid Setup (4 workers):
+CPU Node 1  → 1 worker (8GB RAM)
+CPU Node 2  → 1 worker (8GB RAM)
+GPU Node    → 2 workers:
+              ├─ CPU device (10GB RAM)  ← Both run in parallel!
+              └─ GPU device (9.6GB VRAM) ←
+Total: 4 parallel workers  (+33% more!)
+```
+
+**Auto-Detection:** Run this on each node to get the optimal command:
+```bash
+python scripts/setup_rpc_node.py
+```
+
+**Sample output (GPU node):**
+```
+✅ GPU(s) Found: 1
+   GPU 0: cuda:0 - 9600 MB VRAM (safe allocation)
+💾 CPU RAM: 10240 MB (safe allocation)
+⚡ Total Parallel Workers: 2 (1 CPU worker + 1 GPU worker)
+
+RPC-SERVER COMMAND:
+rpc-server --host 0.0.0.0 --port 50052 --device cpu,cuda:0 --mem 10240,9600
+```
+
+**Key Benefits:**
+- ✅ Maximizes hardware utilization (use ALL resources)
+- ✅ No extra hardware needed (same 3 machines)
+- ✅ Safe memory allocations (80% with 20% reserve)
+- ✅ Automatic GPU detection (NVIDIA, AMD, Intel)
+
+See [docs/HYBRID_RPC_PARALLELIZATION.md](docs/HYBRID_RPC_PARALLELIZATION.md) for complete guide.
+
+#### Layer Distribution Example
 
 ```
 ┌────────────────────────────────────────────┐
 │    Llama 3.1 70B Model (40GB total)        │
-│           Distributed Sharding             │
+│     Hybrid Distributed Parallelization     │
 └────────────────────────────────────────────┘
                     │
-       ┌────────────┼────────────┐
-       │            │            │
-       ▼            ▼            ▼
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│  Machine 1   │ │  Machine 2   │ │  Machine 3   │
-│ Layers 0-26  │ │ Layers 27-53 │ │ Layers 54-79 │
-│   (~13GB)    │ │   (~13GB)    │ │   (~13GB)    │
-│ RPC Backend  │ │ RPC Backend  │ │ RPC Backend  │
-└──────────────┘ └──────────────┘ └──────────────┘
-       ▲            ▲            ▲
-       └────────────┼────────────┘
-                    │
-         ┌──────────┴──────────┐
-         │ llama-server        │
-         │ Coordinator         │
-         │ (Port 18080)        │
-         └─────────────────────┘
+       ┌────────────┼────────────┬────────────┐
+       │            │            │            │
+       ▼            ▼            ▼            ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│  CPU Node 1  │ │  CPU Node 2  │ │  GPU Node    │ │  GPU Node    │
+│  Layers 0-9  │ │ Layers 10-19 │ │ CPU Device   │ │ GPU Device   │
+│   (8GB RAM)  │ │   (8GB RAM)  │ │ Layers 20-29 │ │ Layers 30-39 │
+│ RPC Backend  │ │ RPC Backend  │ │ (10GB RAM)   │ │ (9.6GB VRAM) │
+│              │ │              │ │ RPC Backend  │ │ RPC Backend  │
+└──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+       ▲            ▲                    ▲                ▲
+       └────────────┴────────────────────┴────────────────┘
+                               │
+                    ┌──────────┴──────────┐
+                    │ llama-server        │
+                    │ Coordinator         │
+                    │ (Port 18080)        │
+                    └─────────────────────┘
+
+4 parallel workers across 3 physical machines!
 ```
 
 #### Manual Setup (Advanced)

@@ -565,7 +565,13 @@ GPU Node    → 2 workers:
 Total: 4 parallel workers  (+33% more!)
 ```
 
-**Auto-Detection:** Run this on each node to get the optimal command:
+**Fully Automatic** - SOLLOL detects and configures hybrid parallelization when starting RPC servers:
+- Auto-detects GPU(s) and calculates safe VRAM allocations (80% with 20% reserve)
+- Auto-detects system RAM and reserves 20% for OS stability
+- Generates optimal `--device` and `--mem` flags automatically
+- No manual configuration needed!
+
+**Manual inspection** (optional) - See what SOLLOL would configure:
 ```bash
 python scripts/setup_rpc_node.py
 ```

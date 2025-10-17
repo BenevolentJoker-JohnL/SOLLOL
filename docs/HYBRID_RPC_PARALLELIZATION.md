@@ -69,9 +69,20 @@ GPU Node GPU:    Layers 30-39 (10 layers, 9.6GB VRAM) ⚡
 
 All 4 workers compute simultaneously!
 
-## Auto-Detection Script
+## Automatic Configuration
 
-Run on each node to get the optimal command:
+**SOLLOL automatically configures hybrid GPU+CPU parallelization!**
+
+When you start SOLLOL with auto-discovery, it:
+1. Detects all local resources (GPUs, CPUs, RAM, VRAM)
+2. Calculates safe allocations (80% with 20% reserve)
+3. Starts RPC servers with optimal hybrid device configs
+
+**No manual configuration needed!**
+
+### Manual Configuration (Optional)
+
+If you want to see what SOLLOL would configure, run the detection script:
 
 ```bash
 python scripts/setup_rpc_node.py

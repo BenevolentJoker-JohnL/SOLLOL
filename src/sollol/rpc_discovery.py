@@ -8,19 +8,114 @@ Features:
 - Automatic Docker IP resolution (172.17.x.x → localhost)
 - Multi-threaded network scanning
 - Health checking
+- GPU detection and VRAM/RAM calculation
+- Hybrid device configuration (CPU + GPU per node)
 """
 
 import asyncio
 import logging
 import socket
+import subprocess
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import httpx
 
 from sollol.docker_ip_resolver import auto_resolve_ips, is_docker_ip
+from sollol.vram_monitor import VRAMMonitor
 
 logger = logging.getLogger(__name__)
+
+
+def detect_node_resources(host: str) -> Dict[str, Any]:
+    """
+    Detect GPU and RAM resources for a node via SSH or local detection.
+
+    Returns dict with:
+        - has_gpu: bool
+        - gpu_devices: List[str] (e.g., ["cuda:0", "cuda:1"])
+        - gpu_vram_mb: List[int] (VRAM per GPU)
+        - cpu_ram_mb: int (available system RAM)
+        - device_config: str (for rpc-server --device flag)
+        - memory_config: str (for rpc-server --mem flag)
+    """
+    monitor = VRAMMonitor()
+
+    # For localhost, detect directly
+    if host in ["127.0.0.1", "localhost"]:
+        vram_info = monitor.get_local_vram_info()
+
+        # Get system RAM
+        try:
+            with open("/proc/meminfo", "r") as f:
+                mem_total_kb = int(f.readline().split()[1])
+                cpu_ram_mb = mem_total_kb // 1024
+                # Reserve 20% for OS
+                available_ram_mb = int(cpu_ram_mb * 0.8)
+        except:
+            available_ram_mb = 8000  # Conservative default
+
+        if vram_info and vram_info.get("gpus"):
+            # Has GPU(s)
+            gpus = vram_info["gpus"]
+            gpu_devices = []
+            gpu_vram_mb = []
+
+            for gpu in gpus:
+                idx = gpu["index"]
+                vendor = gpu["vendor"].lower()
+
+                if vendor == "nvidia":
+                    gpu_devices.append(f"cuda:{idx}")
+                elif vendor == "amd":
+                    gpu_devices.append(f"rocm:{idx}")
+                else:
+                    continue
+
+                # Reserve 20% VRAM for safety
+                total_vram = gpu.get("total_mb", 0)
+                if total_vram > 0:
+                    safe_vram = int(total_vram * 0.8)
+                    gpu_vram_mb.append(safe_vram)
+                else:
+                    gpu_vram_mb.append(8000)  # Conservative default
+
+            # Build hybrid device config: cpu + gpu(s)
+            devices = ["cpu"] + gpu_devices
+            memory = [available_ram_mb] + gpu_vram_mb
+
+            return {
+                "has_gpu": True,
+                "gpu_devices": gpu_devices,
+                "gpu_vram_mb": gpu_vram_mb,
+                "cpu_ram_mb": available_ram_mb,
+                "device_config": ",".join(devices),
+                "memory_config": ",".join(str(m) for m in memory),
+                "total_parallel_workers": len(devices),  # CPU + each GPU = parallel workers!
+            }
+        else:
+            # CPU only
+            return {
+                "has_gpu": False,
+                "gpu_devices": [],
+                "gpu_vram_mb": [],
+                "cpu_ram_mb": available_ram_mb,
+                "device_config": "cpu",
+                "memory_config": str(available_ram_mb),
+                "total_parallel_workers": 1,
+            }
+
+    # For remote nodes, would need SSH or agent-based detection
+    # For now, return conservative CPU-only config
+    return {
+        "has_gpu": False,
+        "gpu_devices": [],
+        "gpu_vram_mb": [],
+        "cpu_ram_mb": 8000,
+        "device_config": "cpu",
+        "memory_config": "8000",
+        "total_parallel_workers": 1,
+    }
 
 
 def check_rpc_server(host: str, port: int = 50052, timeout: float = 1.0) -> bool:

@@ -629,6 +629,33 @@ response = await coordinator.generate(
 
 **Research Track (WIP):** SOLLOL includes experimental code (`src/sollol/distributed_pipeline.py`) exploring true distributed model loading where NO single node needs the full model. This uses Ray-based pipeline parallelism inspired by prima.cpp's architecture. See module documentation for technical details and path forward.
 
+#### 🔬 Future Work: Fully Distributed Model Sharding (Funding Contingent)
+
+While SOLLOL currently achieves **distributed inference scheduling** and **adaptive model routing**, true **distributed model storage** (where no single node needs the full model in RAM) requires significant additional engineering:
+
+**What's Needed:**
+- ✅ GGUF layer analysis (completed)
+- ✅ Ray-based architecture design (completed)
+- ⚠️ Quantization-aware GGUF writing (complex, blocked)
+- ⚠️ Tensor streaming via Ray object store (unimplemented)
+- ⚠️ Multi-node validation with 70B+ models (requires cluster access)
+
+**Proposed Extension:**
+- **Ollama ⇄ GGUF conversion** for tensor-level distribution across nodes
+- **Sharded model loading** with Ray actors (no single-node memory bottleneck)
+- **Pipeline parallelism** with activation passing through Ray object store
+- **Production validation** on real multi-node clusters with frontier models (70B-405B)
+
+> 💡 **This feature is gated behind funding or partnership opportunities.**
+>
+> It addresses a genuine limitation in local LLM infrastructure: running frontier models on consumer hardware clusters without requiring any single machine to have enterprise-grade RAM (40GB+).
+>
+> **Why this matters:** Enables sovereign AI deployment at scale without cloud dependencies or specialized hardware.
+
+**Status:** Research track with working foundation (570+ lines), documented blockers, and clear implementation path. See `src/sollol/distributed_pipeline.py` for technical details.
+
+**Interested in funding or collaboration?** Open an issue or contact via GitHub.
+
 ---
 
 ### 5. Batch Processing API

@@ -525,20 +525,24 @@ export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:$LD_LIBRARY_PATH
 
 # 3. Clone and build llama.cpp with CUDA
 cd /tmp
-git clone https://github.com/ggerganov/llama.cpp.git
-cd llama.cpp
-cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native
-cmake --build build --config Release -j $(nproc)
+git clone https://github.com/ggerganov/llama.cpp.git llama.cpp-gpu
+cd llama.cpp-gpu
 
-# 4. Install binaries
+# Build with static libs and multiple GPU architectures
+cmake -B build \
+  -DGGML_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES="75;80;86;89;90" \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DLLAMA_CURL=OFF
+
+cmake --build build --config Release --target llama-server -j $(nproc)
+
+# 4. Install binary
 mkdir -p ~/.local/bin
 cp build/bin/llama-server ~/.local/bin/
-cp build/bin/rpc-server ~/.local/bin/
-cp build/bin/llama-cli ~/.local/bin/
 
-# 5. Verify installation
-llama-server --version
-rpc-server --version
+# 5. Verify installation (on GPU node with NVIDIA drivers)
+llama-server --version  # On CPU nodes, add CUDA stubs to LD_LIBRARY_PATH
 ```
 
 **Why GPU support?**

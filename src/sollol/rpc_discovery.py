@@ -105,8 +105,27 @@ def detect_node_resources(host: str) -> Dict[str, Any]:
                 "total_parallel_workers": 1,
             }
 
-    # For remote nodes, would need SSH or agent-based detection
-    # For now, return conservative CPU-only config
+    # For remote nodes, try Redis first
+    try:
+        import redis
+        import json as json_module
+        import os
+
+        redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
+        r = redis.from_url(redis_url, decode_responses=True, socket_connect_timeout=1)
+
+        # Try to get node config from Redis
+        key = f"sollol:rpc:node:{host}:50052"
+        config_json = r.get(key)
+
+        if config_json:
+            logger.info(f"✅ Found GPU config for {host} in Redis")
+            return json_module.loads(config_json)
+    except Exception as e:
+        logger.debug(f"Could not fetch config from Redis for {host}: {e}")
+
+    # Fallback: conservative CPU-only config
+    logger.debug(f"Using CPU-only fallback config for {host}")
     return {
         "has_gpu": False,
         "gpu_devices": [],

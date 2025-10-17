@@ -177,6 +177,7 @@ class LlamaCppCoordinator:
             "0",  # CPU-only for RPC distribution
             "--ctx-size",
             str(self.ctx_size),
+            "--no-warmup",  # Skip slow warmup - inference will be fast enough
         ]
 
         logger.info(f"Starting llama-server coordinator: {' '.join(cmd)}")

@@ -94,7 +94,32 @@ def main():
         }, f, indent=2)
 
     print(f"📄 Config saved to: {output_file}")
-    print()
+
+    # Publish to Redis for remote discovery
+    try:
+        import redis
+        import socket
+
+        redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
+        r = redis.from_url(redis_url, decode_responses=True)
+
+        # Get this node's IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        node_ip = s.getsockname()[0]
+        s.close()
+
+        # Publish node config to Redis with 1 hour expiration
+        key = f"sollol:rpc:node:{node_ip}:50052"
+        r.set(key, json.dumps(resources), ex=3600)
+
+        print(f"📡 Published config to Redis: {redis_url}")
+        print(f"   Key: {key}")
+        print()
+    except Exception as e:
+        print(f"⚠️  Could not publish to Redis: {e}")
+        print(f"   (This is optional - coordinator can still use manual RPC backend list)")
+        print()
 
 
 if __name__ == "__main__":

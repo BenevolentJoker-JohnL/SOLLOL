@@ -497,6 +497,60 @@ python3 -m sollol.setup_llama_cpp --build  # Build with RPC support
 python3 -m sollol.setup_llama_cpp --start  # Start RPC server
 ```
 
+#### Building llama.cpp with GPU Support 🚀
+
+**For GPU-accelerated model sharding**, rebuild llama.cpp with CUDA support. The GPU-enabled binaries work on ALL nodes (CPU-only nodes will just use CPU).
+
+**Quick install script (automated CUDA + build):**
+
+```bash
+# Download and run installation script
+curl -fsSL https://github.com/BenevolentJoker-JohnL/SOLLOL/raw/main/scripts/install_cuda_llama.sh | bash
+
+# Or manual installation (see below)
+```
+
+**Manual Installation Steps:**
+
+```bash
+# 1. Install CUDA toolkit (Ubuntu/Debian)
+wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb
+sudo dpkg -i cuda-keyring_1.1-1_all.deb
+sudo apt-get update
+sudo apt-get install -y cuda-toolkit-12-6
+
+# 2. Set CUDA environment
+export PATH=/usr/local/cuda-12.6/bin:$PATH
+export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:$LD_LIBRARY_PATH
+
+# 3. Clone and build llama.cpp with CUDA
+cd /tmp
+git clone https://github.com/ggerganov/llama.cpp.git
+cd llama.cpp
+cmake -B build -DGGML_CUDA=ON -DCMAKE_CUDA_ARCHITECTURES=native
+cmake --build build --config Release -j $(nproc)
+
+# 4. Install binaries
+mkdir -p ~/.local/bin
+cp build/bin/llama-server ~/.local/bin/
+cp build/bin/rpc-server ~/.local/bin/
+cp build/bin/llama-cli ~/.local/bin/
+
+# 5. Verify installation
+llama-server --version
+rpc-server --version
+```
+
+**Why GPU support?**
+- ✅ GPU nodes use CUDA for faster inference
+- ✅ CPU-only nodes automatically fall back to CPU
+- ✅ Single binary works everywhere
+- ✅ Hybrid parallelization (CPU + GPU workers per node)
+
+**For other GPU vendors:**
+- **AMD GPUs**: Use `-DGGML_HIPBLAS=ON` instead of `-DGGML_CUDA=ON`
+- **Intel GPUs**: Use `-DGGML_VULKAN=ON` for Intel/AMD/NVIDIA compatibility
+
 **Docker IP Resolution:**
 
 SOLLOL automatically resolves Docker container IPs to accessible host IPs:

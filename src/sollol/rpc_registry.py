@@ -130,7 +130,7 @@ class RPCBackendRegistry:
             enable_heartbeat = os.getenv("SOLLOL_RPC_BACKEND_HEARTBEAT", "true").lower() in ("true", "1", "yes")
 
         self.enable_heartbeat = enable_heartbeat
-        self._heartbeat_interval = int(os.getenv("SOLLOL_RPC_BACKEND_HEARTBEAT_INTERVAL", "30"))  # seconds
+        self._heartbeat_interval = int(os.getenv("SOLLOL_RPC_BACKEND_HEARTBEAT_INTERVAL", "600"))  # seconds (10 minutes)
         self._heartbeat_thread: Optional[threading.Thread] = None
         self._heartbeat_running = False
 

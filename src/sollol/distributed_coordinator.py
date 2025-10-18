@@ -90,7 +90,7 @@ class RedisCoordinator:
     def __init__(
         self,
         redis_url: str = "redis://localhost:6379/0",
-        heartbeat_interval: float = 5.0,
+        heartbeat_interval: float = 600.0,  # 10 minutes
         state_ttl: int = 30
     ):
         """

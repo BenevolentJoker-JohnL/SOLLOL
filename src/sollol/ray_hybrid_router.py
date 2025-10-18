@@ -334,8 +334,18 @@ class RayHybridRouter:
         self.enable_distributed = enable_distributed
         self.auto_fallback = auto_fallback
         self.model_vram_threshold_mb = model_vram_threshold_mb
-        self.coordinator_host = coordinator_host
-        self.coordinator_base_port = coordinator_base_port
+
+        # Support remote coordinator via environment variables
+        import os
+        self.coordinator_host = os.getenv(
+            "SOLLOL_COORDINATOR_HOST",
+            coordinator_host or "127.0.0.1"
+        )
+        self.coordinator_base_port = int(os.getenv(
+            "SOLLOL_COORDINATOR_PORT",
+            str(coordinator_base_port or 18080)
+        ))
+
         self.backends_per_pool = backends_per_pool
         self.enable_remote_coordinator = enable_remote_coordinator
 
@@ -413,11 +423,21 @@ class RayHybridRouter:
                 self.pools: List[ray.actor.ActorHandle] = []
                 self.current_model: Optional[str] = None
 
-                logger.info(
-                    f"✅ RayHybridRouter initialized: "
-                    f"Direct routing to llama.cpp coordinator at {coordinator_host}:{coordinator_base_port}, "
-                    f"{len(self.rpc_backends)} RPC backends registered"
-                )
+                # Check if using remote coordinator
+                is_remote = self.coordinator_host not in ("127.0.0.1", "localhost")
+                coordinator_info = f"{self.coordinator_host}:{self.coordinator_base_port}"
+                if is_remote:
+                    logger.info(
+                        f"✅ RayHybridRouter initialized: "
+                        f"Remote coordinator at {coordinator_info} 🌐, "
+                        f"{len(self.rpc_backends)} RPC backends registered"
+                    )
+                else:
+                    logger.info(
+                        f"✅ RayHybridRouter initialized: "
+                        f"Local coordinator at {coordinator_info}, "
+                        f"{len(self.rpc_backends)} RPC backends registered"
+                    )
 
                 # Check if coordinator is available (non-blocking health check)
                 try:

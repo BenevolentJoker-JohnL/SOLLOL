@@ -304,16 +304,104 @@ File: src/sollol/ray_hybrid_router.py
 - Deprecated _route_to_ray_pool with warning
 ```
 
+## Known Issue: Remote Coordinator Support
+
+**Status:** 🚧 Needs Implementation
+**Date Identified:** October 18, 2025
+**Priority:** Medium
+
+### Problem
+
+Current architecture requires coordinator to run on **same machine** as SOLLOL application. This is suboptimal when the application machine has limited RAM.
+
+**Current (Suboptimal):**
+```
+Node 1 (.154) - This Machine (16GB RAM)
+├── SOLLOL/SynapticLlamas ← Memory pressure!
+├── Firefox + apps
+└── Coordinator (port 18080)
+
+Node 2 (.45): RPC server (2.38 GB)
+Node 3 (.48): RPC server (4.55 GB)
+```
+
+**Desired (Optimal):**
+```
+Node 1 (.154) - App Machine
+└── SOLLOL only → HTTP to remote coordinator
+
+Node 2 (.45) - Coordinator Machine
+├── Coordinator (port 18080)
+└── RPC server (2.38 GB)
+
+Node 3 (.48) - Worker
+└── RPC server (4.55 GB)
+```
+
+### Workaround (Current)
+
+Run coordinator locally with remote RPC backends:
+```bash
+# On .154 (app machine)
+llama-server --host 0.0.0.0 --port 18080 \
+  --rpc 10.9.66.45:50052,10.9.66.48:50052
+```
+
+**Tested:** ✅ Works (October 18, 2025)
+**Distribution achieved:**
+- .154: 88 MB (minimal)
+- .45: 2.38 GB
+- .48: 4.55 GB
+
+### Proposed Fix
+
+Add environment variable support for remote coordinator:
+
+```python
+# In ray_hybrid_router.py __init__
+import os
+self.coordinator_host = os.getenv(
+    "SOLLOL_COORDINATOR_HOST",
+    coordinator_host or "127.0.0.1"
+)
+self.coordinator_base_port = int(os.getenv(
+    "SOLLOL_COORDINATOR_PORT",
+    str(coordinator_base_port or 18080)
+))
+```
+
+Usage:
+```bash
+# Start coordinator on Node 2 (.45)
+ssh 10.9.66.45
+llama-server --host 0.0.0.0 --port 18080 --rpc 10.9.66.45:50052,10.9.66.48:50052
+
+# Run SOLLOL on Node 1 (.154) pointing to remote coordinator
+export SOLLOL_COORDINATOR_HOST=10.9.66.45
+export SOLLOL_COORDINATOR_PORT=18080
+cd ~/SynapticLlamas
+python main.py
+```
+
+### Implementation Checklist
+
+- [ ] Add `SOLLOL_COORDINATOR_HOST` env var support
+- [ ] Add `SOLLOL_COORDINATOR_PORT` env var support
+- [ ] Update health check logging for remote coordinator
+- [ ] Add documentation for remote coordinator setup
+- [ ] Test with 3-node distributed setup
+
 ## Future Improvements
 
-1. **Load Balancing:** Multiple coordinators for high throughput
-2. **Failover:** Automatic retry to backup coordinator
-3. **Health Checks:** Monitor coordinator availability
+1. **Remote Coordinator:** Environment variable support for coordinator on different machine
+2. **Load Balancing:** Multiple coordinators for high throughput
+3. **Failover:** Automatic retry to backup coordinator
 4. **Streaming:** Add streaming support for RPC mode
 5. **Metrics:** Track coordinator response times and errors
 
 ---
 
 **Status:** ✅ Fixed and tested
-**Verified:** October 17, 2025
+**Verified:** October 17-18, 2025
 **Impact:** Critical - Enables distributed inference without OOM errors
+**3-Node Test:** ✅ Proven working with codellama:13b across .154, .45, .48

@@ -1846,35 +1846,33 @@ ping <node-ip>
 
 ## 📚 Documentation
 
-- **[Architecture Guide](ARCHITECTURE.md)** - Deep dive into system design
-- **[Backend Architecture](BACKENDS.md)** - Backend extensibility and adding new LLM backends
-- **[GPU Detection Setup Guide](docs/GPU_DETECTION_SETUP.md)** - Complete guide to GPU detection and reporting (NEW)
-  - Redis network configuration
-  - GPU node registration
-  - Automatic capability detection
-  - Troubleshooting and security
-- **[Batch Processing API](BATCH_API.md)** - Complete guide to batch job management (NEW in v0.7.0)
-  - API endpoints and examples
-  - Job lifecycle and progress tracking
-  - Best practices and error handling
-- **[llama.cpp Distributed Inference Guide](docs/llama_cpp_guide.md)** - Complete guide to model sharding
-  - Setup and configuration
-  - Performance optimization
-  - Troubleshooting common issues
-  - Advanced topics (custom layer distribution, monitoring, etc.)
-- **[Integration Examples](examples/integration/)** - Practical integration patterns
-  - [Synchronous Agent Integration](examples/integration/sync_agents.py)
-  - [Priority Configuration](examples/integration/priority_mapping.py)
-  - [Load Balancer Wrapper](examples/integration/load_balancer_wrapper.py)
-- **[llama.cpp Distributed Examples](examples/llama_cpp_distributed.py)** - Model sharding examples
-  - Auto-setup and manual configuration
-  - Multi-turn conversations with monitoring
-  - Batch processing with multiple models
-  - Error handling and recovery patterns
-- **[Deployment Guide](docs/deployment.md)** - Production deployment patterns
-- **[API Reference](docs/api.md)** - Complete API documentation
-- **[Performance Tuning](docs/performance.md)** - Optimization guide
-- **[SynapticLlamas Learnings](SYNAPTICLLAMAS_LEARNINGS.md)** - Features from production use
+### Getting Started
+
+- **[Installation Guide](INSTALLATION.md)** - Complete setup for bare-metal deployment
+- **[Quick Start](QUICK_START.md)** - Get up and running in 3 commands
+- **[Configuration](CONFIGURATION.md)** - All configuration options
+- **[Architecture](ARCHITECTURE.md)** - System architecture overview
+- **[Contributing](CONTRIBUTING.md)** - Contribution guidelines
+- **[Security](SECURITY.md)** - Security policies
+
+### Complete Documentation
+
+See **[docs/](docs/)** for detailed documentation organized by category:
+
+- **[Setup Guides](docs/setup/)** - Ray, Redis, GPU monitoring, Grafana
+- **[Features](docs/features/)** - Backends, batch processing, routing, dashboard
+- **[Architecture](docs/architecture/)** - Remote coordinator, multi-app coordination
+- **[Integration](docs/integration/)** - Code examples and walkthroughs
+- **[Benchmarks](docs/benchmarks/)** - Performance testing and results
+- **[Troubleshooting](docs/troubleshooting/)** - Known issues and fixes
+
+### Key Guides
+
+- **[Remote Coordinator Execution](docs/architecture/remote-coordinator.md)** - Intelligent coordinator placement
+- **[Ray Cluster Setup](docs/setup/ray-cluster.md)** - Configure distributed execution
+- **[GPU Monitoring](docs/setup/gpu-monitoring-setup.md)** - GPU metrics and monitoring
+- **[Batch Processing API](docs/features/batch-processing.md)** - Batch job management
+- **[Routing Strategies](docs/features/routing.md)** - Intelligent routing algorithms
 
 ---
 

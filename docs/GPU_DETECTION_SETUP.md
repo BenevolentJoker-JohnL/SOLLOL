@@ -46,6 +46,86 @@ SOLLOL's GPU detection system enables intelligent routing by detecting GPU capab
 - Network connectivity between nodes (ports 6379, 50052)
 - NVIDIA drivers on GPU nodes (for CUDA detection)
 
+### IMPORTANT: CUDA-Specific RPC Backend Binaries
+
+**You MAY need to compile CUDA-specific `rpc-server` binaries for GPU nodes.**
+
+The `rpc-server` binary must be built with CUDA support to utilize GPUs. There are two deployment strategies:
+
+#### Strategy 1: CUDA Binary on GPU Nodes (Recommended)
+
+Build `rpc-server` with CUDA enabled and deploy ONLY to GPU nodes:
+
+```bash
+# On build machine (with CUDA toolkit installed)
+cd ~/llama.cpp
+cmake -B build \
+  -DGGML_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES="75;80;86;89;90" \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DLLAMA_CURL=OFF \
+  -DLLAMA_BUILD_TOOLS=ON \
+  -DGGML_RPC=ON
+
+cmake --build build --config Release --target rpc-server -j $(nproc)
+
+# Deploy to GPU nodes
+scp build/bin/rpc-server 10.9.66.90:~/.local/bin/
+```
+
+**Requirements**:
+- CUDA Toolkit 12.6+ installed on build machine
+- NVIDIA drivers (version 535+) on GPU nodes at runtime
+- Binary size: ~689MB (includes CUDA libraries)
+- Will NOT run on CPU-only coordinator (missing `libcuda.so.1`)
+
+#### Strategy 2: Separate CPU and CUDA Binaries
+
+Build separate binaries for CPU-only coordinator and GPU nodes:
+
+```bash
+# CPU-only binary for coordinator (lightweight ~200MB)
+cmake -B build-cpu \
+  -DGGML_CUDA=OFF \
+  -DLLAMA_BUILD_TOOLS=ON \
+  -DGGML_RPC=ON
+
+cmake --build build-cpu --target rpc-server -j $(nproc)
+
+# CUDA binary for GPU nodes (heavy ~689MB)
+cmake -B build-cuda \
+  -DGGML_CUDA=ON \
+  -DCMAKE_CUDA_ARCHITECTURES="75;80;86;89;90" \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DGGML_RPC=ON
+
+cmake --build build-cuda --target rpc-server -j $(nproc)
+```
+
+**When to use**:
+- Coordinator needs RPC backend locally (e.g., for testing)
+- Avoiding CUDA dependency errors on CPU-only machines
+
+#### Troubleshooting CUDA Binary Issues
+
+**Error**: `libcuda.so.1: cannot open shared object file`
+
+```bash
+# This means CUDA binary is trying to run without NVIDIA drivers
+# Solution: Use CPU binary on coordinator, CUDA binary on GPU nodes only
+```
+
+**Error**: `Unsupported GPU architecture`
+
+```bash
+# Your GPU compute capability isn't in CUDA_ARCHITECTURES list
+# Solution: Check your GPU's compute capability and add to build:
+nvidia-smi --query-gpu=compute_cap --format=csv,noheader
+# Add to CMAKE_CUDA_ARCHITECTURES (e.g., "75" for Turing, "89" for Ada)
+```
+
+**Automated Build Script**: Use `scripts/install_cuda_llama.sh` for guided setup.
+
 ---
 
 ## Part 1: Configure Redis for Network Access

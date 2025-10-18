@@ -316,25 +316,25 @@ Current architecture requires coordinator to run on **same machine** as SOLLOL a
 
 **Current (Suboptimal):**
 ```
-Node 1 (.154) - This Machine (16GB RAM)
+Node 1 - This Machine (16GB RAM)
 ├── SOLLOL/SynapticLlamas ← Memory pressure!
 ├── Firefox + apps
 └── Coordinator (port 18080)
 
-Node 2 (.45): RPC server (2.38 GB)
-Node 3 (.48): RPC server (4.55 GB)
+Node 2: RPC server (2.38 GB)
+Node 3: RPC server (4.55 GB)
 ```
 
 **Desired (Optimal):**
 ```
-Node 1 (.154) - App Machine
+Node 1 - App Machine
 └── SOLLOL only → HTTP to remote coordinator
 
-Node 2 (.45) - Coordinator Machine
+Node 2 - Coordinator Machine
 ├── Coordinator (port 18080)
 └── RPC server (2.38 GB)
 
-Node 3 (.48) - Worker
+Node 3 - Worker
 └── RPC server (4.55 GB)
 ```
 
@@ -342,16 +342,16 @@ Node 3 (.48) - Worker
 
 Run coordinator locally with remote RPC backends:
 ```bash
-# On .154 (app machine)
+# On app machine
 llama-server --host 0.0.0.0 --port 18080 \
-  --rpc 10.9.66.45:50052,10.9.66.48:50052
+  --rpc 192.168.1.10:50052,192.168.1.11:50052
 ```
 
 **Tested:** ✅ Works (October 18, 2025)
 **Distribution achieved:**
-- .154: 88 MB (minimal)
-- .45: 2.38 GB
-- .48: 4.55 GB
+- Node 1: 88 MB (minimal)
+- Node 2: 2.38 GB
+- Node 3: 4.55 GB
 
 ### Proposed Fix
 
@@ -372,12 +372,12 @@ self.coordinator_base_port = int(os.getenv(
 
 Usage:
 ```bash
-# Start coordinator on Node 2 (.45)
-ssh 10.9.66.45
-llama-server --host 0.0.0.0 --port 18080 --rpc 10.9.66.45:50052,10.9.66.48:50052
+# Start coordinator on Node 2
+ssh node2
+llama-server --host 0.0.0.0 --port 18080 --rpc 192.168.1.10:50052,192.168.1.11:50052
 
-# Run SOLLOL on Node 1 (.154) pointing to remote coordinator
-export SOLLOL_COORDINATOR_HOST=10.9.66.45
+# Run SOLLOL on Node 1 pointing to remote coordinator
+export SOLLOL_COORDINATOR_HOST=192.168.1.10
 export SOLLOL_COORDINATOR_PORT=18080
 cd ~/SynapticLlamas
 python main.py
@@ -389,7 +389,7 @@ python main.py
 - [x] Add `SOLLOL_COORDINATOR_PORT` env var support ✅ (October 18, 2025)
 - [x] Update health check logging for remote coordinator ✅ (October 18, 2025)
 - [x] Add documentation for remote coordinator setup ✅ (October 18, 2025)
-- [x] Test with 3-node distributed setup ✅ (Proven working with .154, .45, .48)
+- [x] Test with 3-node distributed setup ✅ (Proven working)
 
 ## Future Improvements
 
@@ -404,4 +404,4 @@ python main.py
 **Status:** ✅ Fixed and tested
 **Verified:** October 17-18, 2025
 **Impact:** Critical - Enables distributed inference without OOM errors
-**3-Node Test:** ✅ Proven working with codellama:13b across .154, .45, .48
+**3-Node Test:** ✅ Proven working with codellama:13b across 3 CPU nodes

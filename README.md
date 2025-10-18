@@ -34,7 +34,7 @@ You have multiple machines with GPUs running Ollama, but:
 
 SOLLOL provides:
 - ✅ **Intelligent routing** that learns which nodes work best for each task
-- ✅ **Model sharding** to run 70B+ models across multiple machines
+- ✅ **Distributed inference** via llama.cpp RPC for large models
 - ✅ **Parallel agent execution** for multi-agent frameworks
 - ✅ **Auto-discovery** of all nodes and capabilities
 - ✅ **Built-in observability** with real-time metrics
@@ -71,7 +71,7 @@ Hello! How can I help you today?
 **Next steps:**
 - Visit `http://localhost:8080` to see the dashboard
 - Check [Full Quick Start](#-full-quick-start) for production setup
-- Read [Examples](#-integration-examples) for multi-agent, batch, and sharding patterns
+- Read [Examples](#-integration-examples) for multi-agent, batch, and distributed inference patterns
 
 ---
 
@@ -144,7 +144,7 @@ sollol install-gpu-reporter --redis-host 192.168.1.10
 
 ### 1. **Two Distribution Modes in One System**
 
-SOLLOL combines both task distribution and model sharding:
+SOLLOL combines both task distribution and distributed inference:
 
 #### 📊 Task Distribution (Horizontal Scaling)
 Distribute **multiple requests** across your cluster in parallel:
@@ -158,22 +158,23 @@ responses = await asyncio.gather(*[
 # Parallel execution across available nodes
 ```
 
-#### 🧩 Model Sharding (Vertical Scaling)
-Run **single large models** that don't fit on one machine:
+#### 🧩 Distributed Inference (Vertical Scaling)
+Distribute **inference computation** for large models via llama.cpp RPC:
 ```python
-# Run larger models across multiple nodes
-# Note: Verified with 13B across 2-3 nodes; larger models not extensively tested
+# Distribute inference across multiple nodes via llama.cpp RPC
+# Note: Coordinator node must have RAM for full model; RPC distributes computation
+# Verified with 13B across 2-3 nodes; larger models not extensively tested
 router = HybridRouter(
     enable_distributed=True,
     num_rpc_backends=4
 )
 response = await router.route_request(
-    model="llama3:70b",  # Sharded automatically
+    model="llama3:70b",  # Inference distributed across RPC backends
     messages=[...]
 )
 ```
 
-**Use them together!** Small models use task distribution, large models use sharding.
+**Use them together!** Small models use task distribution, large models use distributed inference.
 
 ---
 
@@ -419,21 +420,23 @@ for agent in agents:
 
 ---
 
-### 4. Model Sharding with llama.cpp (Large Models)
+### 4. Distributed Inference with llama.cpp RPC (Large Models)
 
-**Run models larger than your biggest GPU** by distributing layers across multiple machines.
+**Distribute inference computation** for large models across multiple machines using llama.cpp RPC backends.
 
-#### When to Use Model Sharding
+#### When to Use Distributed Inference
 
-Use model sharding when:
+Use distributed inference when:
 - ✅ Model doesn't fit on your largest GPU (e.g., 70B models on 16GB GPUs)
 - ✅ You have multiple machines with network connectivity
 - ✅ You can tolerate slower inference for capability
+- ✅ Coordinator node has sufficient RAM for the full model
 
-Don't use sharding when:
+Don't use distributed inference when:
 - ❌ Model fits on a single GPU (use task distribution instead)
 - ❌ You need maximum inference speed
 - ❌ Network latency is high (>10ms between machines)
+- ❌ No single node has RAM for the full model (see known limitations)
 
 #### Quick Start: Auto-Setup (Easiest)
 
@@ -443,7 +446,7 @@ from sollol.sync_wrapper import HybridRouter, OllamaPool
 # SOLLOL handles all setup automatically
 router = HybridRouter(
     ollama_pool=OllamaPool.auto_configure(),
-    enable_distributed=True,  # Enable model sharding
+    enable_distributed=True,  # Enable distributed inference via llama.cpp RPC
     auto_setup_rpc=True,      # Auto-configure RPC backends
     num_rpc_backends=3        # Distribute across 3 machines
 )
@@ -499,7 +502,7 @@ python3 -m sollol.setup_llama_cpp --start  # Start RPC server
 
 #### Building llama.cpp with GPU Support 🚀
 
-**For GPU-accelerated model sharding**, rebuild llama.cpp with CUDA support. The GPU-enabled binaries work on ALL nodes (CPU-only nodes will just use CPU).
+**For GPU-accelerated distributed inference**, rebuild llama.cpp with CUDA support. The GPU-enabled binaries work on ALL nodes (CPU-only nodes will just use CPU).
 
 **Quick install script (automated CUDA + build):**
 
@@ -948,16 +951,18 @@ agents = await asyncio.gather(*[
 
 **Problem**: Your model doesn't fit in available VRAM.
 
-**Solution**: SOLLOL can shard models across multiple machines via llama.cpp.
+**Solution**: SOLLOL distributes inference computation across multiple machines via llama.cpp RPC.
 
 ```python
-# Distribute model across multiple nodes
-# Note: Verified with 13B models; larger models not extensively tested
+# Distribute inference across multiple RPC backends
+# Note: Coordinator node must have RAM for full model
+# Verified with 13B models; larger models not extensively tested
 router = HybridRouter(
     enable_distributed=True,
     num_rpc_backends=4
 )
 # Trade-off: Slower startup/inference but enables running larger models
+# Distributes computation, not model storage (see known limitations)
 ```
 
 ### 3. Mixed Workloads
@@ -1097,16 +1102,18 @@ python benchmarks/run_benchmarks.py --sollol-url http://localhost:8000 --duratio
 
 **Reality:** Requires multi-node cluster validation. See [BENCHMARKING.md](BENCHMARKING.md) for test procedure and [CODE_WALKTHROUGH.md](CODE_WALKTHROUGH.md) for implementation details.
 
-### Model Sharding Performance
+### Distributed Inference Performance
 
-| Model | Single 24GB GPU | SOLLOL (3×16GB) | Status |
-|-------|----------------|-----------------|-----------|
+| Model | Single 24GB GPU | SOLLOL (3×16GB via RPC) | Status |
+|-------|----------------|-------------------------|-----------|
 | **13B** | ✅ ~20 tok/s | ✅ ~5 tok/s | ✅ Verified working |
 | **70B** | ❌ OOM | ⚠️ Estimated ~3-5 tok/s | ⚠️ Not extensively tested |
 
-**When to use sharding**: When model doesn't fit on your largest GPU. You trade speed for capability.
+**When to use distributed inference**: When model doesn't fit on your largest GPU. You trade speed for capability.
 
 **Performance trade-offs**: Distributed inference is 2-5 minutes slower to start and ~4x slower for inference compared to local. Use only when necessary.
+
+**Note**: This distributes *computation* (inference), not model storage. Coordinator node must still have sufficient RAM for the full model.
 
 ### Overhead
 
@@ -1512,6 +1519,10 @@ rag_results = flockparser.query_remote(
 **Related Projects:**
 - **[SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)** - Multi-Agent Orchestration
 - **[FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser)** - Document RAG Intelligence
+
+**📹 Want to see some of the original core logic?**
+
+FlockParser was developed *before* SOLLOL and formed the early load balancing logic. You can find the legacy repository with a condensed 71-second demo here: **[FlockParser-legacy](https://github.com/BenevolentJoker-JohnL/FlockParser-legacy)**
 
 ---
 
@@ -2103,7 +2114,7 @@ priority = Priority.HIGH  # 7
 | Routing | Round-robin/random | Context-aware, adapts from history |
 | Resource awareness | None | GPU/CPU/memory-aware |
 | Failover | Manual config | Automatic detection & recovery |
-| Model sharding | ❌ | ✅ llama.cpp integration |
+| Distributed Inference | ❌ | ✅ llama.cpp RPC integration |
 | Task prioritization | ❌ | ✅ Priority queue |
 | Observability | Basic | Rich metrics + dashboard |
 | Setup | Complex config | Auto-discover |
@@ -2115,7 +2126,7 @@ priority = Priority.HIGH  # 7
 | **Complexity** | High - requires cluster setup | Low - pip install |
 | **AI-specific** | Generic container orchestration | Purpose-built for LLMs |
 | **Intelligence** | None | Task-aware routing |
-| **Model sharding** | Manual | Automatic |
+| **Distributed Inference** | Manual | Automatic via llama.cpp RPC |
 | **Best for** | Large-scale production | AI-focused teams |
 
 **Use both!** Deploy SOLLOL on Kubernetes for ultimate scalability.
@@ -2160,14 +2171,14 @@ Built with: Ray, Dask, FastAPI, llama.cpp, Ollama
 
 ## 🎯 What Makes SOLLOL Different?
 
-1. **Combines task distribution AND model sharding** in one system
+1. **Combines task distribution AND distributed inference** in one system
 2. **Context-aware routing** that adapts based on performance metrics
 3. **Auto-discovery** of nodes with minimal configuration
 4. **Built-in failover** and priority queuing
 5. **Purpose-built for Ollama clusters** (understands GPU requirements, task types)
 
 **Limitations to know**:
-- Model sharding verified with 13B models; larger models not extensively tested
+- Distributed inference verified with 13B models; larger models not extensively tested
 - Performance benefits depend on network latency and workload patterns
 - Not a drop-in replacement for single-node setups in all scenarios
 

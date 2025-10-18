@@ -11,7 +11,7 @@
 
 **Open-source orchestration layer that combines intelligent task routing with distributed model inference for local LLM clusters.**
 
-[Quick Start](#quick-start) • [Features](#why-sollol) • [Architecture](#architecture) • [Documentation](#documentation) • [Examples](#examples)
+[Quick Start](#-quick-start) • [Features](#-why-sollol) • [Architecture](#-architecture) • [Documentation](#-documentation) • [Examples](#-integration-examples)
 
 </div>
 
@@ -70,8 +70,8 @@ Hello! How can I help you today?
 
 **Next steps:**
 - Visit `http://localhost:8080` to see the dashboard
-- Check [Full Quick Start](#full-quick-start) for production setup
-- Read [Examples](#examples) for multi-agent, batch, and sharding patterns
+- Check [Full Quick Start](#-full-quick-start) for production setup
+- Read [Examples](#-integration-examples) for multi-agent, batch, and sharding patterns
 
 ---
 

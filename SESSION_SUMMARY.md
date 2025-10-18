@@ -249,7 +249,7 @@ sudo exportfs -ra
 
 # SynapticLlamas machine:
 sudo apt install nfs-common
-sudo mount 10.9.66.48:/home/joker/FlockParser /mnt/flockparser
+sudo mount 192.168.1.21:/home/joker/FlockParser /mnt/flockparser
 
 # Update adapter (ONE LINE):
 adapter = FlockParserAdapter(flockparser_path="/mnt/flockparser")

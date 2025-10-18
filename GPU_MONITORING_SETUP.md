@@ -9,7 +9,7 @@ SOLLOL can use **accurate GPU stats from your Ollama nodes** instead of making a
 ```
 ┌─────────────────┐          ┌──────────────┐          ┌─────────────────┐
 │ Ollama Node     │          │              │          │ SOLLOL Client   │
-│ (10.9.66.90)    │──publish─▶│    Redis     │◀─subscribe─│ (FlockParser)   │
+│ (192.168.1.20)    │──publish─▶│    Redis     │◀─subscribe─│ (FlockParser)   │
 │                 │          │              │          │                 │
 │ gpu_reporter.py │          │ GPU Stats    │          │ GPURedisSubscr  │
 │ + nvidia-smi    │          │ Stream       │          │                 │
@@ -51,8 +51,8 @@ pip3 install gpustat redis requests
 Copy `gpu_reporter.py` to each Ollama node:
 
 ```bash
-# On each Ollama node (10.9.66.90, 10.9.66.48, etc.)
-scp gpu_reporter.py user@10.9.66.90:/opt/sollol/
+# On each Ollama node (192.168.1.20, 192.168.1.21, etc.)
+scp gpu_reporter.py user@192.168.1.20:/opt/sollol/
 
 # Or if SSH isn't available, use a shared drive/USB
 ```
@@ -67,24 +67,24 @@ pip3 install redis
 ### Step 3: Start GPU Reporter on Each Node
 
 ```bash
-# On 10.9.66.90 (GPU node)
+# On 192.168.1.20 (GPU node)
 python3 /opt/sollol/gpu_reporter.py \
-  --redis-host 10.9.66.154 \
-  --node-id 10.9.66.90:11434 \
+  --redis-host 192.168.1.10 \
+  --node-id 192.168.1.20:11434 \
   --interval 5 \
   &
 
-# On 10.9.66.48 (CPU node)
+# On 192.168.1.21 (CPU node)
 python3 /opt/sollol/gpu_reporter.py \
-  --redis-host 10.9.66.154 \
-  --node-id 10.9.66.48:11434 \
+  --redis-host 192.168.1.10 \
+  --node-id 192.168.1.21:11434 \
   --interval 5 \
   &
 
-# On 10.9.66.154 (local node with Redis)
+# On 192.168.1.10 (local node with Redis)
 python3 /opt/sollol/gpu_reporter.py \
   --redis-host localhost \
-  --node-id 10.9.66.154:11434 \
+  --node-id 192.168.1.10:11434 \
   --interval 5 \
   &
 ```
@@ -101,7 +101,7 @@ After=network.target redis.service
 Type=simple
 User=ollama
 ExecStart=/usr/bin/python3 /opt/sollol/gpu_reporter.py \\
-  --redis-host 10.9.66.154 \\
+  --redis-host 192.168.1.10 \\
   --node-id $(hostname -I | awk '{print $1}'):11434 \\
   --interval 5
 Restart=always
@@ -125,7 +125,7 @@ pool = OllamaPool(
     nodes=None,  # Auto-discover
     enable_intelligent_routing=True,
     enable_gpu_redis=True,  # ← Enable accurate GPU stats
-    redis_host="10.9.66.154",  # Redis server
+    redis_host="192.168.1.10",  # Redis server
     redis_port=6379
 )
 ```
@@ -143,7 +143,7 @@ load_balancer = OllamaPool(
     enable_ray=True,
     register_with_dashboard=False,
     enable_gpu_redis=True,  # ← Add this
-    redis_host="10.9.66.154",  # ← Add this
+    redis_host="192.168.1.10",  # ← Add this
 )
 ```
 
@@ -166,9 +166,9 @@ INFO GPU 0: NVIDIA GeForce RTX 4090 | VRAM: 8192/24576MB | Util: 45% | Temp: 62�
 ```bash
 # On Redis server
 redis-cli KEYS "sollol:gpu:*"
-# Output: sollol:gpu:10.9.66.90:11434
+# Output: sollol:gpu:192.168.1.20:11434
 
-redis-cli GET "sollol:gpu:10.9.66.90:11434"
+redis-cli GET "sollol:gpu:192.168.1.20:11434"
 # Output: {"vendor":"nvidia","gpus":[{...}],"timestamp":1696845234.5}
 ```
 
@@ -177,8 +177,8 @@ redis-cli GET "sollol:gpu:10.9.66.90:11434"
 ```bash
 # In FlockParser or your SOLLOL client
 # You should see:
-INFO ✅ GPU subscriber connected to Redis at 10.9.66.154:6379
-INFO Updated 10.9.66.90:11434: NVIDIA GeForce RTX 4090 | VRAM: 16384MB free / 24576MB total | Util: 45%
+INFO ✅ GPU subscriber connected to Redis at 192.168.1.10:6379
+INFO Updated 192.168.1.20:11434: NVIDIA GeForce RTX 4090 | VRAM: 16384MB free / 24576MB total | Util: 45%
 ```
 
 ## Intelligent Ollama GPU Detection
@@ -209,16 +209,16 @@ This prevents SOLLOL from routing GPU tasks to nodes with GPU hardware that Olla
 
 ### Before (Assumptions)
 ```
-10.9.66.48: Assumes 8GB GPU (but actually CPU-only)
-10.9.66.90: Assumes 1674MB total (actually 24GB!)
-10.9.66.154: Assumes 2GB GPU (no GPU)
+192.168.1.21: Assumes 8GB GPU (but actually CPU-only)
+192.168.1.20: Assumes 1674MB total (actually 24GB!)
+192.168.1.10: Assumes 2GB GPU (no GPU)
 ```
 
 ### After (Accurate)
 ```
-10.9.66.48: CPU-only (0MB VRAM) ✅
-10.9.66.90: RTX 4090 - 16384MB free / 24576MB total ✅
-10.9.66.154: CPU-only (0MB VRAM) ✅
+192.168.1.21: CPU-only (0MB VRAM) ✅
+192.168.1.20: RTX 4090 - 16384MB free / 24576MB total ✅
+192.168.1.10: CPU-only (0MB VRAM) ✅
 ```
 
 ## Routing Impact
@@ -244,7 +244,7 @@ sudo usermod -aG video $USER
 
 ```bash
 # Test Redis connectivity
-redis-cli -h 10.9.66.154 ping
+redis-cli -h 192.168.1.10 ping
 # Should return: PONG
 
 # Check firewall
@@ -255,7 +255,7 @@ sudo ufw allow 6379/tcp
 
 ```bash
 # Check Redis has data
-redis-cli -h 10.9.66.154 KEYS "sollol:gpu:*"
+redis-cli -h 192.168.1.10 KEYS "sollol:gpu:*"
 
 # Check SOLLOL logs for subscriber errors
 ```

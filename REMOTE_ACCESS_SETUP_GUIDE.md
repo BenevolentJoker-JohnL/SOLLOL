@@ -93,7 +93,7 @@ $ python3 test_local_rag_integration.py
    sudo mount <flockparser-ip>:/home/joker/FlockParser /mnt/flockparser
 
    # Example:
-   sudo mount 10.9.66.48:/home/joker/FlockParser /mnt/flockparser
+   sudo mount 192.168.1.21:/home/joker/FlockParser /mnt/flockparser
    ```
 
 4. **Verify mount:**
@@ -108,7 +108,7 @@ $ python3 test_local_rag_integration.py
    echo "<flockparser-ip>:/home/joker/FlockParser /mnt/flockparser nfs ro,defaults 0 0" | sudo tee -a /etc/fstab
 
    # Example:
-   echo "10.9.66.48:/home/joker/FlockParser /mnt/flockparser nfs ro,defaults 0 0" | sudo tee -a /etc/fstab
+   echo "192.168.1.21:/home/joker/FlockParser /mnt/flockparser nfs ro,defaults 0 0" | sudo tee -a /etc/fstab
    ```
 
 #### Update SynapticLlamas Configuration

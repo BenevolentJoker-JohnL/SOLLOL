@@ -124,7 +124,7 @@ llama.cpp coordinator shut down
 Specific Ollama node chosen for request
 
 ```
-📡 llama3.2:3b → 10.9.66.48:11434 | lowest_latency (15ms) + high_vram (8192MB free)
+📡 llama3.2:3b → 192.168.1.21:11434 | lowest_latency (15ms) + high_vram (8192MB free)
 ```
 
 ## 🏗️ Architecture
@@ -234,7 +234,7 @@ python -m sollol.routing_viewer
 [12:03:46.456] OLLAMA_NODE_SELECTED | model=llama3.2:3b        | backend=ollama
   ├─ instance: workstation_42_a1b2c3d4
   ├─ reason: lowest_latency (15ms) + high_vram (8192MB free)
-  ├─ node: 10.9.66.48:11434
+  ├─ node: 192.168.1.21:11434
   └─ confidence: 0.92
 
 [12:04:10.789] ROUTE_DECISION      | model=llama3.1:70b       | backend=rpc

@@ -103,9 +103,9 @@ d4c7fc6 Add caching to GGUF resolver to avoid redundant ollama show calls
 **Key observations:**
 1. Only **ONE** coordinator creation seen (previous behavior: 6 creations)
 2. Coordinator loaded model successfully across 3 RPC backends:
-   - 10.9.66.154:50052 → 1872.15 MiB
+   - 192.168.1.10:50052 → 1872.15 MiB
    - 10.9.66.157:50052 → 3403.91 MiB
-   - 10.9.66.45:50052 → 1660.02 MiB
+   - 192.168.1.22:50052 → 1660.02 MiB
 3. Coordinator became healthy (HTTP 200 OK) after ~123 seconds
 4. **NEW PROBLEM**: First inference request timed out after 300s
    - `concurrent.futures._base.TimeoutError` in Researcher agent
@@ -129,8 +129,8 @@ The coordinator starts successfully but doesn't complete inference requests with
 **Fix**: Killed both RPC server processes (PID 997928) to clear port conflict
 
 **Result**: Port 50052 now free; system will only use the three network IP RPC backends from config:
-- 10.9.66.154:50052
+- 192.168.1.10:50052
 - 10.9.66.157:50052
-- 10.9.66.45:50052
+- 192.168.1.22:50052
 
 **Status**: Ready for clean testing without port conflicts

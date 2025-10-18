@@ -10,7 +10,7 @@ SOLLOL's GPU detection system enables intelligent routing by detecting GPU capab
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Coordinator Node (10.9.66.154)                         │
+│  Coordinator Node (192.168.1.10)                         │
 │  ┌────────────────────────────────────────────────┐    │
 │  │  Redis (0.0.0.0:6379)                          │    │
 │  │  - Central GPU registry                        │    │
@@ -70,7 +70,7 @@ cmake -B build \
 cmake --build build --config Release --target rpc-server -j $(nproc)
 
 # Deploy to GPU nodes
-scp build/bin/rpc-server 10.9.66.90:~/.local/bin/
+scp build/bin/rpc-server 192.168.1.20:~/.local/bin/
 ```
 
 **Requirements**:
@@ -134,7 +134,7 @@ By default, Redis only listens on `localhost` (127.0.0.1). Remote GPU nodes need
 
 ### Step 1.1: Edit Redis Configuration
 
-On the **coordinator node** (10.9.66.154):
+On the **coordinator node** (192.168.1.10):
 
 ```bash
 # Open Redis config
@@ -144,7 +144,7 @@ sudo nano /etc/redis/redis.conf
 bind 127.0.0.1 ::1
 
 # Change it to (replace with your coordinator IP):
-bind 127.0.0.1 ::1 10.9.66.154
+bind 127.0.0.1 ::1 192.168.1.10
 ```
 
 **What this does**: Allows Redis to accept connections from the network while still listening on localhost.
@@ -163,16 +163,16 @@ netstat -tuln | grep 6379
 
 # Expected output:
 # tcp  0  0 127.0.0.1:6379      0.0.0.0:*  LISTEN  (localhost)
-# tcp  0  0 10.9.66.154:6379    0.0.0.0:*  LISTEN  (network)
+# tcp  0  0 192.168.1.10:6379    0.0.0.0:*  LISTEN  (network)
 ```
 
 ### Step 1.4: Test Remote Connection
 
-From a **remote node** (e.g., 10.9.66.90):
+From a **remote node** (e.g., 192.168.1.20):
 
 ```bash
 # Test Redis connectivity
-redis-cli -h 10.9.66.154 ping
+redis-cli -h 192.168.1.10 ping
 
 # Expected output:
 # PONG
@@ -181,7 +181,7 @@ redis-cli -h 10.9.66.154 ping
 If you get "Connection refused", check:
 - Firewall rules (see Security section below)
 - Redis bind configuration
-- Network connectivity (`ping 10.9.66.154`)
+- Network connectivity (`ping 192.168.1.10`)
 
 ---
 
@@ -195,8 +195,8 @@ From the **coordinator**:
 
 ```bash
 # Copy registration script to each GPU node
-scp /home/joker/SOLLOL/scripts/register_gpu_node.py 10.9.66.90:~/
-scp /home/joker/SOLLOL/scripts/register_gpu_node.py 10.9.66.45:~/
+scp /home/joker/SOLLOL/scripts/register_gpu_node.py 192.168.1.20:~/
+scp /home/joker/SOLLOL/scripts/register_gpu_node.py 192.168.1.22:~/
 # ... repeat for all GPU nodes
 ```
 
@@ -214,18 +214,18 @@ nvidia-smi
 
 ### Step 2.3: Run Registration Script
 
-On **each GPU node** (e.g., 10.9.66.90):
+On **each GPU node** (e.g., 192.168.1.20):
 
 ```bash
 # Register GPU with coordinator
-python3 register_gpu_node.py --redis-host 10.9.66.154
+python3 register_gpu_node.py --redis-host 192.168.1.10
 
 # Expected output:
 # ======================================================================
 # GPU NODE REGISTRATION - SOLLOL
 # ======================================================================
 #
-# 📍 Node IP: 10.9.66.90
+# 📍 Node IP: 192.168.1.20
 #
 # 🔍 Detecting resources...
 #
@@ -246,8 +246,8 @@ python3 register_gpu_node.py --redis-host 10.9.66.154
 # ======================================================================
 # REDIS REGISTRATION
 # ======================================================================
-# ✅ Published to Redis: redis://10.9.66.154:6379
-#    Key: sollol:rpc:node:10.9.66.90:50052
+# ✅ Published to Redis: redis://192.168.1.10:6379
+#    Key: sollol:rpc:node:192.168.1.20:50052
 #    TTL: 1 hour
 #
 # ======================================================================
@@ -274,7 +274,7 @@ nohup rpc-server --host 0.0.0.0 --port 50052 --device cpu,cuda:0 --mem 12000,192
 
 ## Part 3: Verify GPU Detection on Coordinator
 
-On the **coordinator node** (10.9.66.154):
+On the **coordinator node** (192.168.1.10):
 
 ### Step 3.1: Check Redis Registration
 
@@ -283,12 +283,12 @@ On the **coordinator node** (10.9.66.154):
 redis-cli KEYS "sollol:rpc:node:*"
 
 # Expected output:
-# 1) "sollol:rpc:node:10.9.66.90:50052"
-# 2) "sollol:rpc:node:10.9.66.45:50052"
-# 3) "sollol:rpc:node:10.9.66.48:50052"
+# 1) "sollol:rpc:node:192.168.1.20:50052"
+# 2) "sollol:rpc:node:192.168.1.22:50052"
+# 3) "sollol:rpc:node:192.168.1.21:50052"
 
 # View specific node info
-redis-cli GET "sollol:rpc:node:10.9.66.90:50052"
+redis-cli GET "sollol:rpc:node:192.168.1.20:50052"
 
 # Expected output (JSON):
 # {"has_gpu":true,"gpu_devices":["cuda:0"],"gpu_vram_mb":[19200],"gpu_names":["NVIDIA GeForce RTX 3090"],"cpu_ram_mb":12000,"device_config":"cpu,cuda:0","memory_config":"12000,19200","total_parallel_workers":2}
@@ -327,21 +327,21 @@ for backend in backends:
 === RPC Node Discovery ===
 Found 3 RPC backends:
 
-📍 10.9.66.90:50052
+📍 192.168.1.20:50052
    Has GPU: True
    GPU devices: ['cuda:0']
    GPU VRAM: [19200] MB
    CPU RAM: 12000 MB
    Workers: 2
 
-📍 10.9.66.45:50052
+📍 192.168.1.22:50052
    Has GPU: True
    GPU devices: ['cuda:0']
    GPU VRAM: [10240] MB
    CPU RAM: 8000 MB
    Workers: 2
 
-📍 10.9.66.48:50052
+📍 192.168.1.21:50052
    Has GPU: False
    GPU devices: []
    GPU VRAM: [] MB
@@ -368,7 +368,7 @@ After=network.target redis.service
 Type=simple
 User=your-username
 WorkingDirectory=/home/your-username
-ExecStart=/usr/bin/python3 /home/your-username/register_gpu_node.py --redis-host 10.9.66.154
+ExecStart=/usr/bin/python3 /home/your-username/register_gpu_node.py --redis-host 192.168.1.10
 Restart=always
 RestartSec=3600
 
@@ -392,7 +392,7 @@ Add to crontab on **each GPU node**:
 crontab -e
 
 # Add this line (runs every hour):
-0 * * * * cd /home/your-username && python3 register_gpu_node.py --redis-host 10.9.66.154 > /tmp/gpu-registration.log 2>&1
+0 * * * * cd /home/your-username && python3 register_gpu_node.py --redis-host 192.168.1.10 > /tmp/gpu-registration.log 2>&1
 ```
 
 ---
@@ -433,7 +433,7 @@ Update registration script usage:
 export REDIS_PASSWORD="your_strong_password_here"
 
 # Or pass via URL
-python3 register_gpu_node.py --redis-host "redis://:your_strong_password_here@10.9.66.154:6379"
+python3 register_gpu_node.py --redis-host "redis://:your_strong_password_here@192.168.1.10:6379"
 ```
 
 ---
@@ -444,7 +444,7 @@ python3 register_gpu_node.py --redis-host "redis://:your_strong_password_here@10
 
 **Symptoms**:
 ```
-❌ Failed to publish to Redis: Error 111 connecting to 10.9.66.154:6379. Connection refused.
+❌ Failed to publish to Redis: Error 111 connecting to 192.168.1.10:6379. Connection refused.
 ```
 
 **Solutions**:
@@ -452,7 +452,7 @@ python3 register_gpu_node.py --redis-host "redis://:your_strong_password_here@10
 1. **Check Redis is listening on network**:
    ```bash
    netstat -tuln | grep 6379
-   # Should show: 10.9.66.154:6379
+   # Should show: 192.168.1.10:6379
    ```
 
 2. **Verify bind configuration**:
@@ -470,7 +470,7 @@ python3 register_gpu_node.py --redis-host "redis://:your_strong_password_here@10
 4. **Test connectivity**:
    ```bash
    # From remote node
-   telnet 10.9.66.154 6379
+   telnet 192.168.1.10 6379
    # Should connect (press Ctrl+] then 'quit' to exit)
    ```
 
@@ -497,7 +497,7 @@ python3 register_gpu_node.py --redis-host "redis://:your_strong_password_here@10
 
 3. **Run registration with verbose output**:
    ```bash
-   python3 -u register_gpu_node.py --redis-host 10.9.66.154
+   python3 -u register_gpu_node.py --redis-host 192.168.1.10
    ```
 
 ### Issue: Registration expires too quickly
@@ -519,7 +519,7 @@ python3 register_gpu_node.py --redis-host "redis://:your_strong_password_here@10
 
 **Symptoms**:
 ```bash
-redis-cli GET "sollol:rpc:node:10.9.66.90:50052"
+redis-cli GET "sollol:rpc:node:192.168.1.20:50052"
 # Returns valid JSON with has_gpu:true
 
 # But SOLLOL discovery shows:
@@ -557,7 +557,7 @@ For nodes with multiple GPUs:
 
 ```bash
 # register_gpu_node.py automatically detects all GPUs
-python3 register_gpu_node.py --redis-host 10.9.66.154
+python3 register_gpu_node.py --redis-host 192.168.1.10
 
 # Example output for 2-GPU node:
 # ✅ GPU(s) Found: 2
@@ -649,11 +649,11 @@ sudo nano /etc/redis/redis.conf  # Add coordinator IP to bind line
 sudo systemctl restart redis
 
 # Register GPU node
-python3 register_gpu_node.py --redis-host 10.9.66.154
+python3 register_gpu_node.py --redis-host 192.168.1.10
 
 # Verify registration
 redis-cli KEYS "sollol:rpc:node:*"
-redis-cli GET "sollol:rpc:node:10.9.66.90:50052"
+redis-cli GET "sollol:rpc:node:192.168.1.20:50052"
 
 # Test SOLLOL discovery
 PYTHONPATH=src python3 -c "from sollol.rpc_discovery import auto_discover_rpc_backends; print(auto_discover_rpc_backends())"

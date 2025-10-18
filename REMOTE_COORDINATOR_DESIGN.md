@@ -3,7 +3,7 @@
 ## Problem Statement
 
 **Current Issue:**
-When a request arrives on a resource-constrained node (e.g., `10.9.66.154` with 16GB RAM), the `llama-server` coordinator process starts **locally** on that node, even though other nodes in the cluster have significantly more resources (e.g., `10.9.66.90` with 128GB RAM).
+When a request arrives on a resource-constrained node (e.g., `192.168.1.10` with 16GB RAM), the `llama-server` coordinator process starts **locally** on that node, even though other nodes in the cluster have significantly more resources (e.g., `192.168.1.20` with 128GB RAM).
 
 **Why This Matters:**
 - The coordinator process loads the entire GGUF model into memory before distributing layers
@@ -14,11 +14,11 @@ When a request arrives on a resource-constrained node (e.g., `10.9.66.154` with 
 ## Current Architecture
 
 ```
-Request on 10.9.66.154 (16GB RAM, low resources)
+Request on 192.168.1.10 (16GB RAM, low resources)
   ↓
   Ray spawns ShardedModelPool actor LOCALLY
   ↓
-  LlamaCppCoordinator starts on 127.0.0.1:18080 (local to 10.9.66.154)
+  LlamaCppCoordinator starts on 127.0.0.1:18080 (local to 192.168.1.10)
   ↓
   llama-server loads model.gguf into RAM (requires 20GB+) → OOM CRASH
   ↓
@@ -28,27 +28,27 @@ Request on 10.9.66.154 (16GB RAM, low resources)
 ## Desired Architecture
 
 ```
-Request on 10.9.66.154 (16GB RAM, low resources)
+Request on 192.168.1.10 (16GB RAM, low resources)
   ↓
   SOLLOL Intelligence analyzes cluster:
-    - 10.9.66.154: 16GB RAM, 80% CPU load → SCORE: 2.5/10
-    - 10.9.66.90:  128GB RAM, 20% CPU load → SCORE: 9.8/10 ✅
-    - 10.9.66.48:  32GB RAM, 40% CPU load → SCORE: 7.2/10
+    - 192.168.1.10: 16GB RAM, 80% CPU load → SCORE: 2.5/10
+    - 192.168.1.20:  128GB RAM, 20% CPU load → SCORE: 9.8/10 ✅
+    - 192.168.1.21:  32GB RAM, 40% CPU load → SCORE: 7.2/10
   ↓
-  Ray placement strategy: spawn actor on 10.9.66.90
+  Ray placement strategy: spawn actor on 192.168.1.20
   ↓
-  ShardedModelPool actor runs on 10.9.66.90
+  ShardedModelPool actor runs on 192.168.1.20
   ↓
-  LlamaCppCoordinator starts on 10.9.66.90:18080
+  LlamaCppCoordinator starts on 192.168.1.20:18080
   ↓
   llama-server loads model.gguf into RAM (128GB available) → SUCCESS
   ↓
   Distributes layers to RPC backends:
-    ├─> 10.9.66.48:50052 (layers 0-20)
-    ├─> 10.9.66.45:50052 (layers 21-40)
-    └─> 10.9.66.90:50052 (layers 41-60)
+    ├─> 192.168.1.21:50052 (layers 0-20)
+    ├─> 192.168.1.22:50052 (layers 21-40)
+    └─> 192.168.1.20:50052 (layers 41-60)
   ↓
-  Results stream back to 10.9.66.154
+  Results stream back to 192.168.1.10
 ```
 
 ## Solution Components
@@ -73,7 +73,7 @@ Use Ray's `@ray.remote` decorator with `resources` parameter:
 
 ```python
 # Option 1: Node affinity by hostname
-@ray.remote(resources={"node:10.9.66.90": 1})
+@ray.remote(resources={"node:192.168.1.20": 1})
 class ShardedModelPool:
     ...
 
@@ -144,24 +144,24 @@ def select_coordinator_host(
 
 For Ray to spawn actors on remote nodes, we need a Ray cluster:
 
-#### Head Node (10.9.66.154)
+#### Head Node (192.168.1.10)
 ```bash
 ray start --head --port=6379 --dashboard-host=0.0.0.0
 ```
 
-#### Worker Nodes (10.9.66.90, 10.9.66.48, 10.9.66.45)
+#### Worker Nodes (192.168.1.20, 192.168.1.21, 192.168.1.22)
 ```bash
-ray start --address='10.9.66.154:6379'
+ray start --address='192.168.1.10:6379'
 ```
 
 #### Register Custom Resources
 ```bash
-# On 10.9.66.90 (128GB RAM node)
-ray start --address='10.9.66.154:6379' \
+# On 192.168.1.20 (128GB RAM node)
+ray start --address='192.168.1.10:6379' \
   --resources='{"high_memory": 1, "coordinator_slots": 4}'
 
-# On 10.9.66.48 (32GB RAM node)
-ray start --address='10.9.66.154:6379' \
+# On 192.168.1.21 (32GB RAM node)
+ray start --address='192.168.1.10:6379' \
   --resources='{"medium_memory": 1, "coordinator_slots": 2}'
 ```
 
@@ -182,7 +182,7 @@ class ShardedModelPool:
         pool_id: int = 0,
     ):
         # coordinator_host will be the actual IP of the selected node
-        # e.g., "10.9.66.90" instead of "127.0.0.1"
+        # e.g., "192.168.1.20" instead of "127.0.0.1"
         self.coordinator_host = coordinator_host
         ...
 ```
@@ -355,31 +355,31 @@ Uses existing infrastructure from `rpc_discovery.py`:
 **How It Works:**
 
 ```python
-# 1. Request arrives on 10.9.66.154 (16GB RAM)
+# 1. Request arrives on 192.168.1.10 (16GB RAM)
 # 2. ShardedModelPool._select_best_coordinator_node() queries resources:
-#    - 10.9.66.154: 16GB RAM → score = 16GB - 40GB = -24GB (rejected)
-#    - 10.9.66.90: 128GB RAM → score = 128GB - 40GB = 88GB ✅ BEST
-#    - 10.9.66.48: 32GB RAM → score = 32GB - 40GB = -8GB (rejected)
+#    - 192.168.1.10: 16GB RAM → score = 16GB - 40GB = -24GB (rejected)
+#    - 192.168.1.20: 128GB RAM → score = 128GB - 40GB = 88GB ✅ BEST
+#    - 192.168.1.21: 32GB RAM → score = 32GB - 40GB = -8GB (rejected)
 #
-# 3. Selected node: 10.9.66.90
-# 4. LlamaCppCoordinator starts on 10.9.66.90:18080
-# 5. Ray streams results back to 10.9.66.154 automatically
+# 3. Selected node: 192.168.1.20
+# 4. LlamaCppCoordinator starts on 192.168.1.20:18080
+# 5. Ray streams results back to 192.168.1.10 automatically
 ```
 
 ### ⬜ Remaining Tasks
 
 1. **Set up Ray cluster across nodes** (manual setup required)
    ```bash
-   # Head node (10.9.66.154)
+   # Head node (192.168.1.10)
    ray start --head --port=6379 --dashboard-host=0.0.0.0
 
-   # Worker nodes (10.9.66.90, 10.9.66.48, 10.9.66.45)
-   ray start --address='10.9.66.154:6379'
+   # Worker nodes (192.168.1.20, 192.168.1.21, 192.168.1.22)
+   ray start --address='192.168.1.10:6379'
    ```
 
 2. **Test with large model** (e.g., llama3.1:70b)
-   - Request from low-RAM node (10.9.66.154)
-   - Verify coordinator spawns on high-RAM node (10.9.66.90)
+   - Request from low-RAM node (192.168.1.10)
+   - Verify coordinator spawns on high-RAM node (192.168.1.20)
    - Verify no OOM crashes
    - Measure inference latency
 

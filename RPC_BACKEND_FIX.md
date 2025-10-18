@@ -17,7 +17,7 @@ for backend in registry.backends:
 **Why this failed:**
 - `registry.backends` is a `Dict[str, RPCBackend]` (dictionary mapping addresses to backend objects)
 - When you iterate over a dict with `for x in dict:`, you get the **keys** (strings), not the values
-- So `backend` was a string like `"10.9.66.48:50052"`, not an `RPCBackend` object
+- So `backend` was a string like `"192.168.1.21:50052"`, not an `RPCBackend` object
 - Trying to access `backend["host"]` on a string returned `undefined` in the dashboard
 
 ## Solution

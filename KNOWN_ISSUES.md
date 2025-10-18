@@ -10,7 +10,7 @@
 ```python
 # User creates pool with registration disabled
 pool = OllamaPool(
-    nodes=["http://10.9.66.48:11434"],
+    nodes=["http://192.168.1.21:11434"],
     register_with_dashboard=False  # Intending to register manually later
 )
 

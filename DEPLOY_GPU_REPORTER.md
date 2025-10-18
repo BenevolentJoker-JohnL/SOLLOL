@@ -5,9 +5,9 @@
 For each Ollama node with a GPU, run these commands from your SOLLOL machine:
 
 ```bash
-# Example for node 10.9.66.48
-NODE_IP="10.9.66.48"
-REDIS_IP="10.9.66.154"  # Your Redis server IP
+# Example for node 192.168.1.21
+NODE_IP="192.168.1.21"
+REDIS_IP="192.168.1.10"  # Your Redis server IP
 
 # 1. Copy gpu_reporter.py to the node
 scp /home/joker/SOLLOL/gpu_reporter.py $NODE_IP:/tmp/
@@ -73,7 +73,7 @@ Copy `/home/joker/SOLLOL/gpu_reporter.py` to the node at `/opt/sollol/gpu_report
 ### 3. Run Reporter
 ```bash
 python3 /opt/sollol/gpu_reporter.py \
-    --redis-host 10.9.66.154 \
+    --redis-host 192.168.1.10 \
     --redis-port 6379 \
     --node-id $(hostname -I | awk '{print $1}'):11434 \
     --interval 5
@@ -88,7 +88,7 @@ From your SOLLOL machine:
 redis-cli keys "sollol:gpu:*"
 
 # View specific node's GPU data
-redis-cli get "sollol:gpu:10.9.66.48:11434"
+redis-cli get "sollol:gpu:192.168.1.21:11434"
 
 # Check dashboard
 curl -s http://localhost:8080/api/network/nodes | python3 -m json.tool
@@ -126,7 +126,7 @@ With reporter running on a node with NVIDIA RTX 4090:
 
 ```json
 {
-  "url": "http://10.9.66.48:11434",
+  "url": "http://192.168.1.21:11434",
   "status": "healthy",
   "free_vram_mb": 18432,
   "total_vram_mb": 24576,

@@ -179,17 +179,17 @@ Now SynapticLlamas appears in the SOLLOL dashboard alongside all other applicati
 {
     "type": "node_discovered",
     "timestamp": 1234567890.123,
-    "node": "http://10.9.66.154:11434",
-    "message": "✅ New node discovered: http://10.9.66.154:11434"
+    "node": "http://192.168.1.10:11434",
+    "message": "✅ New node discovered: http://192.168.1.10:11434"
 }
 
 {
     "type": "status_change",
     "timestamp": 1234567890.123,
-    "node": "http://10.9.66.154:11434",
+    "node": "http://192.168.1.10:11434",
     "old_status": "healthy",
     "new_status": "unhealthy",
-    "message": "Node http://10.9.66.154:11434: healthy → unhealthy"
+    "message": "Node http://192.168.1.10:11434: healthy → unhealthy"
 }
 ```
 
@@ -218,18 +218,18 @@ Now SynapticLlamas appears in the SOLLOL dashboard alongside all other applicati
 {
     "type": "model_loaded",
     "timestamp": 1234567890.123,
-    "node": "10.9.66.154:11434",
+    "node": "192.168.1.10:11434",
     "model": "llama3.2:3b",
-    "message": "✅ Model loaded on 10.9.66.154:11434: llama3.2:3b"
+    "message": "✅ Model loaded on 192.168.1.10:11434: llama3.2:3b"
 }
 
 {
     "type": "model_processing",
     "timestamp": 1234567890.123,
-    "node": "10.9.66.154:11434",
+    "node": "192.168.1.10:11434",
     "model": "llama3.2:3b",
     "vram_gb": 2.4,
-    "message": "🔄 Processing on 10.9.66.154:11434: llama3.2:3b (VRAM: 2.40GB)"
+    "message": "🔄 Processing on 192.168.1.10:11434: llama3.2:3b (VRAM: 2.40GB)"
 }
 ```
 

@@ -107,7 +107,7 @@ Use the built-in CLI command:
 sollol install-gpu-reporter --redis-host <redis-server-ip>
 
 # Example:
-sollol install-gpu-reporter --redis-host 10.9.66.154
+sollol install-gpu-reporter --redis-host 192.168.1.10
 ```
 
 This will:
@@ -155,10 +155,10 @@ Check Redis has data:
 ```bash
 redis-cli
 > KEYS sollol:gpu:*
-1) "sollol:gpu:10.9.66.90:11434"
-2) "sollol:gpu:10.9.66.154:11434"
+1) "sollol:gpu:192.168.1.20:11434"
+2) "sollol:gpu:192.168.1.10:11434"
 
-> GET sollol:gpu:10.9.66.90:11434
+> GET sollol:gpu:192.168.1.20:11434
 {"vendor":"nvidia","gpus":[{"index":0,"name":"NVIDIA GeForce RTX 3070","memory_total_mb":8192,"memory_free_mb":4123, ...}]}
 ```
 
@@ -177,7 +177,7 @@ pool = OllamaPool.auto_configure()
 # Custom Redis location
 pool = OllamaPool.auto_configure(
     enable_gpu_redis=True,
-    redis_host="10.9.66.154",
+    redis_host="192.168.1.10",
     redis_port=6379
 )
 
@@ -206,8 +206,8 @@ print(stats['vram_monitoring'])
 # Check node performance data
 for node_id, perf in stats['pool']['node_performance'].items():
     print(f"{node_id}: {perf['gpu_free_mem']}MB free")
-    # 10.9.66.90:11434: 4123MB free
-    # 10.9.66.154:11434: 18432MB free
+    # 192.168.1.20:11434: 4123MB free
+    # 192.168.1.10:11434: 18432MB free
 ```
 
 ## Troubleshooting

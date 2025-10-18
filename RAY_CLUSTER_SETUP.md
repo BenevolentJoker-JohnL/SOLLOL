@@ -11,17 +11,17 @@ This guide shows how to set up a Ray cluster to enable **remote coordinator exec
 │ Ray Cluster (for distributed inference coordination only)   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  Head Node (10.9.66.154 - 16GB RAM)                         │
+│  Head Node (192.168.1.10 - 16GB RAM)                         │
 │    - Receives HTTP requests                                  │
 │    - Ray scheduler decides WHERE to run coordinator          │
 │    - Streams results back to client                          │
 │                                                              │
-│  Worker Node (10.9.66.90 - 128GB RAM + GPU)                 │
+│  Worker Node (192.168.1.20 - 128GB RAM + GPU)                 │
 │    - ShardedModelPool actor runs here                        │
 │    - LlamaCppCoordinator starts here                         │
 │    - Distributes inference to RPC backends                   │
 │                                                              │
-│  Worker Nodes (10.9.66.48, 10.9.66.45)                      │
+│  Worker Nodes (192.168.1.21, 192.168.1.22)                      │
 │    - Available for coordinator placement                     │
 │    - Ray can schedule actors here if needed                  │
 │                                                              │
@@ -54,7 +54,7 @@ This guide shows how to set up a Ray cluster to enable **remote coordinator exec
 
 ## Step 1: Start Ray Head Node
 
-**On 10.9.66.154 (current node - request receiver):**
+**On 192.168.1.10 (current node - request receiver):**
 
 ```bash
 # Start Ray head node
@@ -73,20 +73,20 @@ ray status
 ```
 Ray runtime started.
 ---
-Local node IP: 10.9.66.154
-Dashboard: http://10.9.66.154:8265
+Local node IP: 192.168.1.10
+Dashboard: http://192.168.1.10:8265
 ---
 To add worker nodes:
-  ray start --address='10.9.66.154:6380'
+  ray start --address='192.168.1.10:6380'
 ```
 
 ## Step 2: Join Worker Nodes
 
-**On each worker node (10.9.66.90, 10.9.66.48, 10.9.66.45):**
+**On each worker node (192.168.1.20, 192.168.1.21, 192.168.1.22):**
 
 ```bash
 # Join the Ray cluster
-ray start --address='10.9.66.154:6380'
+ray start --address='192.168.1.10:6380'
 
 # Verify connection
 ray status
@@ -103,12 +103,12 @@ Connected to Ray cluster.
 For advanced placement, you can register custom resources:
 
 ```bash
-# On high-RAM node (10.9.66.90)
-ray start --address='10.9.66.154:6380' \
+# On high-RAM node (192.168.1.20)
+ray start --address='192.168.1.10:6380' \
   --resources='{"high_memory": 1, "gpu_node": 1}'
 
 # On medium-RAM nodes
-ray start --address='10.9.66.154:6380' \
+ray start --address='192.168.1.10:6380' \
   --resources='{"medium_memory": 1}'
 ```
 
@@ -129,7 +129,7 @@ ray status
 
 **Check Ray dashboard:**
 ```
-http://10.9.66.154:8265
+http://192.168.1.10:8265
 ```
 
 ## Step 4: Test Remote Coordinator
@@ -160,44 +160,44 @@ print(f'   RPC backends: {len(router.rpc_backends)}')
   Pool 1: 3 backends (port 18081, remote coordinator enabled)
 
 Pool 0: Selecting coordinator node for llama3.1:70b (estimated 143360MB needed)
-  10.9.66.154: RAM=16000MB, GPU_VRAM=0MB, score=-127360
-  10.9.66.90: RAM=128000MB, GPU_VRAM=24000MB, score=13640 ✅ BEST
-  10.9.66.48: RAM=32000MB, GPU_VRAM=0MB, score=-111360
+  192.168.1.10: RAM=16000MB, GPU_VRAM=0MB, score=-127360
+  192.168.1.20: RAM=128000MB, GPU_VRAM=24000MB, score=13640 ✅ BEST
+  192.168.1.21: RAM=32000MB, GPU_VRAM=0MB, score=-111360
 
-Pool 0: Selected 10.9.66.90 for coordinator (score=13640)
-Pool 0: Loading llama3.1:70b across 3 RPC backends (coordinator on 10.9.66.90)
+Pool 0: Selected 192.168.1.20 for coordinator (score=13640)
+Pool 0: Loading llama3.1:70b across 3 RPC backends (coordinator on 192.168.1.20)
 ```
 
 ## How It Works
 
-1. **Request arrives** on 10.9.66.154 (16GB RAM, low resources)
+1. **Request arrives** on 192.168.1.10 (16GB RAM, low resources)
 
 2. **SOLLOL intelligence** analyzes all RPC backend hosts:
    - Queries Redis for GPU/RAM metadata
    - Calculates score: `total_ram - estimated_model_size`
    - GPU nodes get 5GB bonus
 
-3. **Best node selected**: 10.9.66.90 (128GB RAM + 24GB GPU)
+3. **Best node selected**: 192.168.1.20 (128GB RAM + 24GB GPU)
 
 4. **Ray places actor** on selected node:
-   - `ShardedModelPool` actor runs on 10.9.66.90
-   - `LlamaCppCoordinator` starts on 10.9.66.90:18080
+   - `ShardedModelPool` actor runs on 192.168.1.20
+   - `LlamaCppCoordinator` starts on 192.168.1.20:18080
 
 5. **Coordinator distributes** to RPC backends:
    ```
-   10.9.66.90:18080 (coordinator)
-     ├─> 10.9.66.48:50052 (layers 0-20)
-     ├─> 10.9.66.45:50052 (layers 21-40)
-     └─> 10.9.66.90:50052 (layers 41-60)
+   192.168.1.20:18080 (coordinator)
+     ├─> 192.168.1.21:50052 (layers 0-20)
+     ├─> 192.168.1.22:50052 (layers 21-40)
+     └─> 192.168.1.20:50052 (layers 41-60)
    ```
 
-6. **Results stream back** to 10.9.66.154 via Ray's object store
+6. **Results stream back** to 192.168.1.10 via Ray's object store
 
 ## Monitoring
 
 ### Ray Dashboard
 ```
-http://10.9.66.154:8265
+http://192.168.1.10:8265
 ```
 Shows:
 - Active nodes
@@ -215,7 +215,7 @@ tail -f /var/log/sollol.log | grep "coordinator"
 Check stored GPU information:
 ```bash
 redis-cli keys "sollol:rpc:node:*"
-redis-cli get "sollol:rpc:node:10.9.66.90:50052"
+redis-cli get "sollol:rpc:node:192.168.1.20:50052"
 ```
 
 ## Troubleshooting
@@ -244,7 +244,7 @@ redis-cli get "sollol:rpc:node:10.9.66.90:50052"
    ```
 2. Test connectivity:
    ```bash
-   telnet 10.9.66.154 6380
+   telnet 192.168.1.10 6380
    ```
 3. Restart worker nodes with correct address
 

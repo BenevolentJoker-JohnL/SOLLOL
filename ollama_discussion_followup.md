@@ -7,7 +7,7 @@ Here's the SOLLOL dashboard in action 📊
 **What you're seeing:**
 
 🟢 **Screenshot 1:** Node health monitoring
-- 2 active Ollama nodes (10.9.66.48, 10.9.66.154)
+- 2 active Ollama nodes (192.168.1.21, 192.168.1.10)
 - 11-12ms latency, 100% success rate
 - 0% load, healthy status
 

@@ -85,13 +85,13 @@ FlockParser Knowledge Base (/home/joker/FlockParser)
 
 ### Remote Architecture (NFS)
 ```
-SynapticLlamas (Machine A: 10.9.66.154)
+SynapticLlamas (Machine A: 192.168.1.10)
         ↓
 FlockParserAdapter (path: /mnt/flockparser)
         ↓
 NFS Mount → Network File System
         ↓
-FlockParser (Machine B: 10.9.66.48)
+FlockParser (Machine B: 192.168.1.21)
         └── /home/joker/FlockParser
             ├── document_index.json
             └── knowledge_base/ (read-only)

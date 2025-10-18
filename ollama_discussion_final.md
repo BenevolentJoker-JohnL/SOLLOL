@@ -64,7 +64,7 @@ The goal is to make distributed AI inference as easy as single-node.
 
 The SOLLOL unified dashboard provides real-time visibility into distributed operations:
 
-**Screenshot 1:** Node health monitoring showing 2 active Ollama nodes (10.9.66.48, 10.9.66.154) with 11-12ms latency, 100% success rate
+**Screenshot 1:** Node health monitoring showing 2 active Ollama nodes (192.168.1.21, 192.168.1.10) with 11-12ms latency, 100% success rate
 
 **Screenshot 2:** Active applications using SOLLOL - FlockParser and SynapticLlamas both connected and processing
 

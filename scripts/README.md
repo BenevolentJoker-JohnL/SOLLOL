@@ -303,7 +303,7 @@ ray status
 ray start --address='HEAD_NODE_IP:6380'
 
 # Example:
-ray start --address='10.9.66.154:6380'
+ray start --address='192.168.1.10:6380'
 ```
 
 ### Ray Systemd Service

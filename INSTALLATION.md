@@ -137,16 +137,16 @@ This setup creates a distributed SOLLOL cluster across multiple nodes.
 │ Multi-Node SOLLOL Cluster                                    │
 ├─────────────────────────────────────────────────────────────┤
 │                                                              │
-│  Gateway Node (10.9.66.154)                                 │
+│  Gateway Node (192.168.1.10)                                 │
 │    - SOLLOL Gateway :11434                                   │
 │    - Redis :6379 (shared state)                              │
 │    - Ray Head :6380                                          │
 │                                                              │
-│  Ollama Nodes (10.9.66.48, 10.9.66.45)                      │
+│  Ollama Nodes (192.168.1.21, 192.168.1.22)                      │
 │    - Ollama Server :11434                                    │
 │    - Small/medium model inference                            │
 │                                                              │
-│  GPU Node (10.9.66.90)                                       │
+│  GPU Node (192.168.1.20)                                       │
 │    - Ollama Server :11434 (optional)                         │
 │    - RPC Backend :50052 (for large models)                   │
 │    - 128GB RAM + 24GB GPU                                    │
@@ -156,7 +156,7 @@ This setup creates a distributed SOLLOL cluster across multiple nodes.
 
 ### Step 1: Setup Gateway Node
 
-**On 10.9.66.154 (main node):**
+**On 192.168.1.10 (main node):**
 
 ```bash
 # Install dependencies
@@ -182,7 +182,7 @@ sudo systemctl start ollama
 
 ### Step 2: Setup Ollama Nodes
 
-**On each Ollama node (10.9.66.48, 10.9.66.45):**
+**On each Ollama node (192.168.1.21, 192.168.1.22):**
 
 ```bash
 # Install Ollama
@@ -206,13 +206,13 @@ ollama pull llama3.1:8b
 
 ### Step 3: Setup GPU Node (for large models)
 
-**On GPU node (10.9.66.90):**
+**On GPU node (192.168.1.20):**
 
 See [Distributed Inference Setup](#distributed-inference-setup) below for RPC backend installation.
 
 ### Step 4: Start Ray Cluster
 
-**On gateway node (10.9.66.154):**
+**On gateway node (192.168.1.10):**
 
 ```bash
 # Start Ray head node
@@ -227,11 +227,11 @@ ray start --head \
 ray status
 ```
 
-**On worker nodes (10.9.66.90, 10.9.66.48, 10.9.66.45):**
+**On worker nodes (192.168.1.20, 192.168.1.21, 192.168.1.22):**
 
 ```bash
 # Join Ray cluster
-ray start --address='10.9.66.154:6380'
+ray start --address='192.168.1.10:6380'
 
 # Verify
 ray status
@@ -244,7 +244,7 @@ ray status
 ```bash
 # Set environment variables
 export SOLLOL_PORT=11434
-export SOLLOL_REDIS_URL="redis://10.9.66.154:6379"
+export SOLLOL_REDIS_URL="redis://192.168.1.10:6379"
 export SOLLOL_RAY_WORKERS=16
 export SOLLOL_DASHBOARD=true
 
@@ -271,7 +271,7 @@ For large models (70B+) that don't fit on a single node, use llama.cpp RPC shard
 
 ### Step 1: Build llama.cpp with RPC Support
 
-**On GPU node (10.9.66.90):**
+**On GPU node (192.168.1.20):**
 
 ```bash
 # Install dependencies
@@ -309,8 +309,8 @@ cmake --build . --config Release -j$(nproc)
 # Download registration script
 cd /path/to/SOLLOL
 python3 src/sollol/register_rpc_gpu_node.py \
-  --redis-url redis://10.9.66.154:6379 \
-  --rpc-host 10.9.66.90 \
+  --redis-url redis://192.168.1.10:6379 \
+  --rpc-host 192.168.1.20 \
   --rpc-port 50052
 ```
 
@@ -353,12 +353,12 @@ This stores GPU/RAM metadata in Redis for intelligent coordinator placement.
 ```bash
 # Check Redis registration
 redis-cli keys "sollol:rpc:node:*"
-redis-cli get "sollol:rpc:node:10.9.66.90:50052"
+redis-cli get "sollol:rpc:node:192.168.1.20:50052"
 
 # Test RPC connectivity
 python3 -c "
 from sollol.rpc_discovery import check_rpc_server
-print(check_rpc_server('10.9.66.90', 50052))
+print(check_rpc_server('192.168.1.20', 50052))
 "
 ```
 
@@ -376,7 +376,7 @@ curl http://localhost:11434/api/chat -d '{
 **What happens:**
 1. SOLLOL detects 70B model (large)
 2. Queries RPC backends for resources
-3. Selects best node (10.9.66.90 with 128GB RAM)
+3. Selects best node (192.168.1.20 with 128GB RAM)
 4. Spawns coordinator on that node via Ray
 5. Coordinator distributes layers across RPC backends
 6. Results stream back to client
@@ -430,7 +430,7 @@ After=network.target
 Type=forking
 User=sollol
 WorkingDirectory=/home/sollol
-ExecStart=/home/sollol/.local/bin/ray start --address='10.9.66.154:6380'
+ExecStart=/home/sollol/.local/bin/ray start --address='192.168.1.10:6380'
 ExecStop=/home/sollol/.local/bin/ray stop
 Restart=on-failure
 RestartSec=10
@@ -476,7 +476,7 @@ Type=simple
 User=sollol
 WorkingDirectory=/home/sollol
 Environment="SOLLOL_PORT=11434"
-Environment="SOLLOL_REDIS_URL=redis://10.9.66.154:6379"
+Environment="SOLLOL_REDIS_URL=redis://192.168.1.10:6379"
 Environment="SOLLOL_RAY_WORKERS=16"
 Environment="SOLLOL_DASHBOARD=true"
 Environment="PYTHONUNBUFFERED=1"
@@ -521,14 +521,14 @@ Create `/etc/sollol/config.env`:
 ```bash
 # SOLLOL Configuration
 SOLLOL_PORT=11434
-SOLLOL_REDIS_URL=redis://10.9.66.154:6379
+SOLLOL_REDIS_URL=redis://192.168.1.10:6379
 SOLLOL_RAY_WORKERS=16
 SOLLOL_DASHBOARD=true
 SOLLOL_DASHBOARD_PORT=8080
 
 # Optional: Manual node specification
-#OLLAMA_NODES=10.9.66.48:11434,10.9.66.45:11434
-#RPC_BACKENDS=10.9.66.90:50052
+#OLLAMA_NODES=192.168.1.21:11434,192.168.1.22:11434
+#RPC_BACKENDS=192.168.1.20:50052
 ```
 
 Update service file to use it:
@@ -559,10 +559,10 @@ htop
 nvidia-smi  # GPU monitoring
 
 # SOLLOL Dashboard
-http://10.9.66.154:8080
+http://192.168.1.10:8080
 
 # Ray Dashboard
-http://10.9.66.154:8265
+http://192.168.1.10:8265
 ```
 
 ---
@@ -597,13 +597,13 @@ curl http://localhost:11434/api/health | jq
 ray status
 
 # Redis connectivity
-redis-cli -h 10.9.66.154 ping
+redis-cli -h 192.168.1.10 ping
 
 # RPC backends
 redis-cli keys "sollol:rpc:node:*"
 
 # Ollama nodes
-curl http://10.9.66.48:11434/api/tags
+curl http://192.168.1.21:11434/api/tags
 ```
 
 ### 3. Test Inference
@@ -632,7 +632,7 @@ Watch for intelligent routing decisions:
 journalctl -u sollol -f | grep "coordinator"
 # Should see:
 # Pool 0: Selecting coordinator node for llama3.1:70b
-# Pool 0: Selected 10.9.66.90 for coordinator (score=140616)
+# Pool 0: Selected 192.168.1.20 for coordinator (score=140616)
 ```
 
 ---
@@ -660,7 +660,7 @@ sudo ufw allow 6380/tcp
 sudo ufw allow 8265/tcp
 
 # Test connectivity
-telnet 10.9.66.154 6380
+telnet 192.168.1.10 6380
 
 # Restart Ray
 ray stop
@@ -689,7 +689,7 @@ This is what remote coordinator execution solves! Check:
 ray status
 
 # Verify GPU metadata in Redis
-redis-cli get "sollol:rpc:node:10.9.66.90:50052"
+redis-cli get "sollol:rpc:node:192.168.1.20:50052"
 
 # Check logs for node selection
 journalctl -u sollol | grep "Selected.*for coordinator"
@@ -707,7 +707,7 @@ export SOLLOL_RAY_WORKERS=32
 sudo systemctl restart sollol
 
 # Check network latency
-ping 10.9.66.90
+ping 192.168.1.20
 ```
 
 ---

@@ -63,8 +63,8 @@ python3 -c "from sollol import OllamaPool; pool = OllamaPool.auto_configure(); p
 **Expected output:**
 ```
 Discovering Ollama nodes...
-Found 3 nodes: 10.9.66.45:11434, 10.9.66.154:11434, localhost:11434
-Selected node: 10.9.66.45:11434 (GPU, 12ms latency)
+Found 3 nodes: 192.168.1.22:11434, 192.168.1.10:11434, localhost:11434
+Selected node: 192.168.1.22:11434 (GPU, 12ms latency)
 Hello! How can I help you today?
 ```
 
@@ -107,7 +107,7 @@ For accurate VRAM-aware routing, install the GPU reporter on each node:
 sollol install-gpu-reporter --redis-host <redis-server-ip>
 
 # Example:
-sollol install-gpu-reporter --redis-host 10.9.66.154
+sollol install-gpu-reporter --redis-host 192.168.1.10
 ```
 
 **What this does:**
@@ -545,7 +545,7 @@ cp build/bin/rpc-server ~/.local/bin/
 
 # 5. Deploy and start RPC servers
 
-# For GPU nodes (10.9.66.90, etc.):
+# For GPU nodes (192.168.1.20, etc.):
 # Copy binary to GPU node
 scp ~/.local/bin/rpc-server <gpu-node>:~/.local/bin/
 
@@ -733,7 +733,7 @@ from sollol.rpc_registry import RPCBackendRegistry
 
 # 1. Register RPC backends explicitly
 registry = RPCBackendRegistry()
-registry.add_backend("rpc_1", "grpc://10.9.66.45:50052")
+registry.add_backend("rpc_1", "grpc://192.168.1.22:50052")
 registry.add_backend("rpc_2", "grpc://10.9.66.46:50052")
 registry.add_backend("rpc_3", "grpc://10.9.66.47:50052")
 
@@ -1692,8 +1692,8 @@ pip install sollol gpustat
 # Run GPU reporter (publishes to central Redis)
 sollol install-gpu-reporter --redis-host <control-plane-ip>
 
-# Example for node at 10.9.66.45
-sollol install-gpu-reporter --redis-host 10.9.66.154
+# Example for node at 192.168.1.22
+sollol install-gpu-reporter --redis-host 192.168.1.10
 ```
 
 Create `/etc/systemd/system/sollol-gpu-reporter.service` on each GPU node:

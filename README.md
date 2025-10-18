@@ -524,32 +524,57 @@ export PATH=/usr/local/cuda-12.6/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda-12.6/lib64:$LD_LIBRARY_PATH
 
 # 3. Clone and build llama.cpp with CUDA
-cd /tmp
-git clone https://github.com/ggerganov/llama.cpp.git llama.cpp-gpu
-cd llama.cpp-gpu
+cd ~
+git clone https://github.com/ggerganov/llama.cpp.git
+cd llama.cpp
 
-# Build with static libs and multiple GPU architectures
+# Build RPC server with CUDA support
 cmake -B build \
   -DGGML_CUDA=ON \
   -DCMAKE_CUDA_ARCHITECTURES="75;80;86;89;90" \
   -DBUILD_SHARED_LIBS=OFF \
-  -DLLAMA_CURL=OFF
+  -DLLAMA_CURL=OFF \
+  -DLLAMA_BUILD_TOOLS=ON \
+  -DGGML_RPC=ON
 
-cmake --build build --config Release --target llama-server -j $(nproc)
+cmake --build build --config Release --target rpc-server -j $(nproc)
 
 # 4. Install binary
 mkdir -p ~/.local/bin
-cp build/bin/llama-server ~/.local/bin/
+cp build/bin/rpc-server ~/.local/bin/
 
-# 5. Verify installation (on GPU node with NVIDIA drivers)
-llama-server --version  # On CPU nodes, add CUDA stubs to LD_LIBRARY_PATH
+# 5. Deploy and start RPC servers
+
+# For GPU nodes (10.9.66.90, etc.):
+# Copy binary to GPU node
+scp ~/.local/bin/rpc-server <gpu-node>:~/.local/bin/
+
+# On GPU node, start with CUDA support
+ssh <gpu-node>
+nohup ~/.local/bin/rpc-server --host 0.0.0.0 --port 50052 > /tmp/rpc-server.log 2>&1 &
+
+# For CPU-only nodes:
+# Build without CUDA (faster, smaller binary)
+cd ~/llama.cpp
+cmake -B build-cpu \
+  -DGGML_CUDA=OFF \
+  -DLLAMA_BUILD_TOOLS=ON \
+  -DGGML_RPC=ON
+
+cmake --build build-cpu --config Release --target rpc-server -j $(nproc)
+cp build-cpu/bin/rpc-server ~/.local/bin/rpc-server-cpu
+
+# Start CPU-only RPC server
+nohup ~/.local/bin/rpc-server-cpu --host 0.0.0.0 --port 50052 > /tmp/rpc-server.log 2>&1 &
 ```
 
-**Why GPU support?**
-- ✅ GPU nodes use CUDA for faster inference
-- ✅ CPU-only nodes automatically fall back to CPU
-- ✅ Single binary works everywhere
-- ✅ Hybrid parallelization (CPU + GPU workers per node)
+**Why build separate binaries?**
+- ✅ **CUDA binary (689MB)**: Runs on GPU nodes, uses CUDA automatically
+- ✅ **CPU-only binary (~200MB)**: Smaller, runs on coordinator/CPU-only nodes
+- ✅ **Deployment**: CUDA binary requires NVIDIA drivers on target machine
+- ✅ **Hybrid parallelization**: GPU nodes can use CPU + GPU workers
+
+**Note**: The CUDA-enabled binary **will not run** on machines without NVIDIA drivers (like CPU-only coordinator). Build CPU-only version for coordinator nodes.
 
 **For other GPU vendors:**
 - **AMD GPUs**: Use `-DGGML_HIPBLAS=ON` instead of `-DGGML_CUDA=ON`

@@ -28,55 +28,59 @@ echo ""
 echo "✅ Verifying CUDA installation..."
 nvcc --version
 
-# Build llama.cpp with CUDA support
+# Build llama.cpp RPC server with CUDA support
 echo ""
-echo "🔨 Building llama.cpp with CUDA support..."
-cd /tmp/llama.cpp-gpu
+echo "🔨 Building llama.cpp RPC server with CUDA support..."
+cd ~/llama.cpp
 rm -rf build
 cmake -B build \
   -DGGML_CUDA=ON \
   -DCMAKE_CUDA_ARCHITECTURES="75;80;86;89;90" \
   -DBUILD_SHARED_LIBS=OFF \
-  -DLLAMA_CURL=OFF
-cmake --build build --config Release --target llama-server -j $(nproc)
+  -DLLAMA_CURL=OFF \
+  -DLLAMA_BUILD_TOOLS=ON \
+  -DGGML_RPC=ON
+
+cmake --build build --config Release --target rpc-server -j $(nproc)
 
 # Install binaries to ~/.local/bin
 echo ""
-echo "📦 Installing binaries to ~/.local/bin..."
+echo "📦 Installing CUDA rpc-server binary to ~/.local/bin..."
 mkdir -p ~/.local/bin
-cp build/bin/llama-server ~/.local/bin/llama-server
+cp build/bin/rpc-server ~/.local/bin/rpc-server
 
-# Verify installation (note: will fail on CPU-only machines without CUDA stubs)
+# Check binary size
 echo ""
-echo "✅ Verifying installation..."
-if ~/.local/bin/llama-server --version 2>&1 | head -5; then
-  echo "Binary verification successful"
-else
-  echo "⚠️  Binary verification failed (expected on CPU-only machines)"
-  echo "Binary will work on nodes with NVIDIA drivers installed"
-fi
+echo "✅ Verifying build..."
+ls -lh ~/.local/bin/rpc-server
+ldd ~/.local/bin/rpc-server | grep -i cuda || echo "⚠️  CUDA libraries not found (expected on CPU-only build machine)"
 
 echo ""
 echo "========================================"
 echo "✅ Installation Complete!"
 echo "========================================"
 echo ""
-echo "CUDA-enabled binary installed:"
-echo "  - llama-server (~/.local/bin/llama-server)"
+echo "CUDA-enabled RPC server built:"
+echo "  - rpc-server (~/.local/bin/rpc-server, ~689MB)"
 echo ""
 echo "Build configuration:"
 echo "  - CUDA architectures: 75,80,86,89,90 (Turing→Hopper)"
 echo "  - Static libraries for portability"
-echo "  - Binary size: ~760MB (includes kernels for all architectures)"
+echo "  - RPC backend support enabled"
 echo ""
-echo "This binary will:"
-echo "  ✅ Use CUDA on NVIDIA GPU nodes (RTX 20/30/40 series, A100, H100)"
-echo "  ✅ Fall back to CPU on non-GPU nodes"
+echo "⚠️  IMPORTANT:"
+echo "  - This CUDA binary REQUIRES NVIDIA drivers on target nodes"
+echo "  - Will NOT run on CPU-only coordinator without drivers"
+echo "  - Deploy to GPU nodes (10.9.66.90, etc.)"
 echo ""
 echo "Next steps:"
-echo "1. Deploy this binary to your GPU nodes"
-echo "2. Ensure NVIDIA drivers (535+) are installed on GPU nodes"
-echo "3. Start llama-server with your model"
+echo "1. Copy binary to GPU nodes:"
+echo "   scp ~/.local/bin/rpc-server <gpu-node>:~/.local/bin/"
 echo ""
-echo "Note: Binary requires NVIDIA drivers on target GPU nodes"
+echo "2. On GPU nodes, start RPC server:"
+echo "   nohup ~/.local/bin/rpc-server --host 0.0.0.0 --port 50052 > /tmp/rpc-server.log 2>&1 &"
+echo ""
+echo "3. For CPU-only coordinator, build separate CPU binary:"
+echo "   cmake -B build-cpu -DGGML_CUDA=OFF -DLLAMA_BUILD_TOOLS=ON -DGGML_RPC=ON"
+echo "   cmake --build build-cpu --target rpc-server -j $(nproc)"
 echo ""

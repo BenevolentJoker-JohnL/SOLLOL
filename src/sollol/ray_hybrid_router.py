@@ -402,76 +402,21 @@ class RayHybridRouter:
                     )
                     logger.info("📊 Ray dashboard available at http://localhost:8265")
 
-            # Only create RPC pools if we have backends
+            # RPC backends configuration (no Ray pools needed - route directly to coordinator)
             if self.has_rpc_backends:
-                # Create RPC backend registry
+                # Create RPC backend registry for health monitoring
                 self.rpc_registry = RPCBackendRegistry()
                 self.rpc_registry.load_from_config(self.rpc_backends)
 
-                # Calculate number of pools
-                if num_pools is None:
-                    num_pools = max(1, len(self.rpc_backends) // backends_per_pool)
-
-                self.num_pools = num_pools
+                # No pools needed - we route directly to llama.cpp coordinator
+                self.num_pools = 0
                 self.pools: List[ray.actor.ActorHandle] = []
                 self.current_model: Optional[str] = None
 
-                # Create pools from RPC backends
-                logger.info(
-                    f"📦 Creating {num_pools} sharded model pools "
-                    f"({backends_per_pool} backends per pool)"
-                )
-
-                for i in range(num_pools):
-                    # Assign backends to this pool (round-robin)
-                    pool_backends = [
-                        self.rpc_backends[j]
-                        for j in range(i, len(self.rpc_backends), num_pools)
-                    ]
-
-                    if pool_backends:
-                        # Use Ray placement strategies for remote execution
-                        # The actor will intelligently select which node to run on
-                        if self.enable_remote_coordinator and len(pool_backends) > 0:
-                            # Get first backend node as hint for placement
-                            # Ray will attempt to schedule near this node
-                            preferred_node = pool_backends[0]["host"]
-
-                            # Use scheduling_strategy to prefer specific node
-                            # Note: Ray uses node IDs, not IPs directly
-                            # For multi-node Ray clusters, this guides placement
-                            pool = ShardedModelPool.options(
-                                scheduling_strategy="SPREAD",  # Spread pools across nodes
-                            ).remote(
-                                rpc_backends=pool_backends,
-                                coordinator_host=coordinator_host,
-                                coordinator_port=coordinator_base_port,
-                                pool_id=i,
-                                enable_remote_coordinator=True,
-                            )
-                            logger.info(
-                                f"  Pool {i}: {len(pool_backends)} backends "
-                                f"(port {coordinator_base_port + i}, remote coordinator enabled)"
-                            )
-                        else:
-                            # Local execution (original behavior)
-                            pool = ShardedModelPool.remote(
-                                rpc_backends=pool_backends,
-                                coordinator_host=coordinator_host,
-                                coordinator_port=coordinator_base_port,
-                                pool_id=i,
-                                enable_remote_coordinator=False,
-                            )
-                            logger.info(
-                                f"  Pool {i}: {len(pool_backends)} backends "
-                                f"(port {coordinator_base_port + i})"
-                            )
-
-                        self.pools.append(pool)
-
                 logger.info(
                     f"✅ RayHybridRouter initialized: "
-                    f"{len(self.pools)} RPC pools, {len(self.rpc_backends)} total backends"
+                    f"Direct routing to llama.cpp coordinator at {coordinator_host}:{coordinator_base_port}, "
+                    f"{len(self.rpc_backends)} RPC backends registered"
                 )
             else:
                 # No RPC backends - Ray still used for parallel Ollama pool execution
@@ -529,7 +474,7 @@ class RayHybridRouter:
         Route request to appropriate backend.
 
         Small models → Ollama pool (task distribution)
-        Large models → Ray sharded pools (model sharding)
+        Large models → llama.cpp coordinator (RPC sharding)
 
         Args:
             model: Model name
@@ -543,10 +488,10 @@ class RayHybridRouter:
         # Determine routing
         route_to_rpc = self._should_use_rpc(model)
 
-        if route_to_rpc and self.enable_distributed and self.pools:
-            # Large model → Use Ray-managed sharded pools
-            logger.info(f"Routing {model} to RPC sharding (estimated large model)")
-            return await self._route_to_ray_pool(model, messages, stream, **kwargs)
+        if route_to_rpc and self.enable_distributed and self.has_rpc_backends:
+            # Large model → Route directly to llama.cpp coordinator (RPC sharding)
+            logger.info(f"Routing {model} to llama.cpp coordinator for RPC sharding (estimated large model)")
+            return await self._route_to_llama_cpp_coordinator(model, messages, stream, **kwargs)
         elif self.ollama_pool:
             # Small model → Use Ollama pool for task distribution
             logger.info(f"Routing {model} to Ollama pool (estimated small model)")
@@ -558,21 +503,72 @@ class RayHybridRouter:
                     **kwargs
                 )
             except Exception as e:
-                if self.auto_fallback and self.enable_distributed and self.pools:
+                if self.auto_fallback and self.enable_distributed and self.has_rpc_backends:
                     logger.warning(
                         f"Ollama failed for {model}, falling back to RPC sharding: {e}"
                     )
-                    return await self._route_to_ray_pool(model, messages, stream, **kwargs)
+                    return await self._route_to_llama_cpp_coordinator(model, messages, stream, **kwargs)
                 raise
-        elif self.enable_distributed and self.pools:
+        elif self.enable_distributed and self.has_rpc_backends:
             # No Ollama pool but have RPC → Force RPC routing
-            logger.info(f"Routing {model} to RPC sharding (no Ollama pool available)")
-            return await self._route_to_ray_pool(model, messages, stream, **kwargs)
+            logger.info(f"Routing {model} to llama.cpp coordinator for RPC sharding (no Ollama pool available)")
+            return await self._route_to_llama_cpp_coordinator(model, messages, stream, **kwargs)
         else:
             raise RuntimeError(
                 f"Cannot route request for {model}: No Ollama pool and no RPC backends available. "
                 "Configure either Ollama nodes or RPC backends."
             )
+
+    async def _route_to_llama_cpp_coordinator(
+        self,
+        model: str,
+        messages: List[Dict[str, str]],
+        stream: bool,
+        **kwargs
+    ) -> Dict[str, Any]:
+        """
+        Route request directly to llama.cpp coordinator for RPC sharding.
+
+        This assumes a llama.cpp coordinator is already running (e.g., on port 18080).
+        The coordinator manages RPC backends for distributed inference.
+
+        Args:
+            model: Model name
+            messages: Chat messages
+            stream: Whether to stream (not supported)
+            **kwargs: Additional parameters
+
+        Returns:
+            Chat completion response from llama.cpp coordinator
+        """
+        if stream:
+            raise NotImplementedError("Streaming not supported for RPC sharding")
+
+        # Use the coordinator HTTP client (created during init)
+        if not hasattr(self, 'coordinator_client'):
+            # Import here to avoid circular dependency
+            import httpx
+            self.coordinator_client = httpx.AsyncClient(timeout=300.0)
+
+        # Use coordinator_host and coordinator_base_port from init
+        coordinator_url = f"http://{self.coordinator_host}:{self.coordinator_base_port}/v1/chat/completions"
+
+        payload = {
+            "messages": messages,
+            "max_tokens": kwargs.get("max_tokens", 512),
+            "temperature": kwargs.get("temperature", 0.7),
+            "stream": False,
+        }
+
+        logger.debug(f"Sending request to llama.cpp coordinator at {coordinator_url}")
+
+        try:
+            response = await self.coordinator_client.post(coordinator_url, json=payload)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            logger.error(f"llama.cpp coordinator request failed: {e}")
+            raise
 
     async def _route_to_ray_pool(
         self,
@@ -583,6 +579,9 @@ class RayHybridRouter:
     ) -> Dict[str, Any]:
         """
         Route request to Ray-managed sharded pool.
+
+        DEPRECATED: This method spawns llama-server coordinators inside Ray actors,
+        which causes OOM errors. Use _route_to_llama_cpp_coordinator instead.
 
         Ray automatically handles:
         - Load balancing (picks least busy pool)

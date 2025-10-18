@@ -265,21 +265,48 @@ def _cidr_to_ips(cidr: str) -> List[str]:
 # Convenience function
 def auto_discover_rpc_backends(port: int = 50052, auto_resolve_docker: bool = True) -> List[Dict[str, Any]]:
     """
-    Auto-discover RPC backends on the local network.
+    Auto-discover RPC backends on the local network with GPU metadata.
 
     Args:
         port: RPC port to scan (default: 50052)
         auto_resolve_docker: If True, automatically resolve Docker IPs
 
     Returns:
-        List of discovered backends
+        List of discovered backends with GPU metadata enrichment
 
     Features:
         - Automatic CIDR detection
         - Docker IP resolution
         - Fast parallel scanning
+        - GPU metadata enrichment from Redis
     """
-    return discover_rpc_backends(port=port, auto_resolve_docker=auto_resolve_docker)
+    backends = discover_rpc_backends(port=port, auto_resolve_docker=auto_resolve_docker)
+
+    # Enrich each backend with GPU metadata from Redis
+    enriched_backends = []
+    for backend in backends:
+        host = backend["host"]
+        port_num = backend["port"]
+
+        # Get GPU metadata for this node
+        resources = detect_node_resources(host)
+
+        # Merge with backend info
+        enriched_backend = {
+            "host": host,
+            "port": port_num,
+            "has_gpu": resources.get("has_gpu", False),
+            "gpu_devices": resources.get("gpu_devices", []),
+            "gpu_vram_mb": resources.get("gpu_vram_mb", []),
+            "gpu_names": resources.get("gpu_names", []),
+            "cpu_ram_mb": resources.get("cpu_ram_mb", 0),
+            "device_config": resources.get("device_config", "cpu"),
+            "memory_config": resources.get("memory_config", "8000"),
+            "num_workers": resources.get("total_parallel_workers", 1),
+        }
+        enriched_backends.append(enriched_backend)
+
+    return enriched_backends
 
 
 if __name__ == "__main__":

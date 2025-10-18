@@ -112,7 +112,7 @@ class LlamaCppCoordinator:
 
         # Heartbeat for live monitoring - configurable via environment variable
         self._heartbeat_task: Optional[asyncio.Task] = None
-        self._heartbeat_interval = int(os.getenv("SOLLOL_RPC_HEARTBEAT_INTERVAL", "30"))  # seconds
+        self._heartbeat_interval = int(os.getenv("SOLLOL_RPC_HEARTBEAT_INTERVAL", "600"))  # seconds (10 minutes)
 
     def _get_healthy_backends(self) -> List[RPCBackend]:
         """

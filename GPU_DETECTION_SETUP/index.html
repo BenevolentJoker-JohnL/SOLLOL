@@ -1975,7 +1975,7 @@
 <p>SOLLOL's GPU detection system enables intelligent routing by detecting GPU capabilities on remote RPC nodes. The system uses Redis as a central registry where nodes publish their GPU specifications.</p>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────────┐
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│  Coordinator Node (10.9.66.154)                         │
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│  Coordinator Node (192.168.1.10)                         │
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│  ┌────────────────────────────────────────────────┐    │
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│  │  Redis (0.0.0.0:6379)                          │    │
 <a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│  │  - Central GPU registry                        │    │
@@ -2028,7 +2028,7 @@
 <a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>cmake<span class="w"> </span>--build<span class="w"> </span>build<span class="w"> </span>--config<span class="w"> </span>Release<span class="w"> </span>--target<span class="w"> </span>rpc-server<span class="w"> </span>-j<span class="w"> </span><span class="k">$(</span>nproc<span class="k">)</span>
 <a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
 <a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Deploy to GPU nodes</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>scp<span class="w"> </span>build/bin/rpc-server<span class="w"> </span><span class="m">10</span>.9.66.90:~/.local/bin/
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>scp<span class="w"> </span>build/bin/rpc-server<span class="w"> </span><span class="m">192</span>.168.1.20:~/.local/bin/
 </code></pre></div>
 <p><strong>Requirements</strong>:
 - CUDA Toolkit 12.6+ installed on build machine
@@ -2073,7 +2073,7 @@
 <h2 id="part-1-configure-redis-for-network-access">Part 1: Configure Redis for Network Access<a class="headerlink" href="#part-1-configure-redis-for-network-access" title="Permanent link">&para;</a></h2>
 <p>By default, Redis only listens on <code>localhost</code> (127.0.0.1). Remote GPU nodes need network access to register their capabilities.</p>
 <h3 id="step-11-edit-redis-configuration">Step 1.1: Edit Redis Configuration<a class="headerlink" href="#step-11-edit-redis-configuration" title="Permanent link">&para;</a></h3>
-<p>On the <strong>coordinator node</strong> (10.9.66.154):</p>
+<p>On the <strong>coordinator node</strong> (192.168.1.10):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Open Redis config</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>sudo<span class="w"> </span>nano<span class="w"> </span>/etc/redis/redis.conf
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
@@ -2081,7 +2081,7 @@
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="nb">bind</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>::1
 <a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1"># Change it to (replace with your coordinator IP):</span>
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="nb">bind</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>::1<span class="w"> </span><span class="m">10</span>.9.66.154
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="nb">bind</span><span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>::1<span class="w"> </span><span class="m">192</span>.168.1.10
 </code></pre></div>
 <p><strong>What this does</strong>: Allows Redis to accept connections from the network while still listening on localhost.</p>
 <h3 id="step-12-restart-redis">Step 1.2: Restart Redis<a class="headerlink" href="#step-12-restart-redis" title="Permanent link">&para;</a></h3>
@@ -2093,12 +2093,12 @@
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1"># Expected output:</span>
 <a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># tcp  0  0 127.0.0.1:6379      0.0.0.0:*  LISTEN  (localhost)</span>
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># tcp  0  0 10.9.66.154:6379    0.0.0.0:*  LISTEN  (network)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># tcp  0  0 192.168.1.10:6379    0.0.0.0:*  LISTEN  (network)</span>
 </code></pre></div>
 <h3 id="step-14-test-remote-connection">Step 1.4: Test Remote Connection<a class="headerlink" href="#step-14-test-remote-connection" title="Permanent link">&para;</a></h3>
-<p>From a <strong>remote node</strong> (e.g., 10.9.66.90):</p>
+<p>From a <strong>remote node</strong> (e.g., 192.168.1.20):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Test Redis connectivity</span>
-<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>redis-cli<span class="w"> </span>-h<span class="w"> </span><span class="m">10</span>.9.66.154<span class="w"> </span>ping
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>redis-cli<span class="w"> </span>-h<span class="w"> </span><span class="m">192</span>.168.1.10<span class="w"> </span>ping
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
 <a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Expected output:</span>
 <a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="c1"># PONG</span>
@@ -2106,15 +2106,15 @@
 <p>If you get "Connection refused", check:
 - Firewall rules (see Security section below)
 - Redis bind configuration
-- Network connectivity (<code>ping 10.9.66.154</code>)</p>
+- Network connectivity (<code>ping 192.168.1.10</code>)</p>
 <hr />
 <h2 id="part-2-register-gpu-nodes">Part 2: Register GPU Nodes<a class="headerlink" href="#part-2-register-gpu-nodes" title="Permanent link">&para;</a></h2>
 <p>Each GPU node needs to publish its capabilities to Redis on startup.</p>
 <h3 id="step-21-copy-registration-script-to-gpu-nodes">Step 2.1: Copy Registration Script to GPU Nodes<a class="headerlink" href="#step-21-copy-registration-script-to-gpu-nodes" title="Permanent link">&para;</a></h3>
 <p>From the <strong>coordinator</strong>:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># Copy registration script to each GPU node</span>
-<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>scp<span class="w"> </span>/home/joker/SOLLOL/scripts/register_gpu_node.py<span class="w"> </span><span class="m">10</span>.9.66.90:~/
-<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>scp<span class="w"> </span>/home/joker/SOLLOL/scripts/register_gpu_node.py<span class="w"> </span><span class="m">10</span>.9.66.45:~/
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>scp<span class="w"> </span>/home/joker/SOLLOL/scripts/register_gpu_node.py<span class="w"> </span><span class="m">192</span>.168.1.20:~/
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>scp<span class="w"> </span>/home/joker/SOLLOL/scripts/register_gpu_node.py<span class="w"> </span><span class="m">192</span>.168.1.22:~/
 <a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># ... repeat for all GPU nodes</span>
 </code></pre></div>
 <h3 id="step-22-install-dependencies-on-gpu-nodes">Step 2.2: Install Dependencies on GPU Nodes<a class="headerlink" href="#step-22-install-dependencies-on-gpu-nodes" title="Permanent link">&para;</a></h3>
@@ -2126,16 +2126,16 @@
 <a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>nvidia-smi
 </code></pre></div>
 <h3 id="step-23-run-registration-script">Step 2.3: Run Registration Script<a class="headerlink" href="#step-23-run-registration-script" title="Permanent link">&para;</a></h3>
-<p>On <strong>each GPU node</strong> (e.g., 10.9.66.90):</p>
+<p>On <strong>each GPU node</strong> (e.g., 192.168.1.20):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Register GPU with coordinator</span>
-<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">10</span>.9.66.154
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">192</span>.168.1.10
 <a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
 <a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Expected output:</span>
 <a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># ======================================================================</span>
 <a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="c1"># GPU NODE REGISTRATION - SOLLOL</span>
 <a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># ======================================================================</span>
 <a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="c1">#</span>
-<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="c1"># 📍 Node IP: 10.9.66.90</span>
+<a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="c1"># 📍 Node IP: 192.168.1.20</span>
 <a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="c1">#</span>
 <a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="c1"># 🔍 Detecting resources...</span>
 <a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="c1">#</span>
@@ -2156,8 +2156,8 @@
 <a id="__codelineno-11-27" name="__codelineno-11-27" href="#__codelineno-11-27"></a><span class="c1"># ======================================================================</span>
 <a id="__codelineno-11-28" name="__codelineno-11-28" href="#__codelineno-11-28"></a><span class="c1"># REDIS REGISTRATION</span>
 <a id="__codelineno-11-29" name="__codelineno-11-29" href="#__codelineno-11-29"></a><span class="c1"># ======================================================================</span>
-<a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a><span class="c1"># ✅ Published to Redis: redis://10.9.66.154:6379</span>
-<a id="__codelineno-11-31" name="__codelineno-11-31" href="#__codelineno-11-31"></a><span class="c1">#    Key: sollol:rpc:node:10.9.66.90:50052</span>
+<a id="__codelineno-11-30" name="__codelineno-11-30" href="#__codelineno-11-30"></a><span class="c1"># ✅ Published to Redis: redis://192.168.1.10:6379</span>
+<a id="__codelineno-11-31" name="__codelineno-11-31" href="#__codelineno-11-31"></a><span class="c1">#    Key: sollol:rpc:node:192.168.1.20:50052</span>
 <a id="__codelineno-11-32" name="__codelineno-11-32" href="#__codelineno-11-32"></a><span class="c1">#    TTL: 1 hour</span>
 <a id="__codelineno-11-33" name="__codelineno-11-33" href="#__codelineno-11-33"></a><span class="c1">#</span>
 <a id="__codelineno-11-34" name="__codelineno-11-34" href="#__codelineno-11-34"></a><span class="c1"># ======================================================================</span>
@@ -2176,18 +2176,18 @@
 - 2 parallel workers on this node</p>
 <hr />
 <h2 id="part-3-verify-gpu-detection-on-coordinator">Part 3: Verify GPU Detection on Coordinator<a class="headerlink" href="#part-3-verify-gpu-detection-on-coordinator" title="Permanent link">&para;</a></h2>
-<p>On the <strong>coordinator node</strong> (10.9.66.154):</p>
+<p>On the <strong>coordinator node</strong> (192.168.1.10):</p>
 <h3 id="step-31-check-redis-registration">Step 3.1: Check Redis Registration<a class="headerlink" href="#step-31-check-redis-registration" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># List all registered nodes</span>
 <a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>redis-cli<span class="w"> </span>KEYS<span class="w"> </span><span class="s2">&quot;sollol:rpc:node:*&quot;</span>
 <a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c1"># Expected output:</span>
-<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># 1) &quot;sollol:rpc:node:10.9.66.90:50052&quot;</span>
-<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="c1"># 2) &quot;sollol:rpc:node:10.9.66.45:50052&quot;</span>
-<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># 3) &quot;sollol:rpc:node:10.9.66.48:50052&quot;</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># 1) &quot;sollol:rpc:node:192.168.1.20:50052&quot;</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="c1"># 2) &quot;sollol:rpc:node:192.168.1.22:50052&quot;</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># 3) &quot;sollol:rpc:node:192.168.1.21:50052&quot;</span>
 <a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>
 <a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="c1"># View specific node info</span>
-<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>redis-cli<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;sollol:rpc:node:10.9.66.90:50052&quot;</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>redis-cli<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;sollol:rpc:node:192.168.1.20:50052&quot;</span>
 <a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>
 <a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="c1"># Expected output (JSON):</span>
 <a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="c1"># {&quot;has_gpu&quot;:true,&quot;gpu_devices&quot;:[&quot;cuda:0&quot;],&quot;gpu_vram_mb&quot;:[19200],&quot;gpu_names&quot;:[&quot;NVIDIA GeForce RTX 3090&quot;],&quot;cpu_ram_mb&quot;:12000,&quot;device_config&quot;:&quot;cpu,cuda:0&quot;,&quot;memory_config&quot;:&quot;12000,19200&quot;,&quot;total_parallel_workers&quot;:2}</span>
@@ -2220,21 +2220,21 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>=== RPC Node Discovery ===
 <a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>Found 3 RPC backends:
 <a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
-<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>📍 10.9.66.90:50052
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>📍 192.168.1.20:50052
 <a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>   Has GPU: True
 <a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>   GPU devices: [&#39;cuda:0&#39;]
 <a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>   GPU VRAM: [19200] MB
 <a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>   CPU RAM: 12000 MB
 <a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>   Workers: 2
 <a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>
-<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>📍 10.9.66.45:50052
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>📍 192.168.1.22:50052
 <a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>   Has GPU: True
 <a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>   GPU devices: [&#39;cuda:0&#39;]
 <a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>   GPU VRAM: [10240] MB
 <a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>   CPU RAM: 8000 MB
 <a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>   Workers: 2
 <a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a>
-<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>📍 10.9.66.48:50052
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a>📍 192.168.1.21:50052
 <a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a>   Has GPU: False
 <a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a>   GPU devices: []
 <a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a>   GPU VRAM: [] MB
@@ -2254,7 +2254,7 @@
 <a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="na">Type</span><span class="o">=</span><span class="s">simple</span>
 <a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="na">User</span><span class="o">=</span><span class="s">your-username</span>
 <a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="na">WorkingDirectory</span><span class="o">=</span><span class="s">/home/your-username</span>
-<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/bin/python3 /home/your-username/register_gpu_node.py --redis-host 10.9.66.154</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a><span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/bin/python3 /home/your-username/register_gpu_node.py --redis-host 192.168.1.10</span>
 <a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="na">Restart</span><span class="o">=</span><span class="s">always</span>
 <a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="na">RestartSec</span><span class="o">=</span><span class="s">3600</span>
 <a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a>
@@ -2271,7 +2271,7 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>crontab<span class="w"> </span>-e
 <a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
 <a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1"># Add this line (runs every hour):</span>
-<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="m">0</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/your-username<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">10</span>.9.66.154<span class="w"> </span>&gt;<span class="w"> </span>/tmp/gpu-registration.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="m">0</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>/home/your-username<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">192</span>.168.1.10<span class="w"> </span>&gt;<span class="w"> </span>/tmp/gpu-registration.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
 </code></pre></div>
 <hr />
 <h2 id="security-considerations">Security Considerations<a class="headerlink" href="#security-considerations" title="Permanent link">&para;</a></h2>
@@ -2299,20 +2299,20 @@
 <a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">REDIS_PASSWORD</span><span class="o">=</span><span class="s2">&quot;your_strong_password_here&quot;</span>
 <a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
 <a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="c1"># Or pass via URL</span>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="s2">&quot;redis://:your_strong_password_here@10.9.66.154:6379&quot;</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="s2">&quot;redis://:your_strong_password_here@192.168.1.10:6379&quot;</span>
 </code></pre></div>
 <hr />
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="issue-redis-connection-refused-from-remote-nodes">Issue: Redis connection refused from remote nodes<a class="headerlink" href="#issue-redis-connection-refused-from-remote-nodes" title="Permanent link">&para;</a></h3>
 <p><strong>Symptoms</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>❌ Failed to publish to Redis: Error 111 connecting to 10.9.66.154:6379. Connection refused.
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>❌ Failed to publish to Redis: Error 111 connecting to 192.168.1.10:6379. Connection refused.
 </code></pre></div></p>
 <p><strong>Solutions</strong>:</p>
 <ol>
 <li>
 <p><strong>Check Redis is listening on network</strong>:
    <div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>netstat<span class="w"> </span>-tuln<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="m">6379</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="c1"># Should show: 10.9.66.154:6379</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="c1"># Should show: 192.168.1.10:6379</span>
 </code></pre></div></p>
 </li>
 <li>
@@ -2330,7 +2330,7 @@
 <li>
 <p><strong>Test connectivity</strong>:
    <div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># From remote node</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>telnet<span class="w"> </span><span class="m">10</span>.9.66.154<span class="w"> </span><span class="m">6379</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>telnet<span class="w"> </span><span class="m">192</span>.168.1.10<span class="w"> </span><span class="m">6379</span>
 <a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="c1"># Should connect (press Ctrl+] then &#39;quit&#39; to exit)</span>
 </code></pre></div></p>
 </li>
@@ -2355,7 +2355,7 @@
 </li>
 <li>
 <p><strong>Run registration with verbose output</strong>:
-   <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>python3<span class="w"> </span>-u<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">10</span>.9.66.154
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>python3<span class="w"> </span>-u<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">192</span>.168.1.10
 </code></pre></div></p>
 </li>
 </ol>
@@ -2376,7 +2376,7 @@
 </ol>
 <h3 id="issue-coordinator-shows-has-gpu-false-after-registration">Issue: Coordinator shows "Has GPU: False" after registration<a class="headerlink" href="#issue-coordinator-shows-has-gpu-false-after-registration" title="Permanent link">&para;</a></h3>
 <p><strong>Symptoms</strong>:
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>redis-cli<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;sollol:rpc:node:10.9.66.90:50052&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>redis-cli<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;sollol:rpc:node:192.168.1.20:50052&quot;</span>
 <a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="c1"># Returns valid JSON with has_gpu:true</span>
 <a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>
 <a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="c1"># But SOLLOL discovery shows:</span>
@@ -2409,7 +2409,7 @@
 <h3 id="multi-gpu-nodes">Multi-GPU Nodes<a class="headerlink" href="#multi-gpu-nodes" title="Permanent link">&para;</a></h3>
 <p>For nodes with multiple GPUs:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="c1"># register_gpu_node.py automatically detects all GPUs</span>
-<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">10</span>.9.66.154
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">192</span>.168.1.10
 <a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a>
 <a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="c1"># Example output for 2-GPU node:</span>
 <a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a><span class="c1"># ✅ GPU(s) Found: 2</span>
@@ -2484,11 +2484,11 @@
 <a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>redis
 <a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a>
 <a id="__codelineno-39-5" name="__codelineno-39-5" href="#__codelineno-39-5"></a><span class="c1"># Register GPU node</span>
-<a id="__codelineno-39-6" name="__codelineno-39-6" href="#__codelineno-39-6"></a>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">10</span>.9.66.154
+<a id="__codelineno-39-6" name="__codelineno-39-6" href="#__codelineno-39-6"></a>python3<span class="w"> </span>register_gpu_node.py<span class="w"> </span>--redis-host<span class="w"> </span><span class="m">192</span>.168.1.10
 <a id="__codelineno-39-7" name="__codelineno-39-7" href="#__codelineno-39-7"></a>
 <a id="__codelineno-39-8" name="__codelineno-39-8" href="#__codelineno-39-8"></a><span class="c1"># Verify registration</span>
 <a id="__codelineno-39-9" name="__codelineno-39-9" href="#__codelineno-39-9"></a>redis-cli<span class="w"> </span>KEYS<span class="w"> </span><span class="s2">&quot;sollol:rpc:node:*&quot;</span>
-<a id="__codelineno-39-10" name="__codelineno-39-10" href="#__codelineno-39-10"></a>redis-cli<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;sollol:rpc:node:10.9.66.90:50052&quot;</span>
+<a id="__codelineno-39-10" name="__codelineno-39-10" href="#__codelineno-39-10"></a>redis-cli<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;sollol:rpc:node:192.168.1.20:50052&quot;</span>
 <a id="__codelineno-39-11" name="__codelineno-39-11" href="#__codelineno-39-11"></a>
 <a id="__codelineno-39-12" name="__codelineno-39-12" href="#__codelineno-39-12"></a><span class="c1"># Test SOLLOL discovery</span>
 <a id="__codelineno-39-13" name="__codelineno-39-13" href="#__codelineno-39-13"></a><span class="nv">PYTHONPATH</span><span class="o">=</span>src<span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from sollol.rpc_discovery import auto_discover_rpc_backends; print(auto_discover_rpc_backends())&quot;</span>
@@ -2527,7 +2527,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 18, 2025 01:30:14 UTC">October 18, 2025</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 18, 2025 03:29:32 UTC">October 18, 2025</span>
   </span>
 
     

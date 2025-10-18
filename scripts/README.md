@@ -6,9 +6,27 @@ Automated setup scripts for SOLLOL RPC backends, GPU monitoring, and Ray cluster
 
 ## Quick Start
 
-### Complete Setup (Recommended)
+### Complete Cluster Deployment (Recommended)
 
-Install everything (RPC server + GPU monitoring):
+Deploy SOLLOL to all nodes in your cluster automatically:
+
+```bash
+./scripts/deploy_to_cluster.sh
+```
+
+This will:
+1. Auto-discover all nodes on your network (Ollama, RPC, SSH)
+2. Set up SSH key authentication
+3. Deploy/update SOLLOL on all nodes
+4. Start Ray workers on all nodes
+5. Register GPU nodes in Redis
+6. Configure entire cluster automatically
+
+**No manual configuration needed!**
+
+### Single Node Setup
+
+Install everything on current node (RPC server + GPU monitoring):
 
 ```bash
 ./scripts/install-all-services.sh

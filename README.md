@@ -34,7 +34,7 @@ You have multiple machines with GPUs running Ollama, but:
 
 SOLLOL provides:
 - ✅ **Intelligent routing** that learns which nodes work best for each task
-- ✅ **Distributed inference** via llama.cpp RPC for large models
+- ✅ **Distributed inference architecture** (validated up to 13B models across multi-node clusters)
 - ✅ **Parallel agent execution** for multi-agent frameworks
 - ✅ **Auto-discovery** of all nodes and capabilities
 - ✅ **Built-in observability** with real-time metrics
@@ -159,17 +159,18 @@ responses = await asyncio.gather(*[
 ```
 
 #### 🧩 Distributed Inference (Vertical Scaling)
-Distribute **inference computation** for large models via llama.cpp RPC:
+Architecture designed for scaling beyond single-node memory constraints:
 ```python
-# Distribute inference across multiple nodes via llama.cpp RPC
-# Note: Coordinator node must have RAM for full model; RPC distributes computation
-# Verified with 13B across 2-3 nodes; larger models not extensively tested
+# Distribute inference computation across multiple RPC worker nodes
+# Note: Coordinator must load full model; workers handle distributed layer computation
+# ✅ Validated: 13B models across 2-3 nodes with measured performance
+# 🔬 Future: Full parameter sharding to eliminate coordinator bottleneck
 router = HybridRouter(
     enable_distributed=True,
     num_rpc_backends=4
 )
 response = await router.route_request(
-    model="llama3:70b",  # Inference distributed across RPC backends
+    model="codellama:13b",  # Inference distributed across RPC backends
     messages=[...]
 )
 ```

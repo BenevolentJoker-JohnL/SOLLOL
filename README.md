@@ -580,6 +580,21 @@ nohup ~/.local/bin/rpc-server-cpu --host 0.0.0.0 --port 50052 > /tmp/rpc-server.
 - **AMD GPUs**: Use `-DGGML_HIPBLAS=ON` instead of `-DGGML_CUDA=ON`
 - **Intel GPUs**: Use `-DGGML_VULKAN=ON` for Intel/AMD/NVIDIA compatibility
 
+**Enabling GPU Detection and Reporting:**
+
+For SOLLOL to intelligently route requests to GPU nodes, you need to configure Redis and GPU registration:
+
+📖 **See [GPU Detection Setup Guide](docs/GPU_DETECTION_SETUP.md)** for complete instructions on:
+- Configuring Redis for network access
+- Registering GPU nodes with Redis
+- Automatic GPU capability detection
+- Troubleshooting GPU detection issues
+
+**Quick summary:**
+1. Configure Redis to listen on network interface (not just localhost)
+2. Run `scripts/register_gpu_node.py` on each GPU node
+3. SOLLOL automatically detects GPU capabilities and routes accordingly
+
 **Docker IP Resolution:**
 
 SOLLOL automatically resolves Docker container IPs to accessible host IPs:
@@ -1833,6 +1848,11 @@ ping <node-ip>
 
 - **[Architecture Guide](ARCHITECTURE.md)** - Deep dive into system design
 - **[Backend Architecture](BACKENDS.md)** - Backend extensibility and adding new LLM backends
+- **[GPU Detection Setup Guide](docs/GPU_DETECTION_SETUP.md)** - Complete guide to GPU detection and reporting (NEW)
+  - Redis network configuration
+  - GPU node registration
+  - Automatic capability detection
+  - Troubleshooting and security
 - **[Batch Processing API](BATCH_API.md)** - Complete guide to batch job management (NEW in v0.7.0)
   - API endpoints and examples
   - Job lifecycle and progress tracking

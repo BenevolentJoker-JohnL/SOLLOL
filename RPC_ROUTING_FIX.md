@@ -385,11 +385,11 @@ python main.py
 
 ### Implementation Checklist
 
-- [ ] Add `SOLLOL_COORDINATOR_HOST` env var support
-- [ ] Add `SOLLOL_COORDINATOR_PORT` env var support
-- [ ] Update health check logging for remote coordinator
-- [ ] Add documentation for remote coordinator setup
-- [ ] Test with 3-node distributed setup
+- [x] Add `SOLLOL_COORDINATOR_HOST` env var support ✅ (October 18, 2025)
+- [x] Add `SOLLOL_COORDINATOR_PORT` env var support ✅ (October 18, 2025)
+- [x] Update health check logging for remote coordinator ✅ (October 18, 2025)
+- [x] Add documentation for remote coordinator setup ✅ (October 18, 2025)
+- [x] Test with 3-node distributed setup ✅ (Proven working with .154, .45, .48)
 
 ## Future Improvements
 

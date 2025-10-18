@@ -33,12 +33,33 @@ python -m sollol.gateway
 | `SOLLOL_DASK_WORKERS` | `DASK_WORKERS` | `2` | Number of Dask workers for batch processing |
 | `SOLLOL_BATCH_PROCESSING` | - | `true` | Enable Dask batch processing (true/false) |
 | `SOLLOL_AUTOBATCH_INTERVAL` | `AUTOBATCH_INTERVAL` | `60` | Seconds between autobatch cycles |
+| `SOLLOL_REDIS_URL` | - | `redis://localhost:6379` | Redis URL for GPU metadata and distributed state |
+| `SOLLOL_DASHBOARD` | - | `true` | Enable observability dashboard |
+| `SOLLOL_DASHBOARD_PORT` | - | `8080` | Dashboard port |
 | `RPC_BACKENDS` | - | - | Comma-separated RPC backends for model sharding |
 | `OLLAMA_NODES` | - | - | Comma-separated Ollama nodes for task distribution |
 
 **Note:** `SOLLOL_*` prefixed variables take precedence over alternatives.
 
+### Remote Coordinator Environment Variables
+
+For intelligent coordinator placement across distributed clusters:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SOLLOL_REMOTE_COORDINATOR` | `true` | Enable remote coordinator execution |
+| `SOLLOL_MODEL_VRAM_THRESHOLD_MB` | `16384` | VRAM threshold (16GB) for Ollama vs RPC routing |
+| `RAY_ADDRESS` | `auto` | Ray cluster address (auto-detects or specify head node) |
+
+**Example - Disable Remote Coordinator:**
+```bash
+export SOLLOL_REMOTE_COORDINATOR=false
+sollol up
+```
+
 ### Docker Example
+
+> **Note**: Docker deployments are not fully battle-tested. Bare-metal deployment is recommended for production.
 
 ```dockerfile
 FROM python:3.11-slim
@@ -53,6 +74,8 @@ docker run -e SOLLOL_RAY_WORKERS=16 -p 11434:11434 sollol:latest
 ```
 
 ### Kubernetes Example
+
+> **Note**: Kubernetes deployments are not fully battle-tested. Bare-metal deployment is recommended for production.
 
 ```yaml
 apiVersion: apps/v1

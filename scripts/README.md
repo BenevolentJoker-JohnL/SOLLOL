@@ -1,6 +1,8 @@
 # SOLLOL Installation Scripts
 
-Automated setup scripts for SOLLOL RPC backends and GPU monitoring.
+Automated setup scripts for SOLLOL RPC backends, GPU monitoring, and Ray cluster.
+
+> **Note**: These scripts are designed for **bare-metal deployment**, which provides optimal performance and reduces abstraction layers. Docker deployments are not fully battle-tested.
 
 ## Quick Start
 
@@ -16,6 +18,7 @@ This will:
 1. Build llama.cpp with RPC support (build 6743+ recommended)
 2. Install RPC server as systemd service
 3. Install GPU monitoring service (if Redis available)
+4. Configure for bare-metal deployment
 
 ### Individual Components
 
@@ -256,8 +259,45 @@ python3 ~/SOLLOL/src/sollol/setup_llama_cpp.py --build
 systemctl --user restart sollol-rpc-server
 ```
 
+## Ray Cluster Setup (for Remote Coordinator Execution)
+
+For intelligent coordinator placement on multi-node setups:
+
+### Head Node Setup
+
+```bash
+# Start Ray head node
+ray start --head \
+  --port=6380 \
+  --dashboard-host=0.0.0.0 \
+  --dashboard-port=8265 \
+  --num-cpus=2 \
+  --object-store-memory=500000000
+
+# Verify
+ray status
+```
+
+### Worker Node Setup
+
+```bash
+# Join Ray cluster (on each worker node)
+ray start --address='HEAD_NODE_IP:6380'
+
+# Example:
+ray start --address='10.9.66.154:6380'
+```
+
+### Ray Systemd Service
+
+For automatic startup, see the systemd service templates in [INSTALLATION.md](../INSTALLATION.md#production-deployment).
+
 ## Documentation
 
+- [INSTALLATION.md](../INSTALLATION.md) - Complete installation guide (bare-metal focus)
+- [CONFIGURATION.md](../CONFIGURATION.md) - Configuration options
+- [RAY_CLUSTER_SETUP.md](../RAY_CLUSTER_SETUP.md) - Ray cluster setup for remote coordinators
+- [REMOTE_COORDINATOR_DESIGN.md](../REMOTE_COORDINATOR_DESIGN.md) - Remote coordinator architecture
 - [DISTRIBUTED_INFERENCE_STATUS.md](../DISTRIBUTED_INFERENCE_STATUS.md) - Testing results
 - [GPU_MONITORING_SETUP.md](../GPU_MONITORING_SETUP.md) - GPU monitoring architecture
 - [REDIS_SETUP.md](../REDIS_SETUP.md) - Redis configuration

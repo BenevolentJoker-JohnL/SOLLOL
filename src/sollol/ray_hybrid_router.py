@@ -418,6 +418,31 @@ class RayHybridRouter:
                     f"Direct routing to llama.cpp coordinator at {coordinator_host}:{coordinator_base_port}, "
                     f"{len(self.rpc_backends)} RPC backends registered"
                 )
+
+                # Check if coordinator is available (non-blocking health check)
+                try:
+                    import httpx
+                    with httpx.Client(timeout=2.0) as client:
+                        coordinator_url = f"http://{coordinator_host}:{coordinator_base_port}/health"
+                        response = client.get(coordinator_url)
+                        if response.status_code == 200:
+                            logger.info(f"✅ llama.cpp coordinator health check passed")
+                        else:
+                            logger.warning(f"⚠️  llama.cpp coordinator health check returned {response.status_code}")
+                except Exception as e:
+                    if self.ollama_pool:
+                        logger.warning(
+                            f"⚠️  llama.cpp coordinator not responding at {coordinator_host}:{coordinator_base_port}. "
+                            f"Will fall back to Ollama pool for large models if needed. "
+                            f"Error: {e}"
+                        )
+                    else:
+                        logger.error(
+                            f"❌ llama.cpp coordinator not responding at {coordinator_host}:{coordinator_base_port}. "
+                            f"No Ollama pool configured for fallback. "
+                            f"Large model requests will fail until coordinator is started. "
+                            f"Error: {e}"
+                        )
             else:
                 # No RPC backends - Ray still used for parallel Ollama pool execution
                 self.rpc_registry = None
@@ -532,17 +557,21 @@ class RayHybridRouter:
         This assumes a llama.cpp coordinator is already running (e.g., on port 18080).
         The coordinator manages RPC backends for distributed inference.
 
+        Fallback behavior:
+        - If coordinator unavailable AND Ollama pool exists → fall back to Ollama
+        - Otherwise → raise exception
+
         Args:
             model: Model name
             messages: Chat messages
-            stream: Whether to stream (not supported)
+            stream: Whether to stream (not supported for RPC)
             **kwargs: Additional parameters
 
         Returns:
-            Chat completion response from llama.cpp coordinator
+            Chat completion response from llama.cpp coordinator or Ollama fallback
         """
-        if stream:
-            raise NotImplementedError("Streaming not supported for RPC sharding")
+        if stream and not self.ollama_pool:
+            raise NotImplementedError("Streaming not supported for RPC sharding (no Ollama pool available)")
 
         # Use the coordinator HTTP client (created during init)
         if not hasattr(self, 'coordinator_client'):
@@ -568,7 +597,32 @@ class RayHybridRouter:
             return response.json()
         except Exception as e:
             logger.error(f"llama.cpp coordinator request failed: {e}")
-            raise
+
+            # Graceful fallback to Ollama pool if available
+            if self.ollama_pool:
+                logger.warning(
+                    f"⚠️  llama.cpp coordinator unavailable, falling back to Ollama pool for {model}"
+                )
+                try:
+                    return await self.ollama_pool.chat_async(
+                        model=model,
+                        messages=messages,
+                        stream=stream,
+                        **kwargs
+                    )
+                except Exception as ollama_error:
+                    logger.error(f"Ollama fallback also failed: {ollama_error}")
+                    raise RuntimeError(
+                        f"Both RPC coordinator and Ollama fallback failed. "
+                        f"Coordinator: {e}, Ollama: {ollama_error}"
+                    )
+            else:
+                logger.error("No Ollama pool available for fallback")
+                raise RuntimeError(
+                    f"llama.cpp coordinator unavailable and no Ollama pool configured. "
+                    f"Please ensure coordinator is running at {coordinator_url} or configure Ollama nodes. "
+                    f"Error: {e}"
+                )
 
     async def _route_to_ray_pool(
         self,

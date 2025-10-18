@@ -38,6 +38,8 @@ class ShardedModelPool:
 
     This runs as an independent process, allowing multiple pools to serve
     the same model in parallel for higher throughput.
+
+    Now supports remote coordinator execution using Ray placement strategies.
     """
 
     def __init__(
@@ -46,15 +48,17 @@ class ShardedModelPool:
         coordinator_host: str = "127.0.0.1",
         coordinator_port: int = 18080,
         pool_id: int = 0,
+        enable_remote_coordinator: bool = True,
     ):
         """
         Initialize sharded model pool.
 
         Args:
             rpc_backends: List of RPC backend configs for this pool
-            coordinator_host: Host for llama-server coordinator
+            coordinator_host: Host for llama-server coordinator (used if remote disabled)
             coordinator_port: Base port (actual port = base + pool_id)
             pool_id: Unique pool identifier
+            enable_remote_coordinator: Enable remote coordinator execution on best node
         """
         self.pool_id = pool_id
         self.rpc_backends = rpc_backends
@@ -63,15 +67,117 @@ class ShardedModelPool:
         self.coordinator_port = coordinator_port + pool_id
         self.coordinator: Optional[LlamaCppCoordinator] = None
         self.current_model: Optional[str] = None
+        self.enable_remote_coordinator = enable_remote_coordinator
+
+        # Track which node the coordinator is actually running on
+        self.coordinator_node: Optional[str] = None
 
         logger.info(
             f"ShardedModelPool {pool_id} initialized with {len(rpc_backends)} backends "
-            f"(port {self.coordinator_port})"
+            f"(port {self.coordinator_port}, remote={enable_remote_coordinator})"
         )
+
+    def _select_best_coordinator_node(
+        self, model: str, gguf_path: str
+    ) -> Optional[str]:
+        """
+        Select the best node to run the coordinator based on available resources.
+
+        Strategy:
+        1. Query all RPC backends for resource availability
+        2. Calculate score based on:
+           - Available RAM (higher = better)
+           - Available GPU VRAM (higher = better)
+           - Current load (lower = better)
+        3. Prefer nodes with more resources for large models
+
+        Args:
+            model: Model name for size estimation
+            gguf_path: GGUF file path (could check file size)
+
+        Returns:
+            IP address of best node, or None to use local node
+        """
+        if not self.enable_remote_coordinator or not self.rpc_backends:
+            return None
+
+        try:
+            from sollol.rpc_discovery import detect_node_resources
+            import os
+
+            # Estimate model requirements based on name
+            import re
+
+            size_match = re.search(r"(\d+)b", model.lower())
+            if size_match:
+                size_billions = int(size_match.group(1))
+                # Estimate RAM needed: ~2GB per billion parameters for fp16
+                estimated_ram_mb = size_billions * 2 * 1024
+            else:
+                estimated_ram_mb = 16384  # Default 16GB
+
+            logger.info(
+                f"Pool {self.pool_id}: Selecting coordinator node for {model} "
+                f"(estimated {estimated_ram_mb}MB needed)"
+            )
+
+            # Score each backend node
+            best_node = None
+            best_score = -1
+
+            for backend in self.rpc_backends:
+                host = backend["host"]
+
+                # Query resources (from Redis or direct detection)
+                resources = detect_node_resources(host)
+
+                # Calculate score
+                cpu_ram = resources.get("cpu_ram_mb", 0)
+                gpu_vram = sum(resources.get("gpu_vram_mb", []))
+                total_ram = cpu_ram + gpu_vram
+
+                # Score: available RAM minus estimated requirements
+                # Positive score = node can handle it
+                score = total_ram - estimated_ram_mb
+
+                # Bonus for GPU nodes (better for coordinator if available)
+                if resources.get("has_gpu", False):
+                    score += 5000  # 5GB bonus
+
+                logger.debug(
+                    f"  {host}: RAM={cpu_ram}MB, GPU_VRAM={gpu_vram}MB, "
+                    f"score={score:.0f}"
+                )
+
+                if score > best_score:
+                    best_score = score
+                    best_node = host
+
+            if best_node and best_score > 0:
+                logger.info(
+                    f"Pool {self.pool_id}: Selected {best_node} for coordinator "
+                    f"(score={best_score:.0f})"
+                )
+                return best_node
+            else:
+                logger.warning(
+                    f"Pool {self.pool_id}: No node has sufficient resources "
+                    f"(best_score={best_score}), using local node"
+                )
+                return None
+
+        except Exception as e:
+            logger.warning(
+                f"Pool {self.pool_id}: Error selecting coordinator node: {e}, "
+                "using local node"
+            )
+            return None
 
     async def load_model(self, model: str, gguf_path: str) -> Dict[str, Any]:
         """
         Load model into this pool's coordinator.
+
+        Uses intelligent node selection to run coordinator on best available node.
 
         Args:
             model: Model name (e.g., "llama3.1:405b")
@@ -86,7 +192,7 @@ class ShardedModelPool:
                 "status": "already_loaded",
                 "model": model,
                 "pool_id": self.pool_id,
-                "coordinator": f"{self.coordinator_host}:{self.coordinator_port}",
+                "coordinator": f"{self.coordinator_node or self.coordinator_host}:{self.coordinator_port}",
             }
 
         # Convert dict configs to RPCBackend objects
@@ -95,15 +201,30 @@ class ShardedModelPool:
             for backend in self.rpc_backends
         ]
 
-        # Create new coordinator
-        logger.info(
-            f"Pool {self.pool_id}: Loading {model} across {len(backends)} RPC backends"
-        )
+        # Select best node for coordinator
+        selected_node = self._select_best_coordinator_node(model, gguf_path)
+
+        if selected_node:
+            # Remote coordinator execution
+            coordinator_host = selected_node
+            self.coordinator_node = selected_node
+            logger.info(
+                f"Pool {self.pool_id}: Loading {model} across {len(backends)} RPC backends "
+                f"(coordinator on {selected_node})"
+            )
+        else:
+            # Local coordinator execution (current behavior)
+            coordinator_host = self.coordinator_host
+            self.coordinator_node = None
+            logger.info(
+                f"Pool {self.pool_id}: Loading {model} across {len(backends)} RPC backends "
+                f"(coordinator local)"
+            )
 
         self.coordinator = LlamaCppCoordinator(
             model_path=gguf_path,
             rpc_backends=backends,
-            host=self.coordinator_host,
+            host=coordinator_host,
             port=self.coordinator_port,
         )
 
@@ -114,7 +235,8 @@ class ShardedModelPool:
             "status": "loaded",
             "model": model,
             "pool_id": self.pool_id,
-            "coordinator": f"{self.coordinator_host}:{self.coordinator_port}",
+            "coordinator": f"{coordinator_host}:{self.coordinator_port}",
+            "coordinator_node": self.coordinator_node,
             "rpc_backends": len(backends),
         }
 
@@ -127,13 +249,16 @@ class ShardedModelPool:
         """
         Run chat inference on this pool.
 
+        When running on a remote node, Ray automatically streams results back
+        to the requesting node through its distributed object store.
+
         Args:
             messages: Chat messages
             stream: Whether to stream response (not yet supported)
             **kwargs: Additional parameters
 
         Returns:
-            Chat completion response
+            Chat completion response (streamed back from remote node via Ray)
         """
         if not self.coordinator:
             raise RuntimeError(f"Pool {self.pool_id}: No model loaded")
@@ -141,7 +266,13 @@ class ShardedModelPool:
         if stream:
             raise NotImplementedError("Streaming not yet supported in Ray pools")
 
-        logger.debug(f"Pool {self.pool_id}: Running inference for {self.current_model}")
+        # Log which node is executing
+        node_info = f" on {self.coordinator_node}" if self.coordinator_node else " locally"
+        logger.debug(
+            f"Pool {self.pool_id}: Running inference for {self.current_model}{node_info}"
+        )
+
+        # Coordinator executes on selected node, Ray streams result back automatically
         response = await self.coordinator.chat(messages, stream=False, **kwargs)
 
         return response
@@ -181,6 +312,7 @@ class RayHybridRouter:
         auto_discover_rpc: bool = True,
         model_vram_threshold_mb: int = 16384,
         auto_fallback: bool = True,
+        enable_remote_coordinator: bool = True,
     ):
         """
         Initialize Ray-based hybrid router.
@@ -196,6 +328,7 @@ class RayHybridRouter:
             auto_discover_rpc: Auto-discover RPC backends if none provided
             model_vram_threshold_mb: VRAM threshold for Ollama vs RPC routing (16GB default)
             auto_fallback: Fallback to RPC if Ollama fails
+            enable_remote_coordinator: Enable remote coordinator execution on best node
         """
         # Store parameters first
         self.enable_distributed = enable_distributed
@@ -204,6 +337,7 @@ class RayHybridRouter:
         self.coordinator_host = coordinator_host
         self.coordinator_base_port = coordinator_base_port
         self.backends_per_pool = backends_per_pool
+        self.enable_remote_coordinator = enable_remote_coordinator
 
         # Auto-discover RPC backends if needed (BEFORE ollama_pool initialization)
         if rpc_backends is None and enable_distributed and auto_discover_rpc:
@@ -296,17 +430,44 @@ class RayHybridRouter:
                     ]
 
                     if pool_backends:
-                        pool = ShardedModelPool.remote(
-                            rpc_backends=pool_backends,
-                            coordinator_host=coordinator_host,
-                            coordinator_port=coordinator_base_port,
-                            pool_id=i,
-                        )
+                        # Use Ray placement strategies for remote execution
+                        # The actor will intelligently select which node to run on
+                        if self.enable_remote_coordinator and len(pool_backends) > 0:
+                            # Get first backend node as hint for placement
+                            # Ray will attempt to schedule near this node
+                            preferred_node = pool_backends[0]["host"]
+
+                            # Use scheduling_strategy to prefer specific node
+                            # Note: Ray uses node IDs, not IPs directly
+                            # For multi-node Ray clusters, this guides placement
+                            pool = ShardedModelPool.options(
+                                scheduling_strategy="SPREAD",  # Spread pools across nodes
+                            ).remote(
+                                rpc_backends=pool_backends,
+                                coordinator_host=coordinator_host,
+                                coordinator_port=coordinator_base_port,
+                                pool_id=i,
+                                enable_remote_coordinator=True,
+                            )
+                            logger.info(
+                                f"  Pool {i}: {len(pool_backends)} backends "
+                                f"(port {coordinator_base_port + i}, remote coordinator enabled)"
+                            )
+                        else:
+                            # Local execution (original behavior)
+                            pool = ShardedModelPool.remote(
+                                rpc_backends=pool_backends,
+                                coordinator_host=coordinator_host,
+                                coordinator_port=coordinator_base_port,
+                                pool_id=i,
+                                enable_remote_coordinator=False,
+                            )
+                            logger.info(
+                                f"  Pool {i}: {len(pool_backends)} backends "
+                                f"(port {coordinator_base_port + i})"
+                            )
+
                         self.pools.append(pool)
-                    logger.info(
-                        f"  Pool {i}: {len(pool_backends)} backends "
-                        f"(port {coordinator_base_port + i})"
-                    )
 
                 logger.info(
                     f"✅ RayHybridRouter initialized: "

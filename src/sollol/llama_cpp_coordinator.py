@@ -186,8 +186,9 @@ class LlamaCppCoordinator:
         observer = get_observer()
         observer.log_event(
             EventType.COORDINATOR_START,
-            model=os.path.basename(self.model_path),
+            backend=f"{self.host}:{self.port}",
             details={
+                "model": os.path.basename(self.model_path),
                 "coordinator": f"{self.host}:{self.port}",
                 "rpc_backends": [b.address for b in healthy_backends],
                 "num_backends": len(healthy_backends),
@@ -222,8 +223,9 @@ class LlamaCppCoordinator:
                     exit_code = self.process.returncode
                     observer.log_event(
                         EventType.COORDINATOR_STOP,
-                        model=os.path.basename(self.model_path),
+                        backend=f"{self.host}:{self.port}",
                         details={
+                            "model": os.path.basename(self.model_path),
                             "coordinator": f"{self.host}:{self.port}",
                             "reason": f"Crashed with exit code {exit_code}",
                             "error": "Process terminated during startup",
@@ -236,8 +238,9 @@ class LlamaCppCoordinator:
                     # Still running but not responding
                     observer.log_event(
                         EventType.COORDINATOR_STOP,
-                        model=os.path.basename(self.model_path),
+                        backend=f"{self.host}:{self.port}",
                         details={
+                            "model": os.path.basename(self.model_path),
                             "coordinator": f"{self.host}:{self.port}",
                             "reason": "Timeout waiting for health endpoint",
                             "error": str(e),
@@ -275,8 +278,9 @@ class LlamaCppCoordinator:
             # Log failure to routing decisions
             observer.log_event(
                 EventType.COORDINATOR_STOP,
-                model=os.path.basename(self.model_path),
+                backend=f"{self.host}:{self.port}",
                 details={
+                    "model": os.path.basename(self.model_path),
                     "coordinator": f"{self.host}:{self.port}",
                     "reason": "Startup failed",
                     "error": str(e),

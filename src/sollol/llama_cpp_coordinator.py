@@ -121,17 +121,27 @@ class LlamaCppCoordinator:
         Returns:
             List of healthy backends, or all backends if no registry
         """
+        logger.debug(f"🔍 RPC Backend Discovery - Registry available: {self.rpc_registry is not None}")
+        logger.debug(f"🔍 RPC Backend Discovery - Configured backends: {len(self.rpc_backends)}")
+
         if not self.rpc_registry:
+            logger.debug(f"🔍 RPC Backend Discovery - No registry, using all {len(self.rpc_backends)} configured backends")
+            for i, backend in enumerate(self.rpc_backends):
+                logger.debug(f"  Backend {i+1}: {backend.address}")
             return self.rpc_backends
 
         # Get healthy backends from registry
         healthy = self.rpc_registry.get_healthy_backends()
+        logger.debug(f"🔍 RPC Backend Discovery - Registry returned {len(healthy)} healthy backends")
 
         if not healthy:
-            logger.warning("No healthy RPC backends found, using all configured backends")
+            logger.warning("⚠️ No healthy RPC backends found in registry, falling back to all configured backends")
+            logger.warning(f"   Configured backends: {[b.address for b in self.rpc_backends]}")
             return self.rpc_backends
 
-        logger.info(f"Using {len(healthy)}/{len(self.rpc_backends)} healthy RPC backends")
+        logger.info(f"✅ Using {len(healthy)}/{len(self.rpc_backends)} healthy RPC backends")
+        for i, backend in enumerate(healthy):
+            logger.debug(f"  Healthy backend {i+1}: {backend.get('host', 'unknown')}:{backend.get('port', 'unknown')}")
 
         # Convert registry backends to RPCBackend objects
         return [RPCBackend(host=b.host, port=b.port) for b in healthy]
@@ -152,13 +162,18 @@ class LlamaCppCoordinator:
               --ctx-size 8192
         """
         # Get healthy backends (uses registry if available)
+        logger.info("🚀 Starting llama.cpp coordinator - discovering RPC backends...")
         healthy_backends = self._get_healthy_backends()
 
         if not healthy_backends:
+            logger.error("❌ No healthy RPC backends available!")
+            logger.error("   Make sure RPC servers are running and registered in Redis")
+            logger.error("   Check: redis-cli KEYS 'sollol:rpc:*'")
             raise RuntimeError("No healthy RPC backends available")
 
         # Build RPC backend address list
         rpc_addresses = ",".join([backend.address for backend in healthy_backends])
+        logger.info(f"🔗 RPC backends for distributed inference: {rpc_addresses}")
 
         # Build llama-server command
         # For RPC: use --gpu-layers 0 to distribute across CPU nodes

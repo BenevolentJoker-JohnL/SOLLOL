@@ -18,7 +18,7 @@ SOLLOL is an **intelligent orchestration layer** that transforms heterogeneous O
 
 1. **Context-Aware Routing**: Analyzes each request to determine optimal node placement
 2. **Adaptive Learning**: Continuously improves routing decisions based on performance history
-3. **Dual-Mode Distribution**: Supports both task parallelism (horizontal scaling) and model sharding (vertical scaling)
+3. **Dual-Mode Distribution**: Supports both task parallelism (horizontal scaling) and distributed inference (layer distribution for parallel computation)
 4. **Production-Grade Features**: Built-in failover, priority queuing, and observability
 
 **Key Insight**: SOLLOL treats LLM infrastructure as a **heterogeneous resource pool** where different nodes have different capabilities, and intelligently matches requests to resources.
@@ -103,7 +103,7 @@ SOLLOL is an **intelligent orchestration layer** that transforms heterogeneous O
           ┌─────────────────┘ │
           │  ┌────────────────┘
           │  │  ┌────────────────────────────────────────┐
-          │  │  │   RPC COORDINATOR (Model Sharding)     │
+          │  │  │   RPC COORDINATOR (Distributed Inference)     │
           │  │  │   • llama.cpp coordinator              │
           │  │  │   • GGUF model loading                 │
           │  │  │   • Layer distribution across backends │
@@ -137,7 +137,7 @@ SOLLOL follows a **layered architecture** pattern:
 | **API Layer** | HTTP interface | FastAPI gateway, endpoints |
 | **Orchestration Layer** | Request routing | Intelligent router, priority queue |
 | **Execution Layer** | Parallel processing | Ray actors, Dask workers |
-| **Distribution Layer** | Model sharding | llama.cpp coordinator, RPC backends |
+| **Distribution Layer** | Distributed inference | llama.cpp coordinator, RPC backends |
 | **Resource Layer** | Compute resources | Ollama nodes (GPU/CPU) |
 | **Observability Layer** | Monitoring | Metrics, dashboard, health checks |
 
@@ -398,7 +398,7 @@ Request 4 ──┘                     ├──→ Node C: Request 3
 
 ---
 
-### Mode 2: Model Sharding (Vertical Scaling)
+### Mode 2: Distributed Inference (Vertical Scaling)
 
 **Concept**: Distribute **a single large model's layers** across multiple RPC backends.
 
@@ -445,12 +445,12 @@ Communication: gRPC between backends
 
 ### Hybrid Mode (Both Together)
 
-**The Power Move**: Use SOLLOL for both task distribution AND model sharding.
+**The Power Move**: Use SOLLOL for both task distribution AND distributed inference.
 
 ```python
 router = HybridRouter(
     ollama_pool=OllamaPool.auto_configure(),  # Task distribution
-    enable_distributed=True,                   # Model sharding
+    enable_distributed=True,                   # Distributed inference
     num_rpc_backends=3
 )
 
@@ -460,7 +460,7 @@ response1 = await router.route_request(
     messages=[...]
 )
 
-# Large model → Model sharding via llama.cpp
+# Large model → Distributed inference via llama.cpp
 response2 = await router.route_request(
     model="llama3:70b",  # Sharded across 3 RPC backends
     messages=[...]
@@ -763,7 +763,7 @@ Total: 2.5s
 
 ---
 
-### Model Sharding Performance
+### Distributed Inference Performance
 
 **13B Model (Verified)**:
 | Setup | Startup Time | Inference Speed | Memory/Node |
@@ -873,7 +873,7 @@ SOLLOL represents a **paradigm shift** in local LLM infrastructure:
 
 **Key Innovations**:
 1. **Context-aware routing** instead of blind load balancing
-2. **Dual-mode distribution** (task + model sharding)
+2. **Dual-mode distribution** (task + distributed inference)
 3. **Continuous learning** from execution history
 4. **Production-ready** out of the box
 

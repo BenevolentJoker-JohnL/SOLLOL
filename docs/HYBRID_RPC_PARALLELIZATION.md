@@ -1,4 +1,7 @@
 # Hybrid GPU+CPU RPC Parallelization
+**llama.cpp RPC backend only**
+
+> **Important:** This feature requires llama.cpp's `rpc-server` and is NOT available with Ollama. Ollama does not support multi-device parallelization via `--device cpu,cuda:0` flags.
 
 ## The Problem
 

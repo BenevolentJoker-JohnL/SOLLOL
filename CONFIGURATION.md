@@ -36,7 +36,7 @@ python -m sollol.gateway
 | `SOLLOL_REDIS_URL` | - | `redis://localhost:6379` | Redis URL for GPU metadata and distributed state |
 | `SOLLOL_DASHBOARD` | - | `true` | Enable observability dashboard |
 | `SOLLOL_DASHBOARD_PORT` | - | `8080` | Dashboard port |
-| `RPC_BACKENDS` | - | - | Comma-separated RPC backends for model sharding |
+| `RPC_BACKENDS` | - | - | Comma-separated RPC backends for distributed inference (layer distribution) |
 | `OLLAMA_NODES` | - | - | Comma-separated Ollama nodes for task distribution |
 
 **Note:** `SOLLOL_*` prefixed variables take precedence over alternatives.

@@ -10,12 +10,17 @@ This module provides advanced routing decisions based on:
 """
 
 import logging
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
+
+# Configurable VRAM threshold for GPU overload detection (in MB)
+# Set via environment variable SOLLOL_MIN_VRAM_MB or defaults to 1000 MB
+MIN_VRAM_THRESHOLD_MB = int(os.environ.get("SOLLOL_MIN_VRAM_MB", "1000"))
 
 # Import VRAM-aware routing utilities
 try:
@@ -233,7 +238,7 @@ class IntelligentRouter:
         4. Immediately updates global active request count
 
         GPU Overload Handling:
-        - If all GPUs have low VRAM (<2000 MB), enables CPU fallback
+        - If all GPUs have low VRAM (< MIN_VRAM_THRESHOLD_MB), enables CPU fallback
         - Allows CPU-only nodes to compete when GPUs are overwhelmed
 
         Args:
@@ -253,13 +258,13 @@ class IntelligentRouter:
         if context.requires_gpu:
             gpu_hosts = [h for h in available if h.get("gpu_free_mem", 0) > 0]
             all_gpus_overwhelmed = all(
-                h.get("gpu_free_mem", 0) < 2000 for h in gpu_hosts
+                h.get("gpu_free_mem", 0) < MIN_VRAM_THRESHOLD_MB for h in gpu_hosts
             ) if gpu_hosts else True
 
             if all_gpus_overwhelmed:
                 # All GPUs overwhelmed - enable CPU fallback
                 logger.warning(
-                    f"All GPUs overwhelmed (VRAM < 2000 MB) - enabling CPU fallback for {context.task_type}"
+                    f"All GPUs overwhelmed (VRAM < {MIN_VRAM_THRESHOLD_MB} MB) - enabling CPU fallback for {context.task_type}"
                 )
                 # Modify context to allow CPU fallback
                 context = TaskContext(
@@ -378,7 +383,7 @@ class IntelligentRouter:
             if gpu_mem == 0:
                 # No GPU but task needs it - heavy penalty
                 score *= 0.2  # Still possible but very low priority
-            elif gpu_mem < 2000:
+            elif gpu_mem < MIN_VRAM_THRESHOLD_MB:
                 # Low VRAM GPU (1050Ti, etc.) - SHOULD BE USED for overflow when others loaded
                 # Light penalty - will get used when high-VRAM GPUs saturate
                 # VRAM-aware active_requests penalty (50% per request) prevents overload
@@ -398,8 +403,8 @@ class IntelligentRouter:
             elif gpu_mem > 4000:
                 # Good GPU availability - bonus! (3060, 3070, 4060, etc.)
                 score *= 1.5
-            elif gpu_mem >= 2000:
-                # Mid-range VRAM (2-4GB) - neutral
+            elif gpu_mem >= MIN_VRAM_THRESHOLD_MB:
+                # Mid-range VRAM (threshold to 4GB) - neutral
                 score *= 1.0
         elif context.metadata.get("gpu_fallback_to_cpu"):
             # GPU fallback to CPU enabled - prefer hosts with available resources
@@ -408,7 +413,7 @@ class IntelligentRouter:
             if gpu_mem == 0:
                 # CPU-only node - acceptable when GPU fallback enabled
                 score *= 1.0  # No penalty (fair chance against overwhelmed GPUs)
-            elif gpu_mem < 2000:
+            elif gpu_mem < MIN_VRAM_THRESHOLD_MB:
                 # Overwhelmed GPU - slight penalty
                 score *= 0.7
             else:
@@ -418,7 +423,7 @@ class IntelligentRouter:
         # CPU requirements based on complexity
         # Skip CPU penalties for low-VRAM overflow GPUs - any GPU is better than waiting
         gpu_mem = host_meta.get("gpu_free_mem", 4000)
-        is_overflow_gpu = gpu_mem < 2000  # Low-VRAM GPU used for overflow
+        is_overflow_gpu = gpu_mem < MIN_VRAM_THRESHOLD_MB  # Low-VRAM GPU used for overflow
 
         cpu_load = host_meta.get("cpu_load", 0.5)  # Get cpu_load for all hosts
 
@@ -465,12 +470,12 @@ class IntelligentRouter:
         active_requests = host_meta.get("active_requests", 0)
         if active_requests > 0:
             gpu_mem = host_meta.get("gpu_free_mem", 4000)  # Default to mid-range
-            avg_latency = host_meta.get("latency_ms", 2000)  # Historical avg latency
+            avg_latency = host_meta.get("latency_ms", MIN_VRAM_THRESHOLD_MB * 2)  # Historical avg latency
 
             # Calculate LIGHTER exponential penalty based on GPU capability
             # Key insight: Powerful GPUs can handle multiple requests efficiently
             # Small GPUs saturate quickly, large GPUs maintain performance
-            if gpu_mem < 2000:
+            if gpu_mem < MIN_VRAM_THRESHOLD_MB:
                 # Small GPU (1050Ti) - saturates quickly
                 # 0 req: 1.0x, 1 req: 0.50x, 2 req: 0.33x, 3 req: 0.25x
                 # Still usable with multiple requests, just slower

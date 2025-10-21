@@ -313,6 +313,7 @@ class RayHybridRouter:
         model_vram_threshold_mb: int = 16384,
         auto_fallback: bool = True,
         enable_remote_coordinator: bool = True,
+        ctx_size: Optional[int] = None,
     ):
         """
         Initialize Ray-based hybrid router.
@@ -329,6 +330,7 @@ class RayHybridRouter:
             model_vram_threshold_mb: VRAM threshold for Ollama vs RPC routing (16GB default)
             auto_fallback: Fallback to RPC if Ollama fails
             enable_remote_coordinator: Enable remote coordinator execution on best node
+            ctx_size: Context window size (default: 8192, or env SOLLOL_CTX_SIZE)
         """
         # Store parameters first
         self.enable_distributed = enable_distributed
@@ -344,6 +346,11 @@ class RayHybridRouter:
         self.coordinator_base_port = int(os.getenv(
             "SOLLOL_COORDINATOR_PORT",
             str(coordinator_base_port or 18080)
+        ))
+        # Context size with environment variable override
+        self.ctx_size = int(os.getenv(
+            "SOLLOL_CTX_SIZE",
+            str(ctx_size or 8192)  # Default 8192 for long-form generation
         ))
 
         self.backends_per_pool = backends_per_pool
@@ -548,11 +555,14 @@ class RayHybridRouter:
                     **kwargs
                 )
             except Exception as e:
-                if self.auto_fallback and self.enable_distributed and self.has_rpc_backends:
-                    logger.warning(
-                        f"Ollama failed for {model}, falling back to RPC sharding: {e}"
-                    )
-                    return await self._route_to_llama_cpp_coordinator(model, messages, stream, **kwargs)
+                # DISABLED: Don't fallback to RPC for small models - it's slower and experimental
+                # Only use RPC if explicitly configured for large models (70B+)
+                # if self.auto_fallback and self.enable_distributed and self.has_rpc_backends:
+                #     logger.warning(
+                #         f"Ollama failed for {model}, falling back to RPC sharding: {e}"
+                #     )
+                #     return await self._route_to_llama_cpp_coordinator(model, messages, stream, **kwargs)
+                logger.error(f"Ollama request failed for {model}: {e}")
                 raise
         elif self.enable_distributed and self.has_rpc_backends:
             # No Ollama pool but have RPC → Force RPC routing
@@ -574,11 +584,12 @@ class RayHybridRouter:
         """
         Route request directly to llama.cpp coordinator for RPC sharding.
 
-        This assumes a llama.cpp coordinator is already running (e.g., on port 18080).
-        The coordinator manages RPC backends for distributed inference.
+        **AUTO-START:** If coordinator is not running, it will be automatically started
+        with the model and RPC backends. The coordinator manages distributed inference
+        across RPC workers.
 
         Fallback behavior:
-        - If coordinator unavailable AND Ollama pool exists → fall back to Ollama
+        - If coordinator fails AND Ollama pool exists → fall back to Ollama
         - Otherwise → raise exception
 
         Args:
@@ -597,10 +608,46 @@ class RayHybridRouter:
         if not hasattr(self, 'coordinator_client'):
             # Import here to avoid circular dependency
             import httpx
-            self.coordinator_client = httpx.AsyncClient(timeout=300.0)
+            # Separate timeouts: connect=30s, read=1200s (20min for distributed model loading), write=30s
+            timeout_config = httpx.Timeout(connect=30.0, read=1200.0, write=30.0, pool=None)
+            self.coordinator_client = httpx.AsyncClient(timeout=timeout_config)
 
         # Use coordinator_host and coordinator_base_port from init
         coordinator_url = f"http://{self.coordinator_host}:{self.coordinator_base_port}/v1/chat/completions"
+
+        # Auto-start coordinator if not running
+        if not hasattr(self, '_coordinator_instance') or self._coordinator_instance is None:
+            try:
+                # Health check: try to ping coordinator
+                health_url = f"http://{self.coordinator_host}:{self.coordinator_base_port}/health"
+                health_response = await self.coordinator_client.get(health_url, timeout=2.0)
+                logger.debug(f"✅ Coordinator health check passed: {health_response.status_code}")
+            except Exception as health_err:
+                # Coordinator not running - auto-start it!
+                logger.info(f"⚙️  Coordinator not running, auto-starting on {self.coordinator_host}:{self.coordinator_base_port}...")
+
+                # Resolve model path from Ollama if needed
+                from sollol.ollama_gguf_resolver import resolve_ollama_model
+                gguf_path = resolve_ollama_model(model)
+
+                # Convert dict configs to RPCBackend objects
+                backends = [
+                    RPCBackend(host=backend["host"], port=backend.get("port", 50052))
+                    for backend in self.rpc_backends
+                ]
+
+                # Create and start coordinator
+                self._coordinator_instance = LlamaCppCoordinator(
+                    model_path=gguf_path,
+                    rpc_backends=backends,
+                    host=self.coordinator_host,
+                    port=self.coordinator_base_port,
+                    ctx_size=self.ctx_size,
+                )
+
+                logger.info(f"🚀 Starting coordinator with {len(backends)} RPC backends...")
+                await self._coordinator_instance.start()
+                logger.info(f"✅ Coordinator auto-started successfully!")
 
         payload = {
             "messages": messages,
@@ -610,13 +657,141 @@ class RayHybridRouter:
         }
 
         logger.debug(f"Sending request to llama.cpp coordinator at {coordinator_url}")
+        logger.debug(f"Payload: {payload}")
+
+        # Generate trace ID and record trace start
+        import uuid
+        import redis
+        import json as json_module
+        import time
+
+        trace_id = str(uuid.uuid4())
+        start_time = time.time()
+        backend_list = [f"{b['host']}:{b['port']}" for b in self.rpc_backends] if self.rpc_backends else []
+
+        # Publish routing decision event
+        try:
+            r = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_connect_timeout=0.5)
+
+            routing_event = {
+                "timestamp": start_time,
+                "event_type": "rpc_coordinator_route",
+                "model": model,
+                "coordinator_url": coordinator_url,
+                "rpc_backends": backend_list,
+                "routing_reason": "Model sharding via llama.cpp coordinator",
+                "trace_id": trace_id,
+            }
+            r.publish("sollol:routing_events", json_module.dumps(routing_event))
+
+            # Record trace start in Redis (TTL: 1 hour)
+            trace_data = {
+                "trace_id": trace_id,
+                "model": model,
+                "start_time": start_time,
+                "status": "in_progress",
+                "rpc_backends": backend_list,
+                "num_backends": len(backend_list),
+                "coordinator_url": coordinator_url,
+                "prompt_tokens": sum(len(m.get("content", "").split()) for m in messages),  # Rough estimate
+            }
+            r.setex(f"sollol:trace:{trace_id}", 3600, json_module.dumps(trace_data))
+
+            # Publish trace start event for real-time dashboard updates
+            r.publish("sollol:traces", json_module.dumps({
+                "event": "trace_start",
+                "trace": trace_data,
+            }))
+
+        except Exception as e:
+            logger.error(f"Failed to publish routing event or record trace: {e}", exc_info=True)
 
         try:
             response = await self.coordinator_client.post(coordinator_url, json=payload)
+            if response.status_code != 200:
+                logger.error(f"❌ Coordinator returned {response.status_code}: {response.text[:500]}")
             response.raise_for_status()
-            return response.json()
+            result = response.json()
+
+            # Calculate latency and extract token counts
+            end_time = time.time()
+            latency_ms = (end_time - start_time) * 1000
+
+            # Extract token counts from response
+            usage = result.get("usage", {})
+            completion_tokens = usage.get("completion_tokens", 0)
+            total_tokens = usage.get("total_tokens", 0)
+
+            # Update trace as completed
+            try:
+                r = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_connect_timeout=0.5)
+
+                # Get existing trace data
+                trace_json = r.get(f"sollol:trace:{trace_id}")
+                if trace_json:
+                    trace_data = json_module.loads(trace_json)
+                    trace_data.update({
+                        "status": "completed",
+                        "end_time": end_time,
+                        "latency_ms": latency_ms,
+                        "completion_tokens": completion_tokens,
+                        "total_tokens": total_tokens,
+                    })
+                    r.setex(f"sollol:trace:{trace_id}", 3600, json_module.dumps(trace_data))
+
+                    # Publish trace completion event
+                    r.publish("sollol:traces", json_module.dumps({
+                        "event": "trace_complete",
+                        "trace": trace_data,
+                    }))
+
+                # Publish RPC activity event
+                activity_event = {
+                    "timestamp": end_time,
+                    "event_type": "rpc_response",
+                    "backend": coordinator_url,
+                    "trace_id": trace_id,
+                    "details": {
+                        "model": model,
+                        "rpc_backends_used": len(self.rpc_backends) if self.rpc_backends else 0,
+                        "status": "success",
+                        "latency_ms": latency_ms,
+                        "completion_tokens": completion_tokens,
+                    }
+                }
+                r.publish("sollol:dashboard:rpc:activity", json_module.dumps(activity_event))
+
+            except Exception as e:
+                logger.debug(f"Failed to publish RPC activity or update trace: {e}")
+
+            return result
         except Exception as e:
             logger.error(f"llama.cpp coordinator request failed: {e}")
+
+            # Mark trace as failed
+            try:
+                end_time = time.time()
+                latency_ms = (end_time - start_time) * 1000
+                r = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_connect_timeout=0.5)
+
+                trace_json = r.get(f"sollol:trace:{trace_id}")
+                if trace_json:
+                    trace_data = json_module.loads(trace_json)
+                    trace_data.update({
+                        "status": "failed",
+                        "end_time": end_time,
+                        "latency_ms": latency_ms,
+                        "error": str(e),
+                    })
+                    r.setex(f"sollol:trace:{trace_id}", 3600, json_module.dumps(trace_data))
+
+                    # Publish trace failure event
+                    r.publish("sollol:traces", json_module.dumps({
+                        "event": "trace_failed",
+                        "trace": trace_data,
+                    }))
+            except Exception as trace_err:
+                logger.debug(f"Failed to update trace on error: {trace_err}")
 
             # Graceful fallback to Ollama pool if available
             if self.ollama_pool:

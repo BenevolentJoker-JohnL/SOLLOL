@@ -468,6 +468,88 @@ class OllamaPool:
                 logger.info(f"🔍 Deduplicated nodes: removed localhost (same as {local_ip})")
                 logger.debug(f"   Reduced from {original_count} to {len(self.nodes)} nodes")
 
+    def count_unique_physical_hosts(self) -> int:
+        """
+        Count unique physical machines in the node pool.
+
+        This is critical for parallel execution decisions - running parallel tasks
+        on the same physical machine is often slower due to resource contention.
+
+        Returns:
+            Number of unique physical machines
+
+        Examples:
+            - localhost:11434 + localhost:11435 = 1 unique host
+            - localhost:11434 + 192.168.1.20:11434 = 2 unique hosts
+            - 127.0.0.1:11434 + 0.0.0.0:11434 = 1 unique host
+        """
+        if not self.nodes:
+            return 0
+
+        import socket
+        unique_hosts = set()
+
+        for node in self.nodes:
+            hostname = node.get("host", "")
+
+            # Resolve to IP to catch localhost aliases
+            try:
+                ip = socket.gethostbyname(hostname)
+                unique_hosts.add(ip)
+            except:
+                # If resolution fails, use hostname as-is
+                unique_hosts.add(hostname)
+
+        return len(unique_hosts)
+
+    def should_use_parallel_execution(self, num_tasks: int) -> bool:
+        """
+        Intelligent decision: Should we use parallel execution?
+
+        Considers:
+        - Number of unique physical machines
+        - Number of tasks to execute
+        - Resource contention on same machine
+
+        Args:
+            num_tasks: Number of parallel tasks to execute
+
+        Returns:
+            True if parallel execution will be beneficial
+
+        Note:
+            Running parallel CPU inference on the same physical machine is typically
+            50-100% SLOWER than sequential due to:
+            - CPU context switching overhead
+            - Memory bandwidth saturation
+            - Cache thrashing
+            - BLAS library serialization
+        """
+        if num_tasks < 2:
+            return False  # Nothing to parallelize
+
+        if not self.nodes:
+            return False  # No nodes available
+
+        unique_hosts = self.count_unique_physical_hosts()
+
+        if unique_hosts < 2:
+            logger.warning(
+                f"⚠️  Parallel execution NOT recommended: {len(self.nodes)} nodes available "
+                f"but all on same physical machine.\n"
+                f"   Running {num_tasks} parallel CPU tasks on same machine is typically "
+                f"50-100% SLOWER than sequential due to resource contention.\n"
+                f"   💡 Recommendation: Use sequential execution or add nodes on different machines."
+            )
+            return False
+
+        # We have multiple physical machines - parallel makes sense
+        logger.info(
+            f"✅ Parallel execution enabled: {unique_hosts} physical machines available, "
+            f"{len(self.nodes)} total nodes"
+        )
+        return True
+
     def _init_node_metadata(self):
         """Initialize metadata for each node with REAL VRAM data."""
         with self._lock:

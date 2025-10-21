@@ -110,9 +110,17 @@ class LlamaCppCoordinator:
         self.process: Optional[subprocess.Popen] = None
         self.http_client = httpx.AsyncClient(timeout=300.0)
 
-        # Heartbeat for live monitoring - configurable via environment variable
+        # Heartbeat for live monitoring - configurable via environment variables
         self._heartbeat_task: Optional[asyncio.Task] = None
         self._heartbeat_interval = int(os.getenv("SOLLOL_RPC_HEARTBEAT_INTERVAL", "600"))  # seconds (10 minutes)
+
+        # Health monitoring and auto-recovery - configurable via environment variables
+        self._health_check_timeout = float(os.getenv("SOLLOL_HEALTH_CHECK_TIMEOUT", "10.0"))  # seconds
+        self._consecutive_failures = 0
+        self._max_consecutive_failures = int(os.getenv("SOLLOL_MAX_HEALTH_FAILURES", "3"))  # Restart after N failures
+        self._last_successful_health_check = time.time()
+        self._restart_count = 0
+        self._max_restarts = int(os.getenv("SOLLOL_MAX_RESTARTS", "5"))  # Max auto-restarts before giving up
 
     def _get_healthy_backends(self) -> List[RPCBackend]:
         """
@@ -428,36 +436,195 @@ class LlamaCppCoordinator:
 
             await asyncio.sleep(0.5)
 
+    async def _check_coordinator_health(self) -> bool:
+        """
+        Check if coordinator is healthy and responding.
+
+        Returns:
+            True if healthy, False otherwise
+        """
+        try:
+            # Try to hit health endpoint with short timeout
+            health_url = f"http://{self.host}:{self.port}/health"
+            response = await asyncio.wait_for(
+                self.http_client.get(health_url),
+                timeout=self._health_check_timeout
+            )
+
+            if response.status_code == 200:
+                self._consecutive_failures = 0
+                self._last_successful_health_check = time.time()
+                return True
+            else:
+                logger.warning(f"⚠️  Coordinator health check failed: HTTP {response.status_code}")
+                return False
+
+        except asyncio.TimeoutError:
+            logger.warning(f"⚠️  Coordinator health check timeout after {self._health_check_timeout}s")
+            return False
+        except Exception as e:
+            logger.warning(f"⚠️  Coordinator health check error: {e}")
+            return False
+
+    async def _restart_coordinator_process(self):
+        """
+        Restart just the C++ coordinator process (not the heartbeat task).
+
+        This provides automatic recovery from RPC backend failures that
+        cause the C++ coordinator to get stuck.
+        """
+        self._restart_count += 1
+        logger.warning(f"🔄 Restarting coordinator (attempt {self._restart_count}/{self._max_restarts})...")
+
+        # Log restart event
+        observer = get_observer()
+        observer.log_event(
+            EventType.COORDINATOR_STOP,
+            backend=f"{self.host}:{self.port}",
+            details={
+                "model": os.path.basename(self.model_path),
+                "reason": "Health check failed - automatic restart",
+                "consecutive_failures": self._consecutive_failures,
+                "restart_attempt": self._restart_count,
+            },
+            severity="warning"
+        )
+
+        # Kill old process
+        if self.process:
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+                self.process.wait()
+            except Exception as e:
+                logger.error(f"Error killing coordinator: {e}")
+
+        # Wait a bit before restarting
+        await asyncio.sleep(2)
+
+        # Restart ONLY the C++ process (not heartbeat - it's already running!)
+        try:
+            # Get healthy backends
+            healthy_backends = self._get_healthy_backends()
+
+            if not healthy_backends:
+                raise RuntimeError("No healthy RPC backends available for restart")
+
+            # Build RPC backend address list
+            rpc_addresses = ",".join([backend.address for backend in healthy_backends])
+            logger.info(f"🔗 Restarting with RPC backends: {rpc_addresses}")
+
+            # Build llama-server command
+            cmd = [
+                "llama-server",
+                "--model",
+                self.model_path,
+                "--host",
+                self.host,
+                "--port",
+                str(self.port),
+                "--rpc",
+                rpc_addresses,
+                "--gpu-layers",
+                "0",
+                "--ctx-size",
+                str(self.ctx_size),
+                "--no-warmup",
+            ]
+
+            logger.info(f"Restarting llama-server: {' '.join(cmd)}")
+
+            # Start new process
+            self.process = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1
+            )
+
+            # Wait for it to be ready
+            await self._wait_for_ready()
+
+            logger.info(f"✅ Coordinator restarted successfully (PID: {self.process.pid})")
+            self._consecutive_failures = 0
+
+        except Exception as e:
+            logger.error(f"❌ Coordinator restart failed: {e}")
+            raise
+
     async def _heartbeat_loop(self):
-        """Periodically log RPC coordinator heartbeat for dashboard visibility."""
-        logger.debug("RPC heartbeat loop started")
+        """
+        Periodically check coordinator health and restart if needed.
+
+        This provides automatic recovery from C++ coordinator failures
+        (like RPC backend crashes) that our Python retry logic can't catch.
+        """
+        logger.info(f"🩺 Health monitoring started (interval: {self._heartbeat_interval}s)")
 
         while True:
             try:
                 await asyncio.sleep(self._heartbeat_interval)
 
-                # Log heartbeat event
-                observer = get_observer()
-                observer.log_event(
-                    EventType.RPC_BACKEND_CONNECT,
-                    backend=f"{self.host}:{self.port}",
-                    details={
-                        "model": "coordinator",
-                        "rpc_backends": len(self.rpc_backends),
-                        "rpc_addresses": [b.address for b in self.rpc_backends],
-                        "status": "healthy",
-                        "type": "heartbeat"
-                    },
-                    severity="info"
-                )
+                # Perform health check
+                is_healthy = await self._check_coordinator_health()
 
-                logger.debug(f"RPC heartbeat: {len(self.rpc_backends)} backends connected")
+                if is_healthy:
+                    # Log healthy heartbeat
+                    observer = get_observer()
+                    observer.log_event(
+                        EventType.RPC_BACKEND_CONNECT,
+                        backend=f"{self.host}:{self.port}",
+                        details={
+                            "model": "coordinator",
+                            "rpc_backends": len(self.rpc_backends),
+                            "rpc_addresses": [b.address for b in self.rpc_backends],
+                            "status": "healthy",
+                            "type": "heartbeat",
+                            "uptime_seconds": time.time() - self._last_successful_health_check,
+                            "restart_count": self._restart_count,
+                        },
+                        severity="info"
+                    )
+                    logger.debug(f"💚 Coordinator healthy: {len(self.rpc_backends)} RPC backends")
+
+                else:
+                    # Health check failed
+                    self._consecutive_failures += 1
+                    logger.warning(
+                        f"💔 Coordinator unhealthy "
+                        f"({self._consecutive_failures}/{self._max_consecutive_failures} failures)"
+                    )
+
+                    # Restart if threshold exceeded
+                    if self._consecutive_failures >= self._max_consecutive_failures:
+                        if self._restart_count >= self._max_restarts:
+                            logger.error(
+                                f"❌ Max restarts ({self._max_restarts}) exceeded - giving up"
+                            )
+                            observer = get_observer()
+                            observer.log_event(
+                                EventType.COORDINATOR_STOP,
+                                backend=f"{self.host}:{self.port}",
+                                details={
+                                    "model": os.path.basename(self.model_path),
+                                    "reason": "Max restarts exceeded",
+                                    "restart_count": self._restart_count,
+                                },
+                                severity="error"
+                            )
+                            break  # Stop health monitoring
+
+                        # Attempt restart
+                        try:
+                            await self._restart_coordinator_process()
+                        except Exception as e:
+                            logger.error(f"❌ Restart failed: {e}")
+                            # Continue monitoring - maybe it recovers
 
             except asyncio.CancelledError:
-                logger.debug("RPC heartbeat loop cancelled")
+                logger.debug("Health monitoring cancelled")
                 break
             except Exception as e:
-                logger.error(f"RPC heartbeat error: {e}")
+                logger.error(f"Health monitoring error: {e}")
 
     async def generate(
         self, prompt: str, max_tokens: int = 512, temperature: float = 0.7, **kwargs

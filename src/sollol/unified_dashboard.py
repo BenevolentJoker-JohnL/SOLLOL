@@ -383,6 +383,35 @@ class UnifiedDashboard:
                     except Exception as e:
                         logger.debug(f"RPC auto-discovery failed: {e}")
 
+                # If still no backends, try Redis metadata (same source as /api/dashboard)
+                if not backends:
+                    logger.debug(f"No backends found, trying Redis metadata. has redis_client: {self.redis_client is not None}")
+                    if self.redis_client:
+                        try:
+                            metadata_json = self.redis_client.get("sollol:router:metadata")
+                            logger.debug(f"Redis metadata exists: {metadata_json is not None}")
+                            if metadata_json:
+                                import json
+                                metadata = json.loads(metadata_json)
+                                rpc_backends_from_redis = metadata.get("rpc_backends", [])
+                                logger.debug(f"RPC backends in metadata: {len(rpc_backends_from_redis)}")
+                                for backend in rpc_backends_from_redis:
+                                    host = backend.get("host")
+                                    port = backend.get("port", 50052)
+                                    backends.append({
+                                        "url": f"{host}:{port}",
+                                        "status": "healthy",
+                                        "latency_ms": 0,
+                                        "request_count": 0,
+                                        "failure_count": 0,
+                                    })
+                                if rpc_backends_from_redis:
+                                    logger.info(f"✅ Loaded {len(rpc_backends_from_redis)} RPC backends from Redis metadata")
+                        except Exception as e:
+                            logger.error(f"❌ Redis metadata lookup failed: {e}", exc_info=True)
+                    else:
+                        logger.warning("⚠️  No Redis client available for backend lookup")
+
                 return jsonify({"backends": backends, "total": len(backends)})
             except Exception as e:
                 logger.error(f"Error getting RPC backends: {e}")

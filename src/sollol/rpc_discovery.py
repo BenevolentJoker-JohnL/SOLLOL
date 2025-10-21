@@ -275,12 +275,64 @@ def auto_discover_rpc_backends(port: int = 50052, auto_resolve_docker: bool = Tr
         List of discovered backends with GPU metadata enrichment
 
     Features:
-        - Automatic CIDR detection
-        - Docker IP resolution
-        - Fast parallel scanning
+        - PRIORITY 1: Check Redis registry first (sollol:router:metadata)
+        - PRIORITY 2: Read from rpc_backends.conf file
+        - FALLBACK: Network scanning
         - GPU metadata enrichment from Redis
     """
-    backends = discover_rpc_backends(port=port, auto_resolve_docker=auto_resolve_docker)
+    backends = []
+
+    # PRIORITY 1: Try Redis registry first
+    try:
+        import redis as redis_client
+        import json
+        r = redis_client.Redis(host='localhost', port=6379, decode_responses=True)
+        metadata_json = r.get("sollol:router:metadata")
+        if metadata_json:
+            metadata = json.loads(metadata_json)
+            rpc_backends_from_redis = metadata.get("rpc_backends", [])
+            if rpc_backends_from_redis:
+                logger.info(f"✅ Found {len(rpc_backends_from_redis)} RPC backend(s) in Redis registry")
+                backends = rpc_backends_from_redis
+    except Exception as e:
+        logger.debug(f"Could not read RPC backends from Redis: {e}")
+
+    # PRIORITY 2: Try config file if Redis didn't work
+    if not backends:
+        try:
+            from pathlib import Path
+            import os
+
+            # Check multiple locations for rpc_backends.conf
+            possible_paths = [
+                Path("rpc_backends.conf"),  # Current directory
+                Path("/home/joker/SOLLOL/rpc_backends.conf"),  # SOLLOL directory
+                Path(os.path.expanduser("~/SOLLOL/rpc_backends.conf")),  # Home/SOLLOL
+                Path("/home/joker/SynapticLlamas/rpc_backends.conf"),  # SynapticLlamas directory
+            ]
+
+            config_file = None
+            for path in possible_paths:
+                if path.exists():
+                    config_file = path
+                    break
+
+            if config_file:
+                with open(config_file, "r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            host, port_str = line.split(":")
+                            backends.append({"host": host, "port": int(port_str)})
+                if backends:
+                    logger.info(f"✅ Found {len(backends)} RPC backend(s) in config file: {config_file}")
+        except Exception as e:
+            logger.debug(f"Could not read RPC config file: {e}")
+
+    # FALLBACK: Network scanning if nothing found
+    if not backends:
+        logger.info("🔍 No RPC backends in Redis or config - falling back to network scan")
+        backends = discover_rpc_backends(port=port, auto_resolve_docker=auto_resolve_docker)
 
     # Enrich each backend with GPU metadata from Redis
     enriched_backends = []

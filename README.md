@@ -1,7 +1,8 @@
-# SOLLOL - Production-Ready Orchestration for Local LLM Clusters
+# SOLLOL - Orchestration Framework for Local LLM Clusters
 
 <div align="center">
 
+[![Development Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/BenevolentJoker-JohnL/SOLLOL)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://github.com/BenevolentJoker-JohnL/SOLLOL/actions/workflows/tests.yml/badge.svg)](https://github.com/BenevolentJoker-JohnL/SOLLOL/actions/workflows/tests.yml)
@@ -9,11 +10,32 @@
 [![Ollama](https://img.shields.io/badge/Ollama-Compatible-green.svg)](https://ollama.ai/)
 [![llama.cpp](https://img.shields.io/badge/llama.cpp-Integrated-orange.svg)](https://github.com/ggerganov/llama.cpp)
 
-**Open-source orchestration layer that combines intelligent task routing with distributed model inference for local LLM clusters.**
+**Open-source orchestration framework that combines intelligent task routing with distributed model inference for local LLM clusters — designed for production scalability.**
 
 [Quick Start](#-quick-start) • [Features](#-why-sollol) • [Architecture](#-architecture) • [Documentation](#-documentation) • [Examples](#-integration-examples)
 
 </div>
+
+---
+
+## ⚠️ Development Status
+
+**SOLLOL is currently in alpha development.**
+
+### ✅ Production-Stable Features:
+- **Task distribution** across Ollama nodes (mature, tested)
+- **Intelligent routing** with adaptive learning (stable)
+- **Observability dashboard** (fully functional)
+- **Auto-discovery** and failover (reliable)
+
+### 🔬 Experimental Features:
+- **Distributed inference** (llama.cpp RPC integration)
+  - ⚠️ **Not production-ready** - manual setup, version-sensitive, not optimized
+  - Basic validation only (13B models, simple cases)
+  - Known issues: slow performance, complex troubleshooting, frequent version conflicts
+  - **Funding required for production optimization**
+
+**Our Recommendation:** Use SOLLOL for task distribution and intelligent routing (proven, stable). Distributed inference is available for experimentation but not recommended for production use without dedicated engineering resources.
 
 ---
 
@@ -32,13 +54,19 @@ You have multiple machines with GPUs running Ollama, but:
 
 ### The SOLLOL Solution
 
-SOLLOL provides:
+**Production-Ready Features:**
 - ✅ **Intelligent routing** that learns which nodes work best for each task
-- ✅ **Distributed inference architecture** (validated up to 13B models across multi-node clusters)
 - ✅ **Parallel agent execution** for multi-agent frameworks
-- ✅ **Auto-discovery** of all nodes and capabilities
-- ✅ **Built-in observability** with real-time metrics
-- ✅ **Zero-config deployment** - just point and go
+- ✅ **Auto-discovery** of Ollama nodes across your network
+- ✅ **Built-in observability** with real-time metrics and dashboard
+- ✅ **Automatic failover** and health monitoring
+
+**Experimental Features (Not Recommended for Production):**
+- 🔬 **Distributed inference** via llama.cpp RPC
+  - ⚠️ **WARNING:** Experimental only - 5x slower than local, version-sensitive, manual setup
+  - Works for testing only (13B models, 2-3 nodes)
+  - **Funding required for production optimization**
+  - See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md) for details and realistic expectations
 
 ---
 
@@ -158,24 +186,30 @@ responses = await asyncio.gather(*[
 # Parallel execution across available nodes
 ```
 
-#### 🧩 Distributed Inference (Vertical Scaling)
-Architecture designed for scaling beyond single-node memory constraints:
+#### 🔬 Distributed Inference (Experimental - Not Production Ready)
+
+**⚠️ WARNING: This feature is experimental and not recommended for production use.**
+
+Distribute **model layers** across RPC backends for parallel inference computation:
 ```python
-# Distribute inference computation across multiple RPC worker nodes
-# Note: Coordinator must load full model; workers handle distributed layer computation
-# ✅ Validated: 13B models across 2-3 nodes with measured performance
-# 🔬 Future: Full parameter sharding to eliminate coordinator bottleneck
+# EXPERIMENTAL: Distribute inference layers across multiple RPC worker nodes
+# ⚠️ Known Limitations:
+#   - Slow startup (2-5 min vs 20s local)
+#   - Slow inference (~5 tok/s vs ~20 tok/s local)
+#   - Version-sensitive (rpc-server must exactly match coordinator)
+#   - Manual configuration required
+#   - Coordinator still needs full model in memory
+# ✅ Works for: Simple 13B model testing across 2-3 compatible nodes
+# ❌ Not suitable for: Production workloads, complex setups, large models
+
 router = HybridRouter(
-    enable_distributed=True,
-    num_rpc_backends=4
+    enable_distributed=True,  # Only enable if you understand the limitations
+    num_rpc_backends=2
 )
-response = await router.route_request(
-    model="codellama:13b",  # Inference distributed across RPC backends
-    messages=[...]
-)
+# Use at your own risk - task distribution is recommended instead
 ```
 
-**Use them together!** Small models use task distribution, large models use distributed inference.
+**Our Recommendation:** Use task distribution (proven, stable) instead of distributed inference (experimental, slow) for production workloads.
 
 ---
 
@@ -646,8 +680,11 @@ sudo systemctl start llama-rpc@50052.service
 See [SOLLOL_RPC_SETUP.md](https://github.com/BenevolentJoker-JohnL/FlockParser/blob/main/SOLLOL_RPC_SETUP.md) for complete installation guide.
 
 #### Architecture: Hybrid GPU+CPU Parallelization 🚀
+**llama.cpp RPC backend only**
 
-**NEW:** SOLLOL now supports hybrid device parallelization - GPU nodes contribute BOTH their GPU (VRAM) AND CPU (RAM) as separate parallel workers!
+**NEW:** llama.cpp RPC backends support hybrid device parallelization - GPU nodes contribute BOTH their GPU (VRAM) AND CPU (RAM) as separate parallel workers!
+
+> **Note:** This feature is specific to llama.cpp's `rpc-server` architecture and is NOT available with Ollama. Ollama nodes can only contribute one worker per instance.
 
 **Example: 3 Physical Nodes → 4 Parallel Workers (+33% throughput!)**
 
@@ -667,11 +704,13 @@ GPU Node    → 2 workers:
 Total: 4 parallel workers  (+33% more!)
 ```
 
-**Fully Automatic** - SOLLOL detects and configures hybrid parallelization when starting RPC servers:
+**Fully Automatic** - SOLLOL detects and configures hybrid parallelization when starting llama.cpp RPC servers:
 - Auto-detects GPU(s) and calculates safe VRAM allocations (80% with 20% reserve)
 - Auto-detects system RAM and reserves 20% for OS stability
-- Generates optimal `--device` and `--mem` flags automatically
+- Generates optimal `--device` and `--mem` flags for llama.cpp's `rpc-server` automatically
 - No manual configuration needed!
+
+**Why llama.cpp only?** Ollama doesn't support the `--device cpu,cuda:0` multi-device flag that enables this hybrid parallelization.
 
 **Manual inspection** (optional) - See what SOLLOL would configure:
 ```bash
@@ -784,11 +823,26 @@ response = await coordinator.generate(
 
 **Workaround:** Run the llama-server coordinator on your machine with the most RAM (e.g., your GPU node with 32GB). The RPC workers can still be CPU-only nodes with less RAM.
 
-**Research Track (WIP):** SOLLOL includes experimental code (`src/sollol/distributed_pipeline.py`) exploring true distributed model loading where NO single node needs the full model. This uses Ray-based pipeline parallelism inspired by prima.cpp's architecture. See module documentation for technical details and path forward.
+**Research Track (WIP):** SOLLOL includes experimental code (`src/sollol/distributed_pipeline.py`) exploring true distributed model weight sharding where NO single node needs the full model. This uses Ray-based pipeline parallelism inspired by prima.cpp's architecture. See module documentation for technical details and path forward.
 
-#### 🔬 Future Work: Fully Distributed Model Sharding (Funding Contingent)
+#### 🔬 Future Work: Production-Ready Distributed Inference & Model Weight Sharding
 
-While SOLLOL currently achieves **distributed inference scheduling** and **adaptive model routing**, true **distributed model storage** (where no single node needs the full model in RAM) requires significant additional engineering:
+**Current Status:** SOLLOL's distributed inference is **experimental only**:
+- Basic functionality validated (13B models, 2-3 nodes)
+- Not optimized for performance (5x slower than local)
+- Requires manual setup and exact version matching
+- **Not recommended for production use**
+
+**What's Needed for Production:**
+1. **Optimization of current RPC integration:**
+   - Performance tuning (reduce 2-5min startup to <30s)
+   - Automated version management
+   - Better error handling and recovery
+   - Comprehensive testing across model sizes
+
+2. **True model weight sharding** (future):
+   - NO single node needs full model in RAM
+   - Requires significant R&D (see `distributed_pipeline.py`)
 
 **What's Needed:**
 - ✅ GGUF layer analysis (completed)
@@ -799,9 +853,13 @@ While SOLLOL currently achieves **distributed inference scheduling** and **adapt
 
 **Proposed Extension:**
 - **Ollama ⇄ GGUF conversion** for tensor-level distribution across nodes
-- **Sharded model loading** with Ray actors (no single-node memory bottleneck)
+- **Weight-sharded model loading** with Ray actors (no single-node memory bottleneck)
 - **Pipeline parallelism** with activation passing through Ray object store
 - **Production validation** on real multi-node clusters with frontier models (70B-405B)
+
+**Important Distinction:**
+- **Current:** Distributed **inference** - layers spread across nodes, coordinator still needs full model
+- **Future:** Distributed **model weights** - model parameters split across nodes, no single node needs full model
 
 > 💡 **This feature is gated behind funding or partnership opportunities.**
 >

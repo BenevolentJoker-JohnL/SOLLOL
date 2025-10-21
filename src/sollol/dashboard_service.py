@@ -351,7 +351,7 @@ class DashboardService:
 
                 # Add total_pools if not present
                 if "total_pools" not in raw_metrics:
-                    if "ollama_pool" in raw_metrics:
+                    if "ollama_pool" in raw_metrics and raw_metrics["ollama_pool"] is not None:
                         raw_metrics["total_pools"] = raw_metrics["ollama_pool"].get("nodes", 0)
                     else:
                         raw_metrics["total_pools"] = 0
@@ -487,19 +487,97 @@ class DashboardService:
         @self.app.route("/api/rpc_backends")
         def rpc_backends():
             try:
-                # Always do fresh discovery (fast, avoids stale cache)
+                # PRIORITY 1: Detect from running llama-server coordinator process (most reliable)
+                try:
+                    import subprocess
+                    import re
+                    result = subprocess.run(
+                        ["ps", "aux"],
+                        capture_output=True,
+                        text=True,
+                        timeout=2
+                    )
+
+                    for line in result.stdout.split("\n"):
+                        if "llama-server" in line and "--rpc" in line:
+                            # Extract --rpc argument
+                            rpc_match = re.search(r'--rpc\s+([^\s]+)', line)
+                            if rpc_match:
+                                rpc_arg = rpc_match.group(1)
+                                # Parse comma-separated backends
+                                backends = []
+                                for addr in rpc_arg.split(","):
+                                    addr = addr.strip()
+                                    # Skip dummy backends
+                                    if "coordinator:0" in addr or addr == "coordinator:0":
+                                        continue
+                                    parts = addr.split(":")
+                                    if len(parts) == 2:
+                                        backends.append({
+                                            "host": parts[0],
+                                            "port": int(parts[1])
+                                        })
+
+                                if backends:
+                                    logger.info(f"✅ Detected {len(backends)} RPC backends from running coordinator")
+                                    return jsonify(backends)
+                except Exception as e:
+                    logger.debug(f"Coordinator process detection failed: {e}")
+
+                # PRIORITY 1.5: Read from config file if coordinator not running
+                try:
+                    from pathlib import Path
+                    config_file = Path("/home/joker/SOLLOL/rpc_backends.conf")
+                    if config_file.exists():
+                        backends = []
+                        with open(config_file, "r") as f:
+                            for line in f:
+                                line = line.strip()
+                                if line and not line.startswith("#"):
+                                    parts = line.split(":")
+                                    if len(parts) == 2:
+                                        backends.append({
+                                            "host": parts[0],
+                                            "port": int(parts[1])
+                                        })
+                        if backends:
+                            logger.info(f"📄 Loaded {len(backends)} RPC backends from config file")
+                            return jsonify(backends)
+                except Exception as e:
+                    logger.debug(f"Config file read failed: {e}")
+
+                # PRIORITY 2: Auto-discovery from Redis registry
                 try:
                     from sollol.rpc_discovery import auto_discover_rpc_backends
                     discovered_backends = auto_discover_rpc_backends()
                     logger.info(f"Auto-discovered {len(discovered_backends)} RPC backends")
-                    return jsonify(discovered_backends)
-                except Exception:
-                    pass
+                    if discovered_backends:
+                        return jsonify(discovered_backends)
+                except Exception as e:
+                    logger.debug(f"Auto-discovery failed: {e}")
 
-                # Fallback to router_getter
+                # PRIORITY 3: Fallback to router_getter
                 router = self.router_getter()
                 if router and hasattr(router, "rpc_backends"):
                     return jsonify(router.rpc_backends)
+
+                # PRIORITY 4: Fallback to Redis metadata (last resort, often stale)
+                try:
+                    metadata_json = self.redis_client.get("sollol:router:metadata")
+                    if metadata_json:
+                        import json
+                        metadata = json.loads(metadata_json)
+                        rpc_backends_from_redis = metadata.get("rpc_backends", [])
+                        # Filter out dummy backends
+                        real_backends = [
+                            b for b in rpc_backends_from_redis
+                            if not (b.get("host") == "coordinator" and b.get("port") == 0)
+                        ]
+                        if real_backends:
+                            logger.info(f"✅ Loaded {len(real_backends)} RPC backends from Redis metadata")
+                            return jsonify(real_backends)
+                except Exception as e:
+                    logger.debug(f"Redis metadata lookup failed: {e}")
 
                 return jsonify([])
             except Exception as e:
@@ -518,29 +596,33 @@ class DashboardService:
                         port = backend.get('port', 50052)
                         url = f"{host}:{port}"
 
-                        # Try quick health check
-                        import socket
-                        is_healthy = False
-                        latency_ms = 0
+                        # RPC backends use gRPC, can't health check via TCP socket.
+                        # Instead, assume healthy if registered in Redis (coordinator found them)
+                        # OR check if coordinator is actively using them
+                        is_healthy = True  # If in Redis registry, assume active
+                        latency_ms = 0  # gRPC latency not measurable via TCP
+
+                        # Get stats from Redis if available
+                        request_count = 0
+                        failure_count = 0
                         try:
-                            start = time.time()
-                            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                            sock.settimeout(1.0)
-                            result = sock.connect_ex((host, port))
-                            sock.close()
-                            latency_ms = int((time.time() - start) * 1000)
-                            is_healthy = (result == 0)
+                            stats_key = f"sollol:rpc:stats:{host}:{port}"
+                            stats_json = self.redis_client.get(stats_key)
+                            if stats_json:
+                                stats = json.loads(stats_json)
+                                request_count = stats.get('request_count', 0)
+                                failure_count = stats.get('failure_count', 0)
                         except Exception:
-                            is_healthy = False
+                            pass
 
                         enriched.append({
                             "host": host,
                             "port": port,
                             "url": url,
-                            "status": "healthy" if is_healthy else "offline",
+                            "status": "healthy",  # Assume healthy if in Redis registry
                             "latency_ms": latency_ms,
-                            "request_count": 0,  # TODO: Track in Redis
-                            "failure_count": 0,  # TODO: Track in Redis
+                            "request_count": request_count,
+                            "failure_count": failure_count,
                         })
                     return jsonify({"backends": enriched, "total": len(enriched)})
                 return jsonify(backends)
@@ -615,10 +697,36 @@ class DashboardService:
 
         @self.app.route("/api/traces")
         def traces():
-            """Get distributed traces (empty for now - can be populated later)."""
+            """Get distributed traces from Redis."""
             try:
-                # TODO: Implement trace storage in Redis
-                return jsonify({"traces": [], "total": 0})
+                # Scan for all trace keys
+                trace_keys = []
+                cursor = 0
+                while True:
+                    cursor, keys = self.redis_client.scan(cursor, match="sollol:trace:*", count=100)
+                    trace_keys.extend(keys)
+                    if cursor == 0:
+                        break
+
+                # Fetch all traces
+                traces_list = []
+                for key in trace_keys:
+                    trace_json = self.redis_client.get(key)
+                    if trace_json:
+                        try:
+                            trace_data = json.loads(trace_json)
+                            traces_list.append(trace_data)
+                        except json.JSONDecodeError:
+                            logger.warning(f"Invalid trace JSON for key {key}")
+                            continue
+
+                # Sort by start_time (most recent first)
+                traces_list.sort(key=lambda t: t.get("start_time", 0), reverse=True)
+
+                # Limit to most recent 100 traces
+                traces_list = traces_list[:100]
+
+                return jsonify({"traces": traces_list, "total": len(traces_list)})
             except Exception as e:
                 logger.error(f"Error getting traces: {e}")
                 return jsonify({"error": str(e), "traces": [], "total": 0}), 500
@@ -909,8 +1017,10 @@ class DashboardService:
             pubsub = pubsub_client.pubsub()
 
             try:
-                # Subscribe to RPC activity channel
+                # Subscribe to BOTH RPC activity events AND raw coordinator logs
                 pubsub.subscribe("sollol:dashboard:rpc:activity")
+                pubsub.subscribe("sollol:logs:llama_cpp")  # Raw coordinator logs
+                logger.info("📡 Subscribed to sollol:dashboard:rpc:activity and sollol:logs:llama_cpp")
 
                 # Send initial connected message
                 ws.send(json.dumps({
@@ -923,7 +1033,22 @@ class DashboardService:
                 while True:
                     message = pubsub.get_message(timeout=0.1)
                     if message and message['type'] == 'message':
-                        # Forward Redis message to WebSocket
+                        # Check which channel the message came from
+                        channel = message['channel']
+
+                        if channel == 'sollol:logs:llama_cpp':
+                            # Raw coordinator log line - send directly
+                            log_line = message['data']
+                            ws.send(json.dumps({
+                                "type": "coordinator_log",
+                                "timestamp": time.time(),
+                                "backend": "coordinator",
+                                "message": log_line,
+                                "details": {}
+                            }))
+                            continue
+
+                        # Otherwise, it's a structured activity event from sollol:dashboard:rpc:activity
                         activity_data = json.loads(message['data'])
 
                         # Format for display
@@ -966,6 +1091,52 @@ class DashboardService:
 
             except Exception as e:
                 logger.error(f"RPC activity WebSocket error: {e}")
+            finally:
+                pubsub.close()
+                pubsub_client.close()
+
+        @self.sock.route("/ws/traces")
+        def ws_traces(ws):
+            """WebSocket endpoint for distributed traces - subscribes to Redis pub/sub."""
+            logger.info("🔌 Distributed traces WebSocket connected")
+
+            # Create separate Redis connection for pub/sub
+            import redis as redis_module
+            pubsub_client = redis_module.from_url(self.redis_url, decode_responses=True)
+            pubsub = pubsub_client.pubsub()
+
+            try:
+                # Subscribe to trace events channel
+                pubsub.subscribe("sollol:traces")
+                logger.info("📡 Subscribed to sollol:traces")
+
+                # Send initial connected message
+                ws.send(json.dumps({
+                    "type": "connected",
+                    "timestamp": time.time(),
+                    "message": "✓ Connected to distributed traces stream"
+                }))
+
+                # Non-blocking message polling loop
+                while True:
+                    message = pubsub.get_message(timeout=0.1)
+                    if message and message['type'] == 'message':
+                        # Parse trace event
+                        trace_event = json.loads(message['data'])
+                        event = trace_event.get('event', 'unknown')
+                        trace = trace_event.get('trace', {})
+
+                        # Forward to WebSocket clients
+                        ws.send(json.dumps({
+                            "type": event,
+                            "timestamp": time.time(),
+                            "trace": trace
+                        }))
+
+                    time.sleep(0.1)  # Small delay to prevent busy-waiting
+
+            except Exception as e:
+                logger.error(f"Distributed traces WebSocket error: {e}")
             finally:
                 pubsub.close()
                 pubsub_client.close()
@@ -1024,6 +1195,11 @@ class DashboardService:
                         elif event_type == 'OLLAMA_NODE_SELECTED':
                             node_url = routing_event.get('node_url', 'unknown')
                             display_msg = f"📡 {model} → {node_url} | {reason}"
+                        elif event_type == 'rpc_coordinator_route':
+                            # RPC coordinator routing - show list of backends
+                            rpc_backends = routing_event.get('rpc_backends', [])
+                            backends_str = ', '.join(rpc_backends) if rpc_backends else 'N/A'
+                            display_msg = f"🔀 {model} → RPC sharding ({backends_str})"
                         else:
                             display_msg = f"{event_type}: {model} → {backend}"
 

@@ -418,9 +418,16 @@
         </div>
 
         <div class="panel">
-            <h2>🖥️ Host Status</h2>
+            <h2>🖥️ Host Status (Ollama Nodes)</h2>
             <div class="host-list" id="host-list">
                 <div class="no-data">Waiting for data...</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>🔗 RPC Backends (Model Sharding)</h2>
+            <div class="host-list" id="rpc-backends-list">
+                <div class="no-data">No RPC backends discovered</div>
             </div>
         </div>
 
@@ -637,7 +644,7 @@
                 appsList.innerHTML = '<div class="no-data">No applications registered</div>';
             }
 
-            // Hosts
+            // Hosts (Ollama nodes)
             const hostList = document.getElementById('host-list');
             if (data.hosts && data.hosts.length > 0) {
                 hostList.innerHTML = data.hosts.map(host => `
@@ -655,7 +662,34 @@
                     </div>
                 `).join('');
             } else {
-                hostList.innerHTML = '<div class="no-data">No hosts available</div>';
+                hostList.innerHTML = '<div class="no-data">No Ollama nodes available</div>';
+            }
+
+            // RPC Backends
+            const rpcBackendsList = document.getElementById('rpc-backends-list');
+            if (data.rpc_backends && data.rpc_backends.length > 0) {
+                rpcBackendsList.innerHTML = data.rpc_backends.map(backend => {
+                    const address = `${backend.host}:${backend.port}`;
+                    const status = backend.healthy !== false ? 'healthy' : 'offline';
+                    const statusText = backend.healthy !== false ? 'HEALTHY' : 'OFFLINE';
+
+                    return `
+                    <div class="host-item ${status}">
+                        <div>
+                            <div class="host-name">🔗 ${address}</div>
+                            <div class="host-metrics">
+                                <span>🖥️ RPC Server</span>
+                                <span>🔌 gRPC Port ${backend.port}</span>
+                                ${backend.requests ? `<span>📊 ${backend.requests} requests</span>` : ''}
+                                ${backend.avg_latency ? `<span>⏱️ ${Math.round(backend.avg_latency)}ms</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="host-status ${status}">${statusText}</div>
+                    </div>
+                    `;
+                }).join('');
+            } else {
+                rpcBackendsList.innerHTML = '<div class="no-data">No RPC backends discovered (run distributed model mode)</div>';
             }
 
             // Alerts

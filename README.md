@@ -30,12 +30,14 @@
 
 ### 🔬 Experimental Features:
 - **Distributed inference** (llama.cpp RPC integration)
-  - ⚠️ **Not production-ready** - manual setup, version-sensitive, not optimized
-  - Basic validation only (13B models, simple cases)
-  - Known issues: slow performance, complex troubleshooting, frequent version conflicts
+  - ⚠️ **Not production-ready** - experimental proof-of-concept only
+  - Validated for basic functionality with 13B models (2-3 nodes)
+  - Known issues: 5x slower than local, version-sensitive, manual setup
   - **Funding required for production optimization**
 
-**Our Recommendation:** Use SOLLOL for task distribution and intelligent routing (proven, stable). Distributed inference is available for experimentation but not recommended for production use without dedicated engineering resources.
+**See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md) for complete details, realistic expectations, and why we don't recommend this for production.**
+
+**Our Recommendation:** Use SOLLOL for task distribution and intelligent routing (proven, stable, fast).
 
 ---
 
@@ -61,12 +63,10 @@ You have multiple machines with GPUs running Ollama, but:
 - ✅ **Built-in observability** with real-time metrics and dashboard
 - ✅ **Automatic failover** and health monitoring
 
-**Experimental Features (Not Recommended for Production):**
+**Experimental Features (Research/Testing Only - Not for Production):**
 - 🔬 **Distributed inference** via llama.cpp RPC
-  - ⚠️ **WARNING:** Experimental only - 5x slower than local, version-sensitive, manual setup
-  - Works for testing only (13B models, 2-3 nodes)
-  - **Funding required for production optimization**
-  - See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md) for details and realistic expectations
+  - ⚠️ **Proof-of-concept only** - not optimized for production
+  - See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md) for honest assessment and limitations
 
 ---
 
@@ -186,30 +186,11 @@ responses = await asyncio.gather(*[
 # Parallel execution across available nodes
 ```
 
-#### 🔬 Distributed Inference (Experimental - Not Production Ready)
+#### 🔬 Distributed Inference (Experimental - Research Only)
 
-**⚠️ WARNING: This feature is experimental and not recommended for production use.**
+**⚠️ Proof-of-concept only - not production-ready. See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md) for details.**
 
-Distribute **model layers** across RPC backends for parallel inference computation:
-```python
-# EXPERIMENTAL: Distribute inference layers across multiple RPC worker nodes
-# ⚠️ Known Limitations:
-#   - Slow startup (2-5 min vs 20s local)
-#   - Slow inference (~5 tok/s vs ~20 tok/s local)
-#   - Version-sensitive (rpc-server must exactly match coordinator)
-#   - Manual configuration required
-#   - Coordinator still needs full model in memory
-# ✅ Works for: Simple 13B model testing across 2-3 compatible nodes
-# ❌ Not suitable for: Production workloads, complex setups, large models
-
-router = HybridRouter(
-    enable_distributed=True,  # Only enable if you understand the limitations
-    num_rpc_backends=2
-)
-# Use at your own risk - task distribution is recommended instead
-```
-
-**Our Recommendation:** Use task distribution (proven, stable) instead of distributed inference (experimental, slow) for production workloads.
+**Our Recommendation:** Use task distribution (proven, stable, fast) instead.
 
 ---
 
@@ -455,25 +436,28 @@ for agent in agents:
 
 ---
 
-### 4. Distributed Inference with llama.cpp RPC (Large Models)
+### 4. Distributed Inference (Experimental - Research/Testing Only)
 
-**Distribute inference computation** for large models across multiple machines using llama.cpp RPC backends.
+**⚠️ EXPERIMENTAL: Proof-of-concept only - not optimized for production use.**
 
-#### When to Use Distributed Inference
+This feature demonstrates distributing model layer computation across multiple RPC backends. It has significant limitations including:
+- 5x slower than local inference
+- Version-sensitive (exact binary matching required)
+- Coordinator still requires full model in RAM
+- Manual setup and troubleshooting
 
-Use distributed inference when:
-- ✅ Model doesn't fit on your largest GPU (e.g., 70B models on 16GB GPUs)
-- ✅ You have multiple machines with network connectivity
-- ✅ You can tolerate slower inference for capability
-- ✅ Coordinator node has sufficient RAM for the full model
+**See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md) for honest assessment, realistic expectations, and known issues.**
 
-Don't use distributed inference when:
-- ❌ Model fits on a single GPU (use task distribution instead)
-- ❌ You need maximum inference speed
-- ❌ Network latency is high (>10ms between machines)
-- ❌ No single node has RAM for the full model (see known limitations)
+**Recommended for production:** Use SOLLOL's stable task distribution features instead.
 
-#### Quick Start: Auto-Setup (Easiest)
+---
+
+**⚠️ The following sections document experimental distributed inference setup. Use at your own risk for research/testing only.**
+
+<details>
+<summary><b>Click to expand experimental distributed inference documentation</b></summary>
+
+#### Quick Start: Auto-Setup (Use at Your Own Risk)
 
 ```python
 from sollol.sync_wrapper import HybridRouter, OllamaPool
@@ -871,6 +855,8 @@ response = await coordinator.generate(
 
 **Interested in funding or collaboration?** Open an issue or contact via GitHub.
 
+</details>
+
 ---
 
 ### 5. Batch Processing API
@@ -1006,23 +992,15 @@ agents = await asyncio.gather(*[
 # Speedup depends on number of available nodes and their capacity
 ```
 
-### 2. Large Model Inference
+### 2. Large Model Inference (Experimental)
 
 **Problem**: Your model doesn't fit in available VRAM.
 
-**Solution**: SOLLOL distributes inference computation across multiple machines via llama.cpp RPC.
+**Experimental Solution**: Distributed inference via llama.cpp RPC (proof-of-concept only).
 
-```python
-# Distribute inference across multiple RPC backends
-# Note: Coordinator node must have RAM for full model
-# Verified with 13B models; larger models not extensively tested
-router = HybridRouter(
-    enable_distributed=True,
-    num_rpc_backends=4
-)
-# Trade-off: Slower startup/inference but enables running larger models
-# Distributes computation, not model storage (see known limitations)
-```
+**⚠️ Not recommended for production** - See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md) for details.
+
+**Recommended alternative**: Use task distribution with models that fit on single nodes.
 
 ### 3. Mixed Workloads
 
@@ -1161,18 +1139,20 @@ python benchmarks/run_benchmarks.py --sollol-url http://localhost:8000 --duratio
 
 **Reality:** Requires multi-node cluster validation. See [BENCHMARKING.md](BENCHMARKING.md) for test procedure and [CODE_WALKTHROUGH.md](CODE_WALKTHROUGH.md) for implementation details.
 
-### Distributed Inference Performance
+### Distributed Inference Performance (Experimental)
+
+**⚠️ Experimental feature - not optimized for production use.**
 
 | Model | Single 24GB GPU | SOLLOL (3×16GB via RPC) | Status |
 |-------|----------------|-------------------------|-----------|
-| **13B** | ✅ ~20 tok/s | ✅ ~5 tok/s | ✅ Verified working |
-| **70B** | ❌ OOM | ⚠️ Estimated ~3-5 tok/s | ⚠️ Not extensively tested |
+| **13B** | ✅ ~20 tok/s | ⚠️ ~5 tok/s (5x slower) | Verified but slow |
+| **70B** | ❌ OOM | ⚠️ Estimated ~3-5 tok/s | Not tested |
 
-**When to use distributed inference**: When model doesn't fit on your largest GPU. You trade speed for capability.
+**Reality check**: Distributed inference is 5x slower than local, version-sensitive, and requires manual setup. **Not recommended for production.**
 
-**Performance trade-offs**: Distributed inference is 2-5 minutes slower to start and ~4x slower for inference compared to local. Use only when necessary.
+**See [EXPERIMENTAL_FEATURES.md](EXPERIMENTAL_FEATURES.md)** for honest assessment and realistic expectations.
 
-**Note**: This distributes *computation* (inference), not model storage. Coordinator node must still have sufficient RAM for the full model.
+**Recommended alternative**: Use task distribution (proven, stable, fast) with models that fit on single nodes.
 
 ### Overhead
 

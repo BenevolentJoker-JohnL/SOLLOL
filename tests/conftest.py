@@ -5,6 +5,20 @@ Pytest configuration and shared fixtures for SOLLOL tests.
 from typing import Dict, List
 
 import pytest
+import requests
+
+
+def _check_mock_nodes_available():
+    """Check if mock Ollama nodes are running on ports 21434, 21435, 21436."""
+    ports = [21434, 21435, 21436]
+    for port in ports:
+        try:
+            response = requests.get(f"http://localhost:{port}/api/tags", timeout=2)
+            if response.status_code != 200:
+                return False
+        except:
+            return False
+    return True
 
 
 @pytest.fixture
@@ -89,3 +103,38 @@ def unavailable_host_metadata() -> Dict:
         "preferred_task_types": [],
         "last_updated": "2025-10-03T12:00:00",
     }
+
+
+@pytest.fixture
+def pool():
+    """
+    OllamaPool fixture for integration tests.
+
+    Requires mock Ollama servers running on ports 21434, 21435, 21436.
+    These are started by the GitHub Actions workflow before running tests.
+    """
+    if not _check_mock_nodes_available():
+        pytest.skip("Mock Ollama nodes not available on ports 21434-21436")
+
+    from sollol import OllamaPool
+
+    pool = OllamaPool(
+        nodes=[
+            {"host": "localhost", "port": 21434},
+            {"host": "localhost", "port": 21435},
+            {"host": "localhost", "port": 21436}
+        ],
+        enable_intelligent_routing=True,
+        register_with_dashboard=False,
+        enable_cache=False,
+        enable_ray=False,
+        enable_dask=False
+    )
+
+    yield pool
+
+    # Cleanup
+    try:
+        pool.stop()
+    except:
+        pass

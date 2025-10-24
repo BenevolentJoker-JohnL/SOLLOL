@@ -70,7 +70,7 @@ class AdaptiveParallelismStrategy:
         # Calculate performance metrics
         node_speeds = []
 
-        for node in nodes:
+        for i, node in enumerate(nodes, 1):
             node_key = f"{node['host']}:{node['port']}"
             stats = node_performance.get(node_key, {})
 
@@ -125,13 +125,17 @@ class AdaptiveParallelismStrategy:
                 "recommended_node": fastest_node["node"],
             }
 
-        # CASE 2: Small batch (<20 items)
-        if batch_size < 20:
+        # CASE 2: Small batch (dynamic threshold based on node count)
+        # Minimum chunks per node: 5 (so 2 nodes = 10 threshold, 3 nodes = 15, etc.)
+        min_chunks_per_node = 5
+        dynamic_threshold = len(nodes) * min_chunks_per_node
+
+        if batch_size < dynamic_threshold:
             # Overhead of parallelism not worth it
             return False, {
                 **reasoning,
                 "reason": "small_batch",
-                "detail": f"Batch size {batch_size} too small for parallel overhead",
+                "detail": f"Batch size {batch_size} too small for parallel overhead (need {dynamic_threshold}+ for {len(nodes)} nodes)",
                 "recommended_node": fastest_node["node"],
             }
 
@@ -177,8 +181,15 @@ class AdaptiveParallelismStrategy:
 
         nodes = self.pool.nodes
 
-        # Base workers on number of nodes
-        base_workers = len(nodes) * 2
+        # IMPORTANT: Use conservative worker counts to avoid overwhelming Ollama servers
+        # Ollama embedding endpoints can handle multiple concurrent requests efficiently
+        # Multiple workers per node allows better saturation and throughput
+
+        # For small node counts (1-3), use 2x workers to saturate endpoints
+        if len(nodes) <= 3:
+            base_workers = len(nodes) * 2  # 2 workers per node for good saturation
+        else:
+            base_workers = len(nodes) * 2  # Can use more for larger clusters
 
         # Adjust for batch size
         if batch_size < 50:
@@ -186,11 +197,11 @@ class AdaptiveParallelismStrategy:
         elif batch_size < 200:
             workers = base_workers
         else:
-            # Large batch, can use more workers
-            workers = min(base_workers * 2, batch_size)
+            # Large batch, can use slightly more workers
+            workers = min(base_workers + 2, batch_size)  # Conservative increase
 
-        # Minimum 1 worker
-        return max(1, workers)
+        # Minimum 1 worker, maximum 6 (even for large batches)
+        return max(1, min(workers, 6))
 
     def get_recommended_node(self, model_name: Optional[str] = None) -> Optional[str]:
         """

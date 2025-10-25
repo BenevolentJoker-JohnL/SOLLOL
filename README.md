@@ -1549,11 +1549,21 @@ rag_results = flockparser.query_remote(
 
 ### **Production Integrations**
 
-**SOLLOL is actively used in production by:**
+**SOLLOL is production-tested and actively used by:**
 
 - **[FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser)** - Document RAG Intelligence with distributed processing. FlockParser's legacy load balancing code was refactored and became core SOLLOL logic. FlockParser now uses SOLLOL directly via `OllamaPool` for intelligent routing across document embeddings and LLM queries.
 
 - **[SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)** - Multi-agent collaborative research framework. Uses SOLLOL's `HybridRouter` for distributed agent execution with RAG-enhanced research capabilities via FlockParser integration.
+
+### **Experimental Integrations**
+
+**SOLLOL is being experimentally adopted by:**
+
+- **llamaforge** - Exploring SOLLOL for distributed model inference and load balancing (limited experimental capacity)
+- **hydra** - Testing SOLLOL integration for multi-model orchestration (limited experimental capacity)
+
+**Production-tested applications:** FlockParser and SynapticLlamas
+**Experimental applications:** llamaforge and hydra
 
 **Related Projects:**
 - **[SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)** - Multi-Agent Orchestration

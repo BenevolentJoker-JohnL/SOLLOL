@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sollol"
-version = "0.9.56"
+version = "0.9.59"
 description = "Intelligent Load Balancer for Ollama Clusters - Adaptive Parallelism + VRAM-Aware GPU Routing + Ray/Dask/llama.cpp Distribution"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -30,6 +30,7 @@ dependencies = [
     "requests>=2.31.0",
     "httpx>=0.24.0",
     "ipaddress>=1.0.23",
+    "ollama>=0.1.0",
     "dask[distributed]>=2024.1.0",
     "ray[default]>=2.0.0",
     "prometheus-client>=0.12.0",

@@ -509,8 +509,9 @@ class OllamaPool:
 
         with self._lock:
             # Check if we have both localhost and the real IP
+            # NOTE: All 127.x.x.x addresses are loopback aliases!
             has_localhost = any(
-                node["host"] in ("localhost", "127.0.0.1")
+                node["host"] in ("localhost", "127.0.0.1") or node["host"].startswith("127.")
                 for node in self.nodes
             )
             has_real_ip = any(
@@ -518,14 +519,14 @@ class OllamaPool:
                 for node in self.nodes
             )
 
-            # If we have both, filter out localhost entries
+            # If we have both, filter out ALL localhost entries (entire 127.0.0.0/8 subnet)
             if has_localhost and has_real_ip:
                 original_count = len(self.nodes)
                 self.nodes = [
                     node for node in self.nodes
-                    if node["host"] not in ("localhost", "127.0.0.1")
+                    if not (node["host"] in ("localhost", "127.0.0.1") or node["host"].startswith("127."))
                 ]
-                logger.info(f"🔍 Deduplicated nodes: removed localhost (same as {local_ip})")
+                logger.info(f"🔍 Deduplicated nodes: removed localhost aliases (same as {local_ip})")
                 logger.debug(f"   Reduced from {original_count} to {len(self.nodes)} nodes")
 
     def count_unique_physical_hosts(self) -> int:
@@ -552,9 +553,16 @@ class OllamaPool:
         for node in self.nodes:
             hostname = node.get("host", "")
 
+            # Normalize all 127.x.x.x addresses to 127.0.0.1 (entire 127.0.0.0/8 is loopback)
+            if hostname.startswith("127."):
+                hostname = "127.0.0.1"
+
             # Resolve to IP to catch localhost aliases
             try:
                 ip = socket.gethostbyname(hostname)
+                # Normalize loopback IPs
+                if ip.startswith("127."):
+                    ip = "127.0.0.1"
                 unique_hosts.add(ip)
             except:
                 # If resolution fails, use hostname as-is

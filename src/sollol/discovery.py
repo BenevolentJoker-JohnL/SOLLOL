@@ -101,8 +101,8 @@ def _from_environment(timeout: float, exclude_localhost: bool = False) -> List[D
     host = os.getenv("OLLAMA_HOST", "").strip()
     if host:
         parsed = _parse_host(host)
-        # Skip if localhost and excluded
-        if exclude_localhost and parsed["host"] in ("localhost", "127.0.0.1"):
+        # Skip if localhost and excluded (check entire 127.0.0.0/8 loopback range)
+        if exclude_localhost and (parsed["host"] in ("localhost", "127.0.0.1") or parsed["host"].startswith("127.")):
             return []
         if _is_ollama_running(parsed["host"], int(parsed["port"]), timeout):
             return [parsed]
@@ -139,10 +139,16 @@ def _from_network_scan(timeout: float, exclude_localhost: bool = False) -> List[
     except:
         return []
 
+    # IMPORTANT: If subnet detection fails and returns loopback range, abort scan
+    # The entire 127.0.0.0/8 subnet is loopback - we'd create 254 duplicate localhost nodes!
+    if subnet == "127.0.0" and exclude_localhost:
+        logger.info("Skipping network scan: detected loopback subnet (no real network found)")
+        return []
+
     def check_host(ip: str) -> Optional[Dict[str, str]]:
         """Check if Ollama is running on this IP."""
-        # Skip localhost IPs if excluded
-        if exclude_localhost and ip in ("127.0.0.1", f"{subnet}.1"):
+        # Skip ALL localhost IPs if excluded (entire 127.0.0.0/8 is loopback)
+        if exclude_localhost and (ip.startswith("127.") or ip == "localhost"):
             return None
         # Use reasonable timeout for port check (0.1s min to allow TCP handshake)
         port_timeout = max(0.1, timeout / 5)  # At least 100ms for TCP connection
@@ -259,8 +265,9 @@ def _deduplicate_nodes(nodes: List[Dict[str, str]]) -> List[Dict[str, str]]:
         return nodes  # Can't determine local IP, return as-is
 
     # Check if we have both localhost and the real IP
+    # NOTE: Entire 127.0.0.0/8 subnet is loopback!
     has_localhost = any(
-        node["host"] in ("localhost", "127.0.0.1")
+        node["host"] in ("localhost", "127.0.0.1") or node["host"].startswith("127.")
         for node in nodes
     )
     has_real_ip = any(
@@ -268,12 +275,12 @@ def _deduplicate_nodes(nodes: List[Dict[str, str]]) -> List[Dict[str, str]]:
         for node in nodes
     )
 
-    # If we have both, filter out localhost entries
+    # If we have both, filter out ALL localhost entries (entire 127.0.0.0/8 subnet)
     if has_localhost and has_real_ip:
-        logger.debug(f"Deduplicating: localhost and {local_ip} both found, keeping only {local_ip}")
+        logger.debug(f"Deduplicating: localhost aliases and {local_ip} both found, keeping only {local_ip}")
         return [
             node for node in nodes
-            if node["host"] not in ("localhost", "127.0.0.1")
+            if not (node["host"] in ("localhost", "127.0.0.1") or node["host"].startswith("127."))
         ]
 
     return nodes

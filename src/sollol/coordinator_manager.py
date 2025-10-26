@@ -2,6 +2,7 @@
 SOLLOL Coordinator Manager
 Handles automatic coordinator startup, health monitoring, and integration with observability.
 """
+
 import asyncio
 import logging
 import os

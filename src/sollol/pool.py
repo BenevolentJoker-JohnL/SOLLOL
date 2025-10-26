@@ -518,7 +518,9 @@ class OllamaPool:
                         or node["host"].startswith("127.")
                     )
                 ]
-                logger.info(f"🔍 Deduplicated nodes: removed localhost aliases (same as {local_ip})")
+                logger.info(
+                    f"🔍 Deduplicated nodes: removed localhost aliases (same as {local_ip})"
+                )
                 logger.debug(f"   Reduced from {original_count} to {len(self.nodes)} nodes")
 
     def count_unique_physical_hosts(self) -> int:
@@ -2605,7 +2607,9 @@ class OllamaPool:
                 """Worker: process chunks from queue with direct Ollama client"""
                 import sys
 
-                print(f"      🔧 {node_key} worker {worker_id} STARTED", file=sys.stderr, flush=True)
+                print(
+                    f"      🔧 {node_key} worker {worker_id} STARTED", file=sys.stderr, flush=True
+                )
                 sys.stderr.flush()
                 try:
                     # Each worker creates its own client for connection reuse

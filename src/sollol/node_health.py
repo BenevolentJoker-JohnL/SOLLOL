@@ -107,7 +107,8 @@ class NodeHealthMonitor:
         if self.vram_exhaustion_detected.get(node_key, False):
             if latency_ms < baseline_latency * 1.5:
                 logger.info(
-                    f"✅ {node_key} recovered from VRAM exhaustion " f"(latency: {latency_ms:.0f}ms)"
+                    f"✅ {node_key} recovered from VRAM exhaustion "
+                    f"(latency: {latency_ms:.0f}ms)"
                 )
                 self.vram_exhaustion_detected[node_key] = False
 

@@ -152,7 +152,9 @@ class LlamaCppCoordinator:
 
         # Get healthy backends from registry
         healthy = self.rpc_registry.get_healthy_backends()
-        logger.debug(f"🔍 RPC Backend Discovery - Registry returned {len(healthy)} healthy backends")
+        logger.debug(
+            f"🔍 RPC Backend Discovery - Registry returned {len(healthy)} healthy backends"
+        )
 
         if not healthy:
             logger.warning(

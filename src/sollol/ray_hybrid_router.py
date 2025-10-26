@@ -961,12 +961,14 @@ class RayHybridRouter:
         """Get router statistics."""
         stats = {
             "router_type": "ray_hybrid",
-            "ollama_pool": {
-                "nodes": len(self.ollama_pool.nodes) if self.ollama_pool else 0,
-                "requests": self.ollama_pool.stats["total_requests"] if self.ollama_pool else 0,
-            }
-            if self.ollama_pool
-            else None,
+            "ollama_pool": (
+                {
+                    "nodes": len(self.ollama_pool.nodes) if self.ollama_pool else 0,
+                    "requests": self.ollama_pool.stats["total_requests"] if self.ollama_pool else 0,
+                }
+                if self.ollama_pool
+                else None
+            ),
             "ray_pools": {
                 "num_pools": len(self.pools) if hasattr(self, "pools") else 0,
                 "backends_per_pool": self.backends_per_pool,

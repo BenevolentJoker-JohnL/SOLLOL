@@ -346,9 +346,11 @@ class DashboardService:
                             "total_requests": getattr(router, "total_requests", 0),
                             "success_rate": getattr(router, "success_rate", 0),
                             "avg_latency": getattr(router, "avg_latency", 0),
-                            "ray_workers": len(getattr(router, "ray_workers", []))
-                            if hasattr(router, "ray")
-                            else 0,
+                            "ray_workers": (
+                                len(getattr(router, "ray_workers", []))
+                                if hasattr(router, "ray")
+                                else 0
+                            ),
                         }
 
                 # Add analytics if not present (for HTML compatibility)
@@ -727,9 +729,9 @@ class DashboardService:
             return jsonify(
                 {
                     "ray_dashboard_url": f"http://localhost:{self.ray_dashboard_port}",
-                    "dask_dashboard_url": f"http://localhost:{self.dask_dashboard_port}"
-                    if self.enable_dask
-                    else None,
+                    "dask_dashboard_url": (
+                        f"http://localhost:{self.dask_dashboard_port}" if self.enable_dask else None
+                    ),
                 }
             )
 
@@ -1323,9 +1325,11 @@ class DashboardService:
                                     nodes.append(
                                         {
                                             "url": node_data.get("url", "unknown"),
-                                            "status": "healthy"
-                                            if node_data.get("healthy", False)
-                                            else "unhealthy",
+                                            "status": (
+                                                "healthy"
+                                                if node_data.get("healthy", False)
+                                                else "unhealthy"
+                                            ),
                                             "latency_ms": node_data.get("last_latency_ms", 0),
                                             "failure_count": node_data.get("failure_count", 0),
                                         }

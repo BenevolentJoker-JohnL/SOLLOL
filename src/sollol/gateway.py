@@ -434,7 +434,9 @@ async def chat_endpoint(request: Request):
             should_parallel, parallelism_reasoning = _adaptive_parallelism.should_parallelize(
                 batch_size=batch_size
             )
-            logger.info(f"🔀 Adaptive parallelism: {parallelism_reasoning.get('reason', 'unknown')}")
+            logger.info(
+                f"🔀 Adaptive parallelism: {parallelism_reasoning.get('reason', 'unknown')}"
+            )
         else:
             should_parallel = True  # Default to parallel if no strategy
 
@@ -495,9 +497,9 @@ async def chat_endpoint(request: Request):
                 "mode": execution_mode,
                 "node": node_key,
                 "actor_id": actor_info,
-                "intelligent_routing": decision
-                if decision
-                else {"reasoning": "round-robin fallback"},
+                "intelligent_routing": (
+                    decision if decision else {"reasoning": "round-robin fallback"}
+                ),
                 "adaptive_parallelism": parallelism_reasoning,
             }
 
@@ -714,9 +716,11 @@ async def health_check():
     health_status["resilience"] = {
         "rate_limiting": {
             "enabled": _rate_limiter is not None,
-            "global_rate": _rate_limiter.global_limiter.rate
-            if _rate_limiter and _rate_limiter.global_limiter
-            else None,
+            "global_rate": (
+                _rate_limiter.global_limiter.rate
+                if _rate_limiter and _rate_limiter.global_limiter
+                else None
+            ),
             "per_node_rate": _rate_limiter.per_node_rate if _rate_limiter else None,
         },
         "circuit_breaker": {
@@ -733,23 +737,23 @@ async def health_check():
         },
         "graceful_shutdown": {
             "enabled": _graceful_shutdown is not None,
-            "is_shutting_down": _graceful_shutdown.is_shutting_down
-            if _graceful_shutdown
-            else False,
+            "is_shutting_down": (
+                _graceful_shutdown.is_shutting_down if _graceful_shutdown else False
+            ),
             "active_requests": _graceful_shutdown.active_requests if _graceful_shutdown else 0,
             "timeout_seconds": _graceful_shutdown.timeout if _graceful_shutdown else None,
         },
         "request_timeouts": {
             "enabled": _timeout_manager is not None,
-            "chat_timeout_seconds": _timeout_manager.config.chat_timeout
-            if _timeout_manager
-            else None,
-            "generate_timeout_seconds": _timeout_manager.config.generate_timeout
-            if _timeout_manager
-            else None,
-            "embed_timeout_seconds": _timeout_manager.config.embed_timeout
-            if _timeout_manager
-            else None,
+            "chat_timeout_seconds": (
+                _timeout_manager.config.chat_timeout if _timeout_manager else None
+            ),
+            "generate_timeout_seconds": (
+                _timeout_manager.config.generate_timeout if _timeout_manager else None
+            ),
+            "embed_timeout_seconds": (
+                _timeout_manager.config.embed_timeout if _timeout_manager else None
+            ),
         },
     }
 

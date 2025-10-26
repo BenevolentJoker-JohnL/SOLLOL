@@ -189,9 +189,9 @@ class CircuitBreaker:
             "state": self.state.value,
             "failure_count": self.failure_count,
             "success_count": self.success_count,
-            "seconds_until_retry": self._seconds_until_retry()
-            if self.state == CircuitState.OPEN
-            else 0,
+            "seconds_until_retry": (
+                self._seconds_until_retry() if self.state == CircuitState.OPEN else 0
+            ),
             "half_open_requests": self.half_open_requests,
         }
 

@@ -80,6 +80,28 @@ target-version = ['py38', 'py39', 'py310', 'py311']
 profile = "black"
 line_length = 100
 
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+# Enable Pyflakes (F) and pycodestyle (E) codes by default
+select = ["E", "F"]
+# Ignore specific error codes
+ignore = [
+    "E402",  # Module import not at top of file (valid for conditional imports)
+    "E501",  # Line too long (handled by black)
+    "E722",  # Bare except (intentional in error handlers)
+    "F401",  # Unused import (common in __init__.py)
+    "F541",  # f-string without placeholders
+    "F811",  # Redefinition of unused import (intentional conditional imports)
+    "F841",  # Local variable assigned but never used
+]
+
+[tool.ruff.lint.pylint]
+# Ignore Pylint warnings for global statements
+max-args = 10
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]

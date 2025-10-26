@@ -1,0 +1,21 @@
+[flake8]
+max-line-length = 120
+exclude =
+    .git,
+    __pycache__,
+    build,
+    dist,
+    *.egg-info,
+    .venv,
+    venv
+
+# Ignore specific errors
+per-file-ignores =
+    # F824: global statement warnings for read-only access (false positives)
+    src/sollol/gateway.py:F824
+    src/sollol/routing_logger.py:F824
+
+# F401: imported but unused (common in __init__.py)
+# E501: line too long (handled by max-line-length)
+# W503: line break before binary operator (conflicts with PEP 8)
+ignore = E501,W503

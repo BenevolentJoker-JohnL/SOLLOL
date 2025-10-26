@@ -2,12 +2,15 @@
 
 ## The Real Problem
 
-The lint CI was failing because of **two separate issues**:
+The lint CI was failing because of **three separate issues**:
 
 1. **Flake8 version compatibility issues** that couldn't be resolved across environments
 2. **F824 errors** reported by BOTH workflows:
    - `lint.yml` was using ruff (needed PLW0602/PLW0603 ignores)
    - `tests.yml` was using flake8 (needed F824 ignore)
+3. **Black version mismatch**: Local environment had black 23.x while CI used black 25.x
+   - Black 25.x has different formatting rules (e.g., parentheses around ternary expressions)
+   - Required upgrading to black 25.9.0 and reformatting 8 files
 
 The F824 error ("unused global statement") is a **false positive** for read-only global access, which is a legitimate pattern.
 
@@ -57,6 +60,22 @@ Replaced flake8 with **ruff** - a modern, fast Python linter written in Rust.
     flake8 src/sollol --count --select=E9,F63,F7,F82 --extend-ignore=F824 --show-source --statistics
 ```
 
+### `pyproject.toml`
+
+Added ruff configuration to ensure ignore rules are always applied:
+
+```toml
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+
+[tool.ruff.lint]
+select = ["E", "F"]  # Only Pyflakes and pycodestyle (no PLW by default)
+ignore = ["E402", "E501", "E722", "F401", "F541", "F811", "F841"]
+```
+
+This ensures consistent linting behavior across all environments.
+
 ### Ignored Error Codes
 
 | Code | Meaning | Why Ignored |
@@ -70,6 +89,29 @@ Replaced flake8 with **ruff** - a modern, fast Python linter written in Rust.
 | F841 | Unused variable | Non-critical |
 | PLW0602 | Global without assignment | Read-only global access (F824 equivalent) |
 | PLW0603 | Global statement discouraged | Legitimate state management pattern |
+
+## Black Version Issue
+
+**Problem**: CI used black 25.x while local environment had black 23.x, causing formatting discrepancies.
+
+**Solution**: Upgraded to black 25.9.0 and reformatted 8 files:
+- circuit_breaker.py
+- coordinator_manager.py
+- dashboard_service.py
+- gateway.py
+- llama_cpp_coordinator.py
+- node_health.py
+- pool.py
+- ray_hybrid_router.py
+
+**Key Difference**: Black 25.x uses parentheses around ternary expressions in dictionaries:
+```python
+# Black 23.x
+"key": value if condition else default,
+
+# Black 25.x
+"key": (value if condition else default),
+```
 
 ## All Commits
 
@@ -89,6 +131,8 @@ Replaced flake8 with **ruff** - a modern, fast Python linter written in Rust.
 14. **30ca8b6** - Formatted entire sollol package
 15. **72dd0dc** - **Switched to ruff** ✅
 16. **6aa9c2b** - Added F811 to ruff ignores ✅
+17. **86a2c43** - Excluded F824 from tests.yml flake8 ✅
+18. **e07114e** - Reformatted with black 25.x + added ruff config ✅
 
 ## Final Verification
 
@@ -123,4 +167,10 @@ Replaced flake8 with **ruff** - a modern, fast Python linter written in Rust.
 All lint checks pass locally. CI should pass on next run.
 
 Last updated: 2025-10-26
-Final commits: 72dd0dc, 6aa9c2b
+Final commits: 72dd0dc, 6aa9c2b, 86a2c43, e07114e
+
+**Critical fixes**:
+- Switched from flake8 to ruff (no version issues)
+- Added F824 ignore to tests.yml flake8
+- Upgraded to black 25.9.0 (same as CI)
+- Added ruff config to pyproject.toml

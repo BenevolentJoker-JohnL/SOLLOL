@@ -11,8 +11,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from sollol.rpc_discovery import check_rpc_server
 from sollol.network_observer import EventType, get_observer
+from sollol.rpc_discovery import check_rpc_server
 
 logger = logging.getLogger(__name__)
 
@@ -127,10 +127,16 @@ class RPCBackendRegistry:
 
         # Heartbeat configuration - load from environment
         if enable_heartbeat is None:
-            enable_heartbeat = os.getenv("SOLLOL_RPC_BACKEND_HEARTBEAT", "true").lower() in ("true", "1", "yes")
+            enable_heartbeat = os.getenv("SOLLOL_RPC_BACKEND_HEARTBEAT", "true").lower() in (
+                "true",
+                "1",
+                "yes",
+            )
 
         self.enable_heartbeat = enable_heartbeat
-        self._heartbeat_interval = int(os.getenv("SOLLOL_RPC_BACKEND_HEARTBEAT_INTERVAL", "600"))  # seconds (10 minutes)
+        self._heartbeat_interval = int(
+            os.getenv("SOLLOL_RPC_BACKEND_HEARTBEAT_INTERVAL", "600")
+        )  # seconds (10 minutes)
         self._heartbeat_thread: Optional[threading.Thread] = None
         self._heartbeat_running = False
 
@@ -144,9 +150,7 @@ class RPCBackendRegistry:
 
         self._heartbeat_running = True
         self._heartbeat_thread = threading.Thread(
-            target=self._heartbeat_loop,
-            daemon=True,
-            name="RPCBackendRegistry-Heartbeat"
+            target=self._heartbeat_loop, daemon=True, name="RPCBackendRegistry-Heartbeat"
         )
         self._heartbeat_thread.start()
         logger.info(f"RPC backend heartbeat started (interval: {self._heartbeat_interval}s)")
@@ -204,7 +208,7 @@ class RPCBackendRegistry:
                 "status": "healthy" if backend.is_healthy else "unhealthy",
                 "total_backends": len(self.backends),
             },
-            severity="info"
+            severity="info",
         )
 
         return backend
@@ -285,7 +289,7 @@ class RPCBackendRegistry:
                     "total_configured": len(self.backends),
                     "total_active": healthy_count,
                 },
-                severity="info"
+                severity="info",
             )
 
         return results

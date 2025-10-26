@@ -46,7 +46,8 @@ def install_log_hook_dask(redis_url: str = "redis://localhost:6379") -> bool:
 
     try:
         import redis
-        from .dashboard_service import RedisLogPublisher, REDIS_LOG_CHANNEL, REDIS_LOG_STREAM
+
+        from .dashboard_service import REDIS_LOG_CHANNEL, REDIS_LOG_STREAM, RedisLogPublisher
 
         # Create Redis client
         redis_client = redis.from_url(redis_url, decode_responses=True)
@@ -58,7 +59,7 @@ def install_log_hook_dask(redis_url: str = "redis://localhost:6379") -> bool:
             stream_key=REDIS_LOG_STREAM,
             use_streams=True,
         )
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
         handler.setLevel(logging.INFO)
 
@@ -92,7 +93,8 @@ def install_log_hook_main(redis_url: str = "redis://localhost:6379") -> bool:
 
     try:
         import redis
-        from .dashboard_service import RedisLogPublisher, REDIS_LOG_CHANNEL, REDIS_LOG_STREAM
+
+        from .dashboard_service import REDIS_LOG_CHANNEL, REDIS_LOG_STREAM, RedisLogPublisher
 
         # Create Redis client
         redis_client = redis.from_url(redis_url, decode_responses=True)
@@ -104,7 +106,7 @@ def install_log_hook_main(redis_url: str = "redis://localhost:6379") -> bool:
             stream_key=REDIS_LOG_STREAM,
             use_streams=True,
         )
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
         handler.setLevel(logging.INFO)
 
@@ -143,7 +145,12 @@ try:
 
         try:
             import redis
-            from sollol.dashboard_service import RedisLogPublisher, REDIS_LOG_CHANNEL, REDIS_LOG_STREAM
+
+            from sollol.dashboard_service import (
+                REDIS_LOG_CHANNEL,
+                REDIS_LOG_STREAM,
+                RedisLogPublisher,
+            )
 
             # Create Redis client
             redis_client = redis.from_url(redis_url, decode_responses=True)
@@ -155,7 +162,7 @@ try:
                 stream_key=REDIS_LOG_STREAM,
                 use_streams=True,
             )
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
             handler.setFormatter(formatter)
             handler.setLevel(logging.INFO)
 
@@ -220,6 +227,7 @@ def auto_install_hooks(redis_url: str = "redis://localhost:6379", ray_ref=None, 
             # Run hook installation on all Dask workers
             def worker_setup(redis_url):
                 from sollol.dashboard_log_hooks import install_log_hook_dask
+
                 return install_log_hook_dask(redis_url)
 
             futures = dask_client.run(worker_setup, redis_url)

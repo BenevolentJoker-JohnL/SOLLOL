@@ -26,8 +26,8 @@ from typing import Any, Dict, List, Optional
 from .llama_cpp_coordinator import LlamaCppCoordinator, RPCBackend
 from .ollama_gguf_resolver import OllamaGGUFResolver
 from .pool import OllamaPool
-from .rpc_registry import RPCBackendRegistry
 from .routing_logger import get_routing_logger
+from .rpc_registry import RPCBackendRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -121,10 +121,9 @@ class HybridRouter:
         self.ollama_pool = ollama_pool
         self.auto_fallback = auto_fallback
         # Allow environment variable to override debug setting
-        self.debug_coordinator_recovery = (
-            debug_coordinator_recovery or
-            os.getenv("SOLLOL_DEBUG_COORDINATOR_RECOVERY", "").lower() in ("true", "1", "yes", "on")
-        )
+        self.debug_coordinator_recovery = debug_coordinator_recovery or os.getenv(
+            "SOLLOL_DEBUG_COORDINATOR_RECOVERY", ""
+        ).lower() in ("true", "1", "yes", "on")
 
         # Cache for routing decisions (model -> use_rpc)
         self.routing_cache = {}
@@ -195,9 +194,19 @@ class HybridRouter:
 
         # Auto-start observability dashboard (configurable via ENV)
         self.dashboard = None
-        self.dashboard_enabled = os.getenv("SOLLOL_DASHBOARD", "true").lower() in ("true", "1", "yes", "on")
+        self.dashboard_enabled = os.getenv("SOLLOL_DASHBOARD", "true").lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
         self.dashboard_port = int(os.getenv("SOLLOL_DASHBOARD_PORT", "8080"))
-        self.dashboard_enable_dask = os.getenv("SOLLOL_DASHBOARD_DASK", "true").lower() in ("true", "1", "yes", "on")
+        self.dashboard_enable_dask = os.getenv("SOLLOL_DASHBOARD_DASK", "true").lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
 
         if self.dashboard_enabled:
             self._start_dashboard()
@@ -247,9 +256,7 @@ class HybridRouter:
                 f"Stopping coordinator (switching from {self.coordinator_model} to {model})"
             )
             self.routing_logger.log_model_switch(
-                from_model=self.coordinator_model,
-                to_model=model,
-                backend="llamacpp"
+                from_model=self.coordinator_model, to_model=model, backend="llamacpp"
             )
             self.routing_logger.log_coordinator_stop(model=self.coordinator_model)
             await self.coordinator.stop()
@@ -285,7 +292,7 @@ class HybridRouter:
                     model=model,
                     rpc_backends=len(backends),
                     coordinator_host=self.coordinator_host,
-                    coordinator_port=self.coordinator_port
+                    coordinator_port=self.coordinator_port,
                 )
             except Exception as e:
                 # Startup failed - clean up the failed coordinator
@@ -410,19 +417,13 @@ class HybridRouter:
             if use_rpc:
                 logger.info(f"🔗 Routing '{model}' to RPC (cached decision)")
                 self.routing_logger.log_route_decision(
-                    model=model,
-                    backend="rpc",
-                    reason="cached_routing_decision",
-                    cached=True
+                    model=model, backend="rpc", reason="cached_routing_decision", cached=True
                 )
                 return await self._route_to_llamacpp(model, messages, **kwargs)
             else:
                 logger.info(f"📡 Routing '{model}' to Ollama (cached decision)")
                 self.routing_logger.log_route_decision(
-                    model=model,
-                    backend="ollama",
-                    reason="cached_routing_decision",
-                    cached=True
+                    model=model, backend="ollama", reason="cached_routing_decision", cached=True
                 )
                 return await self._route_to_ollama(model, messages, **kwargs)
 
@@ -440,7 +441,7 @@ class HybridRouter:
                         model=model,
                         backend="ollama",
                         reason=f"sufficient_resources (estimated {profile.estimated_memory_gb:.1f}GB)",
-                        parameter_count=profile.parameter_count
+                        parameter_count=profile.parameter_count,
                     )
                     result = await self._route_to_ollama(model, messages, **kwargs)
                     # Success! Cache this decision
@@ -457,7 +458,7 @@ class HybridRouter:
                             model=model,
                             from_backend="ollama",
                             to_backend="rpc",
-                            reason=f"ollama_error: {str(e)[:100]}"
+                            reason=f"ollama_error: {str(e)[:100]}",
                         )
                         result = await self._route_to_llamacpp(model, messages, **kwargs)
                         self.routing_cache[model] = True
@@ -473,7 +474,7 @@ class HybridRouter:
                         model=model,
                         backend="rpc",
                         reason=f"insufficient_ollama_resources (requires {profile.estimated_memory_gb:.1f}GB)",
-                        parameter_count=profile.parameter_count
+                        parameter_count=profile.parameter_count,
                     )
                     result = await self._route_to_llamacpp(model, messages, **kwargs)
                     self.routing_cache[model] = True
@@ -491,9 +492,7 @@ class HybridRouter:
         if self.enable_distributed:
             logger.info(f"🔗 Routing '{model}' to RPC (no Ollama pool)")
             self.routing_logger.log_route_decision(
-                model=model,
-                backend="rpc",
-                reason="no_ollama_pool_available"
+                model=model, backend="rpc", reason="no_ollama_pool_available"
             )
             result = await self._route_to_llamacpp(model, messages, **kwargs)
             self.routing_cache[model] = True
@@ -644,15 +643,11 @@ class HybridRouter:
         if node_performance:
             # Get VRAM for all nodes with GPU
             gpu_nodes = [
-                node for node in node_performance.values()
-                if node.get("gpu_free_mem", 0) > 0
+                node for node in node_performance.values() if node.get("gpu_free_mem", 0) > 0
             ]
 
             if gpu_nodes:
-                all_gpus_overwhelmed = all(
-                    node.get("gpu_free_mem", 0) < 2000
-                    for node in gpu_nodes
-                )
+                all_gpus_overwhelmed = all(node.get("gpu_free_mem", 0) < 2000 for node in gpu_nodes)
 
                 if all_gpus_overwhelmed:
                     # Only route large models to RPC when GPUs are overwhelmed

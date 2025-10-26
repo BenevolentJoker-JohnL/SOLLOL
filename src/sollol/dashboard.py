@@ -242,6 +242,7 @@ def routing_decisions():
     """
     try:
         import redis
+
         redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
         redis_client = redis.from_url(redis_url, decode_responses=True)
 
@@ -253,24 +254,31 @@ def routing_decisions():
         for msg_id, msg_data in messages:
             try:
                 import json
+
                 event_json = msg_data.get("event", "{}")
                 event = json.loads(event_json)
 
                 # Only include routing decision events
-                if event.get("event_type") in ("ROUTE_DECISION", "OLLAMA_NODE_SELECTED", "RPC_BACKEND_SELECTED"):
-                    decisions.append({
-                        "timestamp": event.get("timestamp"),
-                        "model": event.get("model"),
-                        "backend": event.get("backend"),
-                        "node_url": event.get("node_url", "N/A"),
-                        "reason": event.get("reason", "No reason provided"),
-                        "task_type": event.get("task_type", "unknown"),
-                        "complexity": event.get("complexity", "unknown"),
-                        "score": event.get("score", 0),
-                        "latency_ms": event.get("latency_ms", 0),
-                        "gpu_mem": event.get("gpu_mem", 0),
-                        "instance_id": event.get("instance_id"),
-                    })
+                if event.get("event_type") in (
+                    "ROUTE_DECISION",
+                    "OLLAMA_NODE_SELECTED",
+                    "RPC_BACKEND_SELECTED",
+                ):
+                    decisions.append(
+                        {
+                            "timestamp": event.get("timestamp"),
+                            "model": event.get("model"),
+                            "backend": event.get("backend"),
+                            "node_url": event.get("node_url", "N/A"),
+                            "reason": event.get("reason", "No reason provided"),
+                            "task_type": event.get("task_type", "unknown"),
+                            "complexity": event.get("complexity", "unknown"),
+                            "score": event.get("score", 0),
+                            "latency_ms": event.get("latency_ms", 0),
+                            "gpu_mem": event.get("gpu_mem", 0),
+                            "instance_id": event.get("instance_id"),
+                        }
+                    )
             except:
                 continue
 

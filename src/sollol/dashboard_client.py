@@ -112,9 +112,7 @@ class DashboardClient:
                 )
                 return True
             else:
-                logger.warning(
-                    f"Failed to register with dashboard: {response.status_code}"
-                )
+                logger.warning(f"Failed to register with dashboard: {response.status_code}")
                 return False
 
         except requests.exceptions.RequestException as e:
@@ -141,7 +139,7 @@ class DashboardClient:
                 "name": self.app_name,
                 "router_type": self.router_type,
                 "version": self.version,
-                "metadata": metadata if metadata else self.metadata
+                "metadata": metadata if metadata else self.metadata,
             }
 
             response = requests.post(

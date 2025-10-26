@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BatchedRequest:
     """Request waiting to be batched."""
+
     messages: List[Dict[str, str]]
     future: asyncio.Future
     timestamp: float
@@ -75,10 +76,7 @@ class WarmModelPool:
         self.batch_timeout_ms = batch_timeout_ms
 
         # Convert to RPCBackend objects
-        backends = [
-            RPCBackend(host=b["host"], port=b.get("port", 50052))
-            for b in rpc_backends
-        ]
+        backends = [RPCBackend(host=b["host"], port=b.get("port", 50052)) for b in rpc_backends]
 
         # Pre-load model immediately
         logger.info(f"WarmPool {pool_id}: Pre-loading {model}...")
@@ -91,6 +89,7 @@ class WarmModelPool:
 
         # Start coordinator synchronously (blocks until model loaded)
         import asyncio
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(self.coordinator.start())
@@ -111,7 +110,7 @@ class WarmModelPool:
         messages: List[Dict[str, str]],
         stream: bool = False,
         enable_batching: bool = True,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Run inference with optional batching.
@@ -159,15 +158,10 @@ class WarmModelPool:
         self.pending_batch = []
 
         self.batched_requests += len(batch)
-        logger.debug(
-            f"WarmPool {self.pool_id}: Processing batch of {len(batch)} requests"
-        )
+        logger.debug(f"WarmPool {self.pool_id}: Processing batch of {len(batch)} requests")
 
         # Execute all requests in parallel (coordinator batches internally)
-        tasks = [
-            self.coordinator.chat(messages, stream=False)
-            for messages, _ in batch
-        ]
+        tasks = [self.coordinator.chat(messages, stream=False) for messages, _ in batch]
 
         try:
             responses = await asyncio.gather(*tasks)
@@ -185,9 +179,7 @@ class WarmModelPool:
     def get_stats(self) -> Dict[str, Any]:
         """Get pool statistics."""
         batching_ratio = (
-            self.batched_requests / self.total_requests
-            if self.total_requests > 0
-            else 0
+            self.batched_requests / self.total_requests if self.total_requests > 0 else 0
         )
 
         return {
@@ -260,6 +252,7 @@ class RayAdvancedRouter:
         if rpc_backends is None and auto_discover_rpc:
             logger.info("🔍 Auto-discovering RPC backends...")
             from sollol.rpc_discovery import auto_discover_rpc_backends
+
             rpc_backends = auto_discover_rpc_backends()
 
         self.rpc_backends = rpc_backends or []
@@ -293,8 +286,7 @@ class RayAdvancedRouter:
                 # Create warm pools for this model
                 for i in range(num_pools):
                     pool_backends = [
-                        self.rpc_backends[j]
-                        for j in range(i, len(self.rpc_backends), num_pools)
+                        self.rpc_backends[j] for j in range(i, len(self.rpc_backends), num_pools)
                     ]
 
                     if pool_backends:
@@ -310,9 +302,7 @@ class RayAdvancedRouter:
                         )
                         self.warm_pools[model].append(pool)
 
-                logger.info(
-                    f"✅ Created {len(self.warm_pools[model])} warm pools for {model}"
-                )
+                logger.info(f"✅ Created {len(self.warm_pools[model])} warm pools for {model}")
 
         logger.info(
             f"🎯 RayAdvancedRouter initialized: "
@@ -322,11 +312,7 @@ class RayAdvancedRouter:
         )
 
     async def route_request(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        stream: bool = False,
-        **kwargs
+        self, model: str, messages: List[Dict[str, str]], stream: bool = False, **kwargs
     ) -> Dict[str, Any]:
         """
         Route request with warm pools, batching, and speculation.
@@ -342,9 +328,7 @@ class RayAdvancedRouter:
         """
         # Check if we have warm pools for this model
         if model in self.warm_pools:
-            return await self._route_to_warm_pool(
-                model, messages, stream, **kwargs
-            )
+            return await self._route_to_warm_pool(model, messages, stream, **kwargs)
 
         # Determine if model needs RPC sharding
         if self._should_use_rpc(model) and self.rpc_backends:
@@ -357,43 +341,28 @@ class RayAdvancedRouter:
 
         # Use Ollama for small models
         return await self.ollama_pool.chat_async(
-            model=model,
-            messages=messages,
-            stream=stream,
-            **kwargs
+            model=model, messages=messages, stream=stream, **kwargs
         )
 
     async def _route_to_warm_pool(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        stream: bool,
-        **kwargs
+        self, model: str, messages: List[Dict[str, str]], stream: bool, **kwargs
     ) -> Dict[str, Any]:
         """Route to warm pool with optional speculation."""
         pools = self.warm_pools[model]
 
         if self.enable_speculation and len(pools) >= 2 and not stream:
             # Speculative execution - send to 2 pools, take first response
-            return await self._speculative_execution(
-                pools[:2], messages, **kwargs
-            )
+            return await self._speculative_execution(pools[:2], messages, **kwargs)
         else:
             # Regular routing - pick least loaded pool
             pool = pools[hash(str(messages)) % len(pools)]
             response_future = pool.chat.remote(
-                messages,
-                stream=stream,
-                enable_batching=self.enable_batching,
-                **kwargs
+                messages, stream=stream, enable_batching=self.enable_batching, **kwargs
             )
             return await asyncio.wrap_future(ray.get(response_future))
 
     async def _speculative_execution(
-        self,
-        pools: List[ray.actor.ActorHandle],
-        messages: List[Dict[str, str]],
-        **kwargs
+        self, pools: List[ray.actor.ActorHandle], messages: List[Dict[str, str]], **kwargs
     ) -> Dict[str, Any]:
         """
         Speculative execution - send to 2 pools, take first response.
@@ -405,10 +374,7 @@ class RayAdvancedRouter:
             asyncio.wrap_future(
                 ray.get(
                     pool.chat.remote(
-                        messages,
-                        stream=False,
-                        enable_batching=self.enable_batching,
-                        **kwargs
+                        messages, stream=False, enable_batching=self.enable_batching, **kwargs
                     )
                 )
             )
@@ -416,10 +382,7 @@ class RayAdvancedRouter:
         ]
 
         # Take first response, cancel others
-        done, pending = await asyncio.wait(
-            futures,
-            return_when=asyncio.FIRST_COMPLETED
-        )
+        done, pending = await asyncio.wait(futures, return_when=asyncio.FIRST_COMPLETED)
 
         # Cancel pending requests
         for task in pending:
@@ -431,6 +394,7 @@ class RayAdvancedRouter:
     def _should_use_rpc(self, model: str) -> bool:
         """Determine if model should use RPC sharding."""
         import re
+
         size_match = re.search(r"(\d+)b", model.lower())
         if size_match:
             size_billions = int(size_match.group(1))
@@ -452,8 +416,7 @@ class RayAdvancedRouter:
 
         for i in range(num_pools):
             pool_backends = [
-                self.rpc_backends[j]
-                for j in range(i, len(self.rpc_backends), num_pools)
+                self.rpc_backends[j] for j in range(i, len(self.rpc_backends), num_pools)
             ]
 
             if pool_backends:
@@ -476,10 +439,9 @@ class RayAdvancedRouter:
         warm_pool_stats = {}
 
         for model, pools in self.warm_pools.items():
-            pool_stats = await asyncio.gather(*[
-                asyncio.wrap_future(ray.get(pool.get_stats.remote()))
-                for pool in pools
-            ])
+            pool_stats = await asyncio.gather(
+                *[asyncio.wrap_future(ray.get(pool.get_stats.remote())) for pool in pools]
+            )
             warm_pool_stats[model] = pool_stats
 
         return {
@@ -499,14 +461,13 @@ class RayAdvancedRouter:
 
     async def shutdown(self):
         """Shutdown all warm pools."""
-        logger.info(f"🛑 Shutting down {sum(len(p) for p in self.warm_pools.values())} warm pools...")
+        logger.info(
+            f"🛑 Shutting down {sum(len(p) for p in self.warm_pools.values())} warm pools..."
+        )
 
         for model, pools in self.warm_pools.items():
             shutdown_tasks = [pool.shutdown.remote() for pool in pools]
-            await asyncio.gather(*[
-                asyncio.wrap_future(ray.get(task))
-                for task in shutdown_tasks
-            ])
+            await asyncio.gather(*[asyncio.wrap_future(ray.get(task)) for task in shutdown_tasks])
 
         self.warm_pools.clear()
         logger.info("✅ All warm pools shut down")

@@ -12,9 +12,10 @@ Features:
 
 import json
 import logging
-import requests
 from pathlib import Path
 from typing import Dict, Optional
+
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -30,96 +31,82 @@ CACHE_FILE = Path.home() / ".sollol" / "model_sizes_cache.json"
 # Based on actual VRAM measurements and Ollama model specifications
 MODEL_SIZE_DB: Dict[str, int] = {
     # Embedding models (small)
-    'mxbai-embed-large': 705,
-    'nomic-embed-text': 274,
-    'all-minilm': 45,
-    'bge-large': 1340,
-    'bge-small': 133,
-
+    "mxbai-embed-large": 705,
+    "nomic-embed-text": 274,
+    "all-minilm": 45,
+    "bge-large": 1340,
+    "bge-small": 133,
     # Llama 3.x models
-    'llama3.1:8b': 4700,
-    'llama3.1:70b': 40000,
-    'llama3.1:latest': 4700,
-    'llama3.2:1b': 1300,
-    'llama3.2:3b': 1900,
-    'llama3.2:latest': 1900,
-    'llama3:8b': 4700,
-    'llama3:70b': 40000,
-
+    "llama3.1:8b": 4700,
+    "llama3.1:70b": 40000,
+    "llama3.1:latest": 4700,
+    "llama3.2:1b": 1300,
+    "llama3.2:3b": 1900,
+    "llama3.2:latest": 1900,
+    "llama3:8b": 4700,
+    "llama3:70b": 40000,
     # Qwen models
-    'qwen2.5-coder:0.5b': 500,
-    'qwen2.5-coder:1.5b': 900,
-    'qwen2.5-coder:3b': 1800,
-    'qwen2.5-coder:7b': 4400,
-    'qwen2.5-coder:14b': 8800,
-    'qwen2.5-coder:32b': 20000,
-    'qwen2.5:0.5b': 500,
-    'qwen2.5:1.5b': 900,
-    'qwen2.5:3b': 1800,
-    'qwen2.5:7b': 4400,
-    'qwen2.5:14b': 8800,
-    'qwen2.5:32b': 20000,
-    'qwen2.5:72b': 45000,
-
+    "qwen2.5-coder:0.5b": 500,
+    "qwen2.5-coder:1.5b": 900,
+    "qwen2.5-coder:3b": 1800,
+    "qwen2.5-coder:7b": 4400,
+    "qwen2.5-coder:14b": 8800,
+    "qwen2.5-coder:32b": 20000,
+    "qwen2.5:0.5b": 500,
+    "qwen2.5:1.5b": 900,
+    "qwen2.5:3b": 1800,
+    "qwen2.5:7b": 4400,
+    "qwen2.5:14b": 8800,
+    "qwen2.5:32b": 20000,
+    "qwen2.5:72b": 45000,
     # CodeLlama models
-    'codellama:7b': 3600,
-    'codellama:13b': 6900,
-    'codellama:34b': 19000,
-    'codellama:70b': 40000,
-
+    "codellama:7b": 3600,
+    "codellama:13b": 6900,
+    "codellama:34b": 19000,
+    "codellama:70b": 40000,
     # Mistral models
-    'mistral:7b': 4100,
-    'mistral:latest': 4100,
-    'mixtral:8x7b': 26000,
-    'mixtral:8x22b': 80000,
-
+    "mistral:7b": 4100,
+    "mistral:latest": 4100,
+    "mixtral:8x7b": 26000,
+    "mixtral:8x22b": 80000,
     # Gemma models
-    'gemma:2b': 1400,
-    'gemma:7b': 4900,
-    'gemma2:2b': 1600,
-    'gemma2:9b': 5400,
-    'gemma2:27b': 16000,
-
+    "gemma:2b": 1400,
+    "gemma:7b": 4900,
+    "gemma2:2b": 1600,
+    "gemma2:9b": 5400,
+    "gemma2:27b": 16000,
     # DeepSeek models
-    'deepseek-coder:1.3b': 1000,
-    'deepseek-coder:6.7b': 3900,
-    'deepseek-coder:33b': 19000,
-
+    "deepseek-coder:1.3b": 1000,
+    "deepseek-coder:6.7b": 3900,
+    "deepseek-coder:33b": 19000,
     # Phi models
-    'phi3:mini': 2300,
-    'phi3:medium': 7600,
-    'phi3.5:mini': 2400,
-
+    "phi3:mini": 2300,
+    "phi3:medium": 7600,
+    "phi3.5:mini": 2400,
     # Yi models
-    'yi:6b': 3500,
-    'yi:9b': 5200,
-    'yi:34b': 19000,
-
+    "yi:6b": 3500,
+    "yi:9b": 5200,
+    "yi:34b": 19000,
     # Dolphin variants
-    'dolphin-llama3:8b': 4700,
-    'dolphin-mixtral:8x7b': 26000,
-
+    "dolphin-llama3:8b": 4700,
+    "dolphin-mixtral:8x7b": 26000,
     # Neural Chat
-    'neural-chat:7b': 4100,
-
+    "neural-chat:7b": 4100,
     # Orca models
-    'orca-mini:3b': 1900,
-    'orca-mini:7b': 4100,
-    'orca2:7b': 4100,
-    'orca2:13b': 7400,
-
+    "orca-mini:3b": 1900,
+    "orca-mini:7b": 4100,
+    "orca2:7b": 4100,
+    "orca2:13b": 7400,
     # Vicuna
-    'vicuna:7b': 4100,
-    'vicuna:13b': 7400,
-
+    "vicuna:7b": 4100,
+    "vicuna:13b": 7400,
     # WizardLM
-    'wizardlm2:7b': 4100,
-    'wizardlm2:8x22b': 80000,
-
+    "wizardlm2:7b": 4100,
+    "wizardlm2:8x22b": 80000,
     # StarCoder
-    'starcoder2:3b': 1800,
-    'starcoder2:7b': 4100,
-    'starcoder2:15b': 8500,
+    "starcoder2:3b": 1800,
+    "starcoder2:7b": 4100,
+    "starcoder2:15b": 8500,
 }
 
 
@@ -135,7 +122,7 @@ def _load_cache() -> Dict:
     """
     try:
         if CACHE_FILE.exists():
-            with open(CACHE_FILE, 'r') as f:
+            with open(CACHE_FILE, "r") as f:
                 cache = json.load(f)
 
                 # Migrate old format if needed
@@ -160,7 +147,7 @@ def _save_cache(cache: Dict):
     """Save cached model sizes to disk."""
     try:
         CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(CACHE_FILE, 'w') as f:
+        with open(CACHE_FILE, "w") as f:
             json.dump(cache, f, indent=2)
 
         global_count = len(cache.get("global", {}))
@@ -175,9 +162,7 @@ _size_cache = _load_cache()
 
 
 def query_ollama_model_size(
-    model_name: str,
-    ollama_url: str = "http://localhost:11434",
-    cache_per_node: bool = True
+    model_name: str, ollama_url: str = "http://localhost:11434", cache_per_node: bool = True
 ) -> Optional[int]:
     """
     Query Ollama API to get actual model size and cache it.
@@ -194,22 +179,16 @@ def query_ollama_model_size(
         Size in MB or None if query failed
     """
     try:
-        response = requests.post(
-            f"{ollama_url}/api/show",
-            json={"name": model_name},
-            timeout=5
-        )
+        response = requests.post(f"{ollama_url}/api/show", json={"name": model_name}, timeout=5)
 
         if response.status_code == 200:
             data = response.json()
 
             # Try to get size from model info
-            size_bytes = data.get('size', 0)
+            size_bytes = data.get("size", 0)
             if size_bytes > 0:
                 size_mb = int(size_bytes / (1024**2))
-                logger.info(
-                    f"📊 Discovered model size: {model_name} @ {ollama_url} = {size_mb}MB"
-                )
+                logger.info(f"📊 Discovered model size: {model_name} @ {ollama_url} = {size_mb}MB")
 
                 # Cache the discovered size (node-specific or global)
                 if cache_per_node:
@@ -230,13 +209,14 @@ def query_ollama_model_size(
                 return size_mb
 
             # Try to get from details/parameters
-            details = data.get('details', {})
-            parameter_size = details.get('parameter_size', '')
+            details = data.get("details", {})
+            parameter_size = details.get("parameter_size", "")
 
             # Parse parameter size like "7B", "13B", etc.
             if parameter_size:
                 import re
-                param_match = re.search(r'(\d+\.?\d*)B', parameter_size.upper())
+
+                param_match = re.search(r"(\d+\.?\d*)B", parameter_size.upper())
                 if param_match:
                     param_count = float(param_match.group(1))
                     # Estimate: 1B params ≈ 600MB in FP16
@@ -270,9 +250,7 @@ def query_ollama_model_size(
 
 
 def get_model_size(
-    model_name: str,
-    ollama_url: Optional[str] = None,
-    use_ollama_discovery: bool = True
+    model_name: str, ollama_url: Optional[str] = None, use_ollama_discovery: bool = True
 ) -> Optional[int]:
     """
     Get model size in MB from database, cache, or Ollama API.
@@ -293,7 +271,7 @@ def get_model_size(
     """
     # Normalize model name
     normalized = model_name.lower().strip()
-    normalized_no_latest = normalized.replace(':latest', '')
+    normalized_no_latest = normalized.replace(":latest", "")
 
     # 1a. Check node-specific cache first (most accurate for that node)
     if ollama_url and "nodes" in _size_cache:
@@ -335,9 +313,7 @@ def get_model_size(
 
 
 def estimate_model_size(
-    model_name: str,
-    default_mb: int = 5000,
-    ollama_url: Optional[str] = None
+    model_name: str, default_mb: int = 5000, ollama_url: Optional[str] = None
 ) -> int:
     """
     Estimate model size with fallback to conservative default.
@@ -365,7 +341,8 @@ def estimate_model_size(
     # Extract parameter count from name if possible
     # e.g., "custom-model:7b" -> assume 7B params ≈ 4GB
     import re
-    param_match = re.search(r'(\d+\.?\d*)b', model_name.lower())
+
+    param_match = re.search(r"(\d+\.?\d*)b", model_name.lower())
 
     if param_match:
         param_count = float(param_match.group(1))
@@ -467,10 +444,10 @@ def discover_model_sizes_from_nodes(registry, model_names: Optional[list] = None
             response = requests.get(f"{node_url}/api/tags", timeout=5)
             if response.status_code == 200:
                 data = response.json()
-                available_models = data.get('models', [])
+                available_models = data.get("models", [])
 
                 for model_info in available_models:
-                    model_name = model_info.get('name', '')
+                    model_name = model_info.get("name", "")
 
                     # Skip if we have a specific list and this isn't in it
                     if model_names and model_name not in model_names:
@@ -502,13 +479,13 @@ def get_database_stats() -> Dict:
     sizes = list(MODEL_SIZE_DB.values())
 
     return {
-        'total_models': len(MODEL_SIZE_DB),
-        'min_size_mb': min(sizes) if sizes else 0,
-        'max_size_mb': max(sizes) if sizes else 0,
-        'avg_size_mb': int(sum(sizes) / len(sizes)) if sizes else 0,
-        'models_under_1gb': sum(1 for s in sizes if s < 1024),
-        'models_under_5gb': sum(1 for s in sizes if s < 5120),
-        'models_over_20gb': sum(1 for s in sizes if s > 20480),
+        "total_models": len(MODEL_SIZE_DB),
+        "min_size_mb": min(sizes) if sizes else 0,
+        "max_size_mb": max(sizes) if sizes else 0,
+        "avg_size_mb": int(sum(sizes) / len(sizes)) if sizes else 0,
+        "models_under_1gb": sum(1 for s in sizes if s < 1024),
+        "models_under_5gb": sum(1 for s in sizes if s < 5120),
+        "models_over_20gb": sum(1 for s in sizes if s > 20480),
     }
 
 
@@ -540,13 +517,13 @@ def print_model_database():
 
 
 __all__ = [
-    'MODEL_SIZE_DB',
-    'get_model_size',
-    'estimate_model_size',
-    'can_fit_in_vram',
-    'add_model_size',
-    'query_ollama_model_size',
-    'discover_model_sizes_from_nodes',
-    'get_database_stats',
-    'print_model_database'
+    "MODEL_SIZE_DB",
+    "get_model_size",
+    "estimate_model_size",
+    "can_fit_in_vram",
+    "add_model_size",
+    "query_ollama_model_size",
+    "discover_model_sizes_from_nodes",
+    "get_database_stats",
+    "print_model_database",
 ]

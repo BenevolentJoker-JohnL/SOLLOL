@@ -107,9 +107,10 @@ def detect_node_resources(host: str) -> Dict[str, Any]:
 
     # For remote nodes, try Redis first
     try:
-        import redis
         import json as json_module
         import os
+
+        import redis
 
         redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
         r = redis.from_url(redis_url, decode_responses=True, socket_connect_timeout=1)
@@ -263,7 +264,9 @@ def _cidr_to_ips(cidr: str) -> List[str]:
 
 
 # Convenience function
-def auto_discover_rpc_backends(port: int = 50052, auto_resolve_docker: bool = True) -> List[Dict[str, Any]]:
+def auto_discover_rpc_backends(
+    port: int = 50052, auto_resolve_docker: bool = True
+) -> List[Dict[str, Any]]:
     """
     Auto-discover RPC backends on the local network with GPU metadata.
 
@@ -284,15 +287,19 @@ def auto_discover_rpc_backends(port: int = 50052, auto_resolve_docker: bool = Tr
 
     # PRIORITY 1: Try Redis registry first
     try:
-        import redis as redis_client
         import json
-        r = redis_client.Redis(host='localhost', port=6379, decode_responses=True)
+
+        import redis as redis_client
+
+        r = redis_client.Redis(host="localhost", port=6379, decode_responses=True)
         metadata_json = r.get("sollol:router:metadata")
         if metadata_json:
             metadata = json.loads(metadata_json)
             rpc_backends_from_redis = metadata.get("rpc_backends", [])
             if rpc_backends_from_redis:
-                logger.info(f"✅ Found {len(rpc_backends_from_redis)} RPC backend(s) in Redis registry")
+                logger.info(
+                    f"✅ Found {len(rpc_backends_from_redis)} RPC backend(s) in Redis registry"
+                )
                 backends = rpc_backends_from_redis
     except Exception as e:
         logger.debug(f"Could not read RPC backends from Redis: {e}")
@@ -300,8 +307,8 @@ def auto_discover_rpc_backends(port: int = 50052, auto_resolve_docker: bool = Tr
     # PRIORITY 2: Try config file if Redis didn't work
     if not backends:
         try:
-            from pathlib import Path
             import os
+            from pathlib import Path
 
             # Check multiple locations for rpc_backends.conf
             possible_paths = [
@@ -325,7 +332,9 @@ def auto_discover_rpc_backends(port: int = 50052, auto_resolve_docker: bool = Tr
                             host, port_str = line.split(":")
                             backends.append({"host": host, "port": int(port_str)})
                 if backends:
-                    logger.info(f"✅ Found {len(backends)} RPC backend(s) in config file: {config_file}")
+                    logger.info(
+                        f"✅ Found {len(backends)} RPC backend(s) in config file: {config_file}"
+                    )
         except Exception as e:
             logger.debug(f"Could not read RPC config file: {e}")
 

@@ -8,7 +8,7 @@ from datetime import datetime
 from functools import wraps
 from typing import Callable, Dict
 
-from prometheus_client import Counter, Gauge, Histogram, start_http_server, REGISTRY
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram, start_http_server
 
 from sollol.memory import update_host_metrics
 
@@ -36,12 +36,16 @@ except ValueError:
     WORKER_FAILURES = REGISTRY._names_to_collectors.get("sollol_worker_failures_total")
 
 try:
-    ACTIVE_REQUESTS = Gauge("sollol_active_requests", "Number of requests currently being processed")
+    ACTIVE_REQUESTS = Gauge(
+        "sollol_active_requests", "Number of requests currently being processed"
+    )
 except ValueError:
     ACTIVE_REQUESTS = REGISTRY._names_to_collectors.get("sollol_active_requests")
 
 try:
-    HOST_LATENCY = Gauge("sollol_host_latency_ms", "Average latency per host in milliseconds", ["host"])
+    HOST_LATENCY = Gauge(
+        "sollol_host_latency_ms", "Average latency per host in milliseconds", ["host"]
+    )
 except ValueError:
     HOST_LATENCY = REGISTRY._names_to_collectors.get("sollol_host_latency_ms")
 

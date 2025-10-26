@@ -160,11 +160,7 @@ class MetricsCollector:
             Dict with p50_latency_ms, p95_latency_ms, p99_latency_ms
         """
         if not self.request_completions:
-            return {
-                "p50_latency_ms": 0.0,
-                "p95_latency_ms": 0.0,
-                "p99_latency_ms": 0.0
-            }
+            return {"p50_latency_ms": 0.0, "p95_latency_ms": 0.0, "p99_latency_ms": 0.0}
 
         # Extract durations
         durations = [r["duration_ms"] for r in self.request_completions]
@@ -172,6 +168,7 @@ class MetricsCollector:
         # Calculate percentiles using numpy
         try:
             import numpy as np
+
             p50 = float(np.percentile(durations, 50))
             p95 = float(np.percentile(durations, 95))
             p99 = float(np.percentile(durations, 99))
@@ -194,11 +191,7 @@ class MetricsCollector:
             p95 = get_percentile(sorted_durations, 95)
             p99 = get_percentile(sorted_durations, 99)
 
-        return {
-            "p50_latency_ms": p50,
-            "p95_latency_ms": p95,
-            "p99_latency_ms": p99
-        }
+        return {"p50_latency_ms": p50, "p95_latency_ms": p95, "p99_latency_ms": p99}
 
     def get_summary(self) -> Dict[str, Any]:
         """Get summary statistics."""

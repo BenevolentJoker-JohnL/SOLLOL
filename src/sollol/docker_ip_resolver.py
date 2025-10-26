@@ -49,7 +49,7 @@ DOCKER_IP_RANGES = [
     "172.29.0.0/16",
     "172.30.0.0/16",
     "172.31.0.0/16",
-    "10.0.0.0/8",     # Docker swarm overlay networks
+    "10.0.0.0/8",  # Docker swarm overlay networks
 ]
 
 
@@ -91,7 +91,9 @@ def is_running_in_docker() -> bool:
         with open("/proc/1/cgroup", "r") as f:
             content = f.read()
             if "docker" in content or "containerd" in content or "kubepods" in content:
-                logger.debug("Detected Docker deployment: /proc/1/cgroup contains docker/containerd")
+                logger.debug(
+                    "Detected Docker deployment: /proc/1/cgroup contains docker/containerd"
+                )
                 _deployment_mode_cache = True
                 return True
     except (FileNotFoundError, PermissionError):
@@ -142,6 +144,7 @@ def get_docker_network_mode() -> str:
     # Method 2: Check network interfaces
     try:
         import netifaces
+
         interfaces = netifaces.interfaces()
 
         # Host mode usually has eth0, wlan0, etc.
@@ -256,7 +259,7 @@ def resolve_docker_ip(
     port: int,
     timeout: float = 1.0,
     verify_func=None,
-    deployment_context: Optional[Dict] = None
+    deployment_context: Optional[Dict] = None,
 ) -> Optional[str]:
     """
     Resolve Docker internal IP to accessible host IP.
@@ -372,14 +375,10 @@ def resolve_docker_ip(
                     return candidate_ip
             else:
                 # No verify function - assume port open = success
-                logger.info(
-                    f"   ✅ Resolved {docker_ip}:{port} → {candidate_ip}:{port} ({source})"
-                )
+                logger.info(f"   ✅ Resolved {docker_ip}:{port} → {candidate_ip}:{port} ({source})")
                 return candidate_ip
 
-    logger.warning(
-        f"   ❌ Failed to resolve Docker IP {docker_ip}:{port} to accessible address"
-    )
+    logger.warning(f"   ❌ Failed to resolve Docker IP {docker_ip}:{port} to accessible address")
     return None
 
 
@@ -388,7 +387,7 @@ def resolve_docker_ip_with_alternatives(
     port: int,
     timeout: float = 1.0,
     verify_func=None,
-    deployment_context: Optional[Dict] = None
+    deployment_context: Optional[Dict] = None,
 ) -> List[Tuple[str, int]]:
     """
     Resolve Docker IP to all accessible alternatives.
@@ -473,7 +472,7 @@ def auto_resolve_ips(
     nodes: List[Dict[str, str]],
     timeout: float = 1.0,
     verify_func=None,
-    deployment_context: Optional[Dict] = None
+    deployment_context: Optional[Dict] = None,
 ) -> List[Dict[str, str]]:
     """
     Auto-resolve Docker IPs in a list of nodes.
@@ -538,9 +537,7 @@ def auto_resolve_ips(
                     resolved_nodes.append({"host": resolved_ip, "port": str(port)})
                 else:
                     # Failed to resolve - skip this node
-                    logger.warning(
-                        f"⚠️  Skipping unresolvable Docker IP: {host}:{port}"
-                    )
+                    logger.warning(f"⚠️  Skipping unresolvable Docker IP: {host}:{port}")
         else:
             # Not a Docker IP - keep as is
             resolved_nodes.append(node)
@@ -580,9 +577,7 @@ def _get_host_ip() -> Optional[str]:
 
 # Convenience function for backward compatibility
 def resolve_docker_nodes(
-    nodes: List[Dict[str, str]],
-    timeout: float = 1.0,
-    verify_func=None
+    nodes: List[Dict[str, str]], timeout: float = 1.0, verify_func=None
 ) -> List[Dict[str, str]]:
     """Alias for auto_resolve_ips (backward compatibility)."""
     return auto_resolve_ips(nodes, timeout, verify_func)

@@ -27,7 +27,7 @@ def discover_ollama_nodes(
     timeout: float = 0.5,
     exclude_localhost: bool = False,
     auto_resolve_docker: bool = True,
-    discover_all_nodes: bool = False
+    discover_all_nodes: bool = False,
 ) -> List[Dict[str, str]]:
     """
     Discover Ollama nodes using multiple strategies.
@@ -102,7 +102,9 @@ def _from_environment(timeout: float, exclude_localhost: bool = False) -> List[D
     if host:
         parsed = _parse_host(host)
         # Skip if localhost and excluded (check entire 127.0.0.0/8 loopback range)
-        if exclude_localhost and (parsed["host"] in ("localhost", "127.0.0.1") or parsed["host"].startswith("127.")):
+        if exclude_localhost and (
+            parsed["host"] in ("localhost", "127.0.0.1") or parsed["host"].startswith("127.")
+        ):
             return []
         if _is_ollama_running(parsed["host"], int(parsed["port"]), timeout):
             return [parsed]
@@ -270,16 +272,16 @@ def _deduplicate_nodes(nodes: List[Dict[str, str]]) -> List[Dict[str, str]]:
         node["host"] in ("localhost", "127.0.0.1") or node["host"].startswith("127.")
         for node in nodes
     )
-    has_real_ip = any(
-        node["host"] == local_ip
-        for node in nodes
-    )
+    has_real_ip = any(node["host"] == local_ip for node in nodes)
 
     # If we have both, filter out ALL localhost entries (entire 127.0.0.0/8 subnet)
     if has_localhost and has_real_ip:
-        logger.debug(f"Deduplicating: localhost aliases and {local_ip} both found, keeping only {local_ip}")
+        logger.debug(
+            f"Deduplicating: localhost aliases and {local_ip} both found, keeping only {local_ip}"
+        )
         return [
-            node for node in nodes
+            node
+            for node in nodes
             if not (node["host"] in ("localhost", "127.0.0.1") or node["host"].startswith("127."))
         ]
 

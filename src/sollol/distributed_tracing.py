@@ -22,13 +22,14 @@ from typing import Any, Callable, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 # Context variables for distributed tracing
-current_trace_id: ContextVar[Optional[str]] = ContextVar('trace_id', default=None)
-current_span_id: ContextVar[Optional[str]] = ContextVar('span_id', default=None)
+current_trace_id: ContextVar[Optional[str]] = ContextVar("trace_id", default=None)
+current_span_id: ContextVar[Optional[str]] = ContextVar("span_id", default=None)
 
 
 @dataclass
 class Span:
     """A span represents one step in a distributed trace."""
+
     span_id: str
     trace_id: str
     parent_span_id: Optional[str]
@@ -135,9 +136,7 @@ class DistributedTracer:
         span.status = status
         span.metadata.update(metadata)
 
-        logger.debug(
-            f"Ended span {span.span_id[:8]} ({span.duration_ms:.2f}ms, status: {status})"
-        )
+        logger.debug(f"Ended span {span.span_id[:8]} ({span.duration_ms:.2f}ms, status: {status})")
 
         # Send to dashboard if available
         if self.dashboard:
@@ -160,6 +159,7 @@ class DistributedTracer:
             async def chat(self, model, messages):
                 ...
         """
+
         def decorator(func: Callable):
             op_name = operation or func.__name__
 

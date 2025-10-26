@@ -25,7 +25,8 @@ MIN_VRAM_THRESHOLD_MB = int(os.environ.get("SOLLOL_MIN_VRAM_MB", "1000"))
 # Import VRAM-aware routing utilities
 try:
     from sollol.intelligent_gpu_router import IntelligentGPURouter
-    from sollol.model_sizes import estimate_model_size, can_fit_in_vram
+    from sollol.model_sizes import can_fit_in_vram, estimate_model_size
+
     VRAM_ROUTING_AVAILABLE = True
 except ImportError:
     VRAM_ROUTING_AVAILABLE = False
@@ -257,9 +258,11 @@ class IntelligentRouter:
         # GPU Overload Detection: Check if all GPUs are overwhelmed
         if context.requires_gpu:
             gpu_hosts = [h for h in available if h.get("gpu_free_mem", 0) > 0]
-            all_gpus_overwhelmed = all(
-                h.get("gpu_free_mem", 0) < MIN_VRAM_THRESHOLD_MB for h in gpu_hosts
-            ) if gpu_hosts else True
+            all_gpus_overwhelmed = (
+                all(h.get("gpu_free_mem", 0) < MIN_VRAM_THRESHOLD_MB for h in gpu_hosts)
+                if gpu_hosts
+                else True
+            )
 
             if all_gpus_overwhelmed:
                 # All GPUs overwhelmed - enable CPU fallback
@@ -319,7 +322,8 @@ class IntelligentRouter:
                     "complexity": context.complexity,
                     "reasoning": self._explain_decision(best_host, context, scored_hosts),
                     "alternatives": [
-                        {"host": h["host"], "score": s} for h, s in scored_hosts[1:3]  # Top 2 alternatives
+                        {"host": h["host"], "score": s}
+                        for h, s in scored_hosts[1:3]  # Top 2 alternatives
                     ],
                     "distributed": True,
                     "global_active_requests": new_count,
@@ -470,7 +474,9 @@ class IntelligentRouter:
         active_requests = host_meta.get("active_requests", 0)
         if active_requests > 0:
             gpu_mem = host_meta.get("gpu_free_mem", 4000)  # Default to mid-range
-            avg_latency = host_meta.get("latency_ms", MIN_VRAM_THRESHOLD_MB * 2)  # Historical avg latency
+            avg_latency = host_meta.get(
+                "latency_ms", MIN_VRAM_THRESHOLD_MB * 2
+            )  # Historical avg latency
 
             # Calculate LIGHTER exponential penalty based on GPU capability
             # Key insight: Powerful GPUs can handle multiple requests efficiently
@@ -506,12 +512,12 @@ class IntelligentRouter:
 
             # EXPONENTIAL penalty: score / (base ^ requests)
             # Less aggressive than before - allows powerful nodes to stay competitive
-            score /= (exponential_base ** active_requests)
+            score /= exponential_base**active_requests
 
             # LINEAR penalty for fairness - combined with exponential
             # This provides base load balancing without being too aggressive
             linear_penalty = 0.15 * active_requests  # 15% per request
-            score /= (1 + linear_penalty)
+            score /= 1 + linear_penalty
 
         # CPU load - historical average
         # Penalize heavily loaded nodes more for high-priority tasks
@@ -526,18 +532,20 @@ class IntelligentRouter:
         if context.model_preference:
             loaded_models = host_meta.get("loaded_models", [])
             # Check if target model is loaded (handle both "model" and "model:tag" formats)
-            model_base = context.model_preference.split(':')[0]
+            model_base = context.model_preference.split(":")[0]
             is_loaded = any(
-                context.model_preference == loaded or
-                model_base in loaded or
-                loaded.startswith(model_base)
+                context.model_preference == loaded
+                or model_base in loaded
+                or loaded.startswith(model_base)
                 for loaded in loaded_models
             )
             if is_loaded:
                 # Model already loaded - moderate bonus (1.5x) to avoid cold loads
                 # Reduced from 3x to allow GPU capability to matter more
                 score *= 1.5
-                logger.debug(f"   ✅ Model {context.model_preference} already loaded on {host_meta.get('host', 'unknown')} - 1.5x bonus")
+                logger.debug(
+                    f"   ✅ Model {context.model_preference} already loaded on {host_meta.get('host', 'unknown')} - 1.5x bonus"
+                )
             elif loaded_models:  # Has other models loaded
                 # Not loaded - slight penalty for nodes with full VRAM
                 score *= 0.95

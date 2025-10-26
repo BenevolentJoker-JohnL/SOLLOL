@@ -26,7 +26,9 @@ def up(
     port: int = typer.Option(11434, help="Port for SOLLOL gateway (default: 11434, Ollama's port)"),
     ray_workers: int = typer.Option(4, help="Number of Ray actors for parallel execution"),
     dask_workers: int = typer.Option(2, help="Number of Dask workers for batch processing"),
-    batch_processing: bool = typer.Option(True, "--batch-processing/--no-batch-processing", help="Enable Dask batch processing"),
+    batch_processing: bool = typer.Option(
+        True, "--batch-processing/--no-batch-processing", help="Enable Dask batch processing"
+    ),
     autobatch_interval: int = typer.Option(60, help="Seconds between autobatch cycles"),
     rpc_backends: Optional[str] = typer.Option(
         None,
@@ -36,7 +38,11 @@ def up(
         None,
         help="Comma-separated Ollama nodes for task distribution (e.g., '192.168.1.20:11434,192.168.1.21:11434'). Auto-discovers if not set.",
     ),
-    setup_gpu_monitoring: bool = typer.Option(True, "--setup-gpu-monitoring/--no-setup-gpu-monitoring", help="Auto-setup GPU monitoring if not running"),
+    setup_gpu_monitoring: bool = typer.Option(
+        True,
+        "--setup-gpu-monitoring/--no-setup-gpu-monitoring",
+        help="Auto-setup GPU monitoring if not running",
+    ),
     redis_host: str = typer.Option("localhost", help="Redis host for GPU monitoring"),
     redis_port: int = typer.Option(6379, help="Redis port for GPU monitoring"),
 ):
@@ -194,7 +200,9 @@ def status():
 def install_gpu_reporter(
     redis_host: str = typer.Option("localhost", help="Redis server hostname"),
     redis_port: int = typer.Option(6379, help="Redis server port"),
-    node_id: Optional[str] = typer.Option(None, help="Node ID (e.g., 10.9.66.90:11434). Auto-detected if not specified."),
+    node_id: Optional[str] = typer.Option(
+        None, help="Node ID (e.g., 10.9.66.90:11434). Auto-detected if not specified."
+    ),
     interval: int = typer.Option(5, help="Reporting interval in seconds"),
 ):
     """
@@ -213,8 +221,8 @@ def install_gpu_reporter(
         # Full configuration:
         sollol install-gpu-reporter --redis-host 10.9.66.154 --node-id 10.9.66.90:11434 --interval 5
     """
-    import subprocess
     import socket
+    import subprocess
     from pathlib import Path
 
     # Auto-detect node ID if not specified

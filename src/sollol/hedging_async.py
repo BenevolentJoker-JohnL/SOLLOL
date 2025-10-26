@@ -219,9 +219,7 @@ class AsyncHedgingStrategy:
 
         return result
 
-    async def _execute_request_with_timing(
-        self, request_fn: Callable, node: Dict, *args, **kwargs
-    ):
+    async def _execute_request_with_timing(self, request_fn: Callable, node: Dict, *args, **kwargs):
         """
         Execute single async request with timing.
 

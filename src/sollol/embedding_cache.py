@@ -45,9 +45,9 @@ class EmbeddingCache:
         if use_redis:
             try:
                 import redis
+
                 self.redis_client = redis.from_url(
-                    redis_url or "redis://localhost:6379/0",
-                    decode_responses=True
+                    redis_url or "redis://localhost:6379/0", decode_responses=True
                 )
             except Exception:
                 # Fall back to in-memory if Redis unavailable
@@ -55,7 +55,7 @@ class EmbeddingCache:
 
     def _hash_text(self, text: str) -> str:
         """Generate MD5 hash of text content."""
-        return hashlib.md5(text.encode('utf-8')).hexdigest()
+        return hashlib.md5(text.encode("utf-8")).hexdigest()
 
     def _is_expired(self, entry: Dict) -> bool:
         """Check if cache entry has expired."""
@@ -119,9 +119,7 @@ class EmbeddingCache:
         if self.use_redis and self.redis_client:
             try:
                 self.redis_client.setex(
-                    f"sollol:embed:{text_hash}",
-                    self.ttl_seconds,
-                    json.dumps(entry)
+                    f"sollol:embed:{text_hash}", self.ttl_seconds, json.dumps(entry)
                 )
             except Exception:
                 pass  # Continue to in-memory storage
@@ -207,10 +205,7 @@ class EmbeddingCache:
         Returns:
             Number of entries removed
         """
-        expired_keys = [
-            key for key, entry in self.cache.items()
-            if self._is_expired(entry)
-        ]
+        expired_keys = [key for key, entry in self.cache.items() if self._is_expired(entry)]
 
         for key in expired_keys:
             del self.cache[key]

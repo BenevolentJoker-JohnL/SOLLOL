@@ -33,11 +33,11 @@ if TYPE_CHECKING:
     from sollol.rpc_registry import RPCBackendRegistry
 
 from .network_observer import (
-    log_rpc_request,
-    log_rpc_response,
-    log_rpc_error,
     EventType,
     get_observer,
+    log_rpc_error,
+    log_rpc_request,
+    log_rpc_response,
 )
 
 logger = logging.getLogger(__name__)
@@ -112,15 +112,23 @@ class LlamaCppCoordinator:
 
         # Heartbeat for live monitoring - configurable via environment variables
         self._heartbeat_task: Optional[asyncio.Task] = None
-        self._heartbeat_interval = int(os.getenv("SOLLOL_RPC_HEARTBEAT_INTERVAL", "600"))  # seconds (10 minutes)
+        self._heartbeat_interval = int(
+            os.getenv("SOLLOL_RPC_HEARTBEAT_INTERVAL", "600")
+        )  # seconds (10 minutes)
 
         # Health monitoring and auto-recovery - configurable via environment variables
-        self._health_check_timeout = float(os.getenv("SOLLOL_HEALTH_CHECK_TIMEOUT", "10.0"))  # seconds
+        self._health_check_timeout = float(
+            os.getenv("SOLLOL_HEALTH_CHECK_TIMEOUT", "10.0")
+        )  # seconds
         self._consecutive_failures = 0
-        self._max_consecutive_failures = int(os.getenv("SOLLOL_MAX_HEALTH_FAILURES", "3"))  # Restart after N failures
+        self._max_consecutive_failures = int(
+            os.getenv("SOLLOL_MAX_HEALTH_FAILURES", "3")
+        )  # Restart after N failures
         self._last_successful_health_check = time.time()
         self._restart_count = 0
-        self._max_restarts = int(os.getenv("SOLLOL_MAX_RESTARTS", "5"))  # Max auto-restarts before giving up
+        self._max_restarts = int(
+            os.getenv("SOLLOL_MAX_RESTARTS", "5")
+        )  # Max auto-restarts before giving up
 
     def _get_healthy_backends(self) -> List[RPCBackend]:
         """
@@ -129,11 +137,15 @@ class LlamaCppCoordinator:
         Returns:
             List of healthy backends, or all backends if no registry
         """
-        logger.debug(f"🔍 RPC Backend Discovery - Registry available: {self.rpc_registry is not None}")
+        logger.debug(
+            f"🔍 RPC Backend Discovery - Registry available: {self.rpc_registry is not None}"
+        )
         logger.debug(f"🔍 RPC Backend Discovery - Configured backends: {len(self.rpc_backends)}")
 
         if not self.rpc_registry:
-            logger.debug(f"🔍 RPC Backend Discovery - No registry, using all {len(self.rpc_backends)} configured backends")
+            logger.debug(
+                f"🔍 RPC Backend Discovery - No registry, using all {len(self.rpc_backends)} configured backends"
+            )
             for i, backend in enumerate(self.rpc_backends):
                 logger.debug(f"  Backend {i+1}: {backend.address}")
             return self.rpc_backends
@@ -143,13 +155,17 @@ class LlamaCppCoordinator:
         logger.debug(f"🔍 RPC Backend Discovery - Registry returned {len(healthy)} healthy backends")
 
         if not healthy:
-            logger.warning("⚠️ No healthy RPC backends found in registry, falling back to all configured backends")
+            logger.warning(
+                "⚠️ No healthy RPC backends found in registry, falling back to all configured backends"
+            )
             logger.warning(f"   Configured backends: {[b.address for b in self.rpc_backends]}")
             return self.rpc_backends
 
         logger.info(f"✅ Using {len(healthy)}/{len(self.rpc_backends)} healthy RPC backends")
         for i, backend in enumerate(healthy):
-            logger.debug(f"  Healthy backend {i+1}: {backend.get('host', 'unknown')}:{backend.get('port', 'unknown')}")
+            logger.debug(
+                f"  Healthy backend {i+1}: {backend.get('host', 'unknown')}:{backend.get('port', 'unknown')}"
+            )
 
         # Convert registry backends to RPCBackend objects
         return [RPCBackend(host=b.host, port=b.port) for b in healthy]
@@ -217,9 +233,9 @@ class LlamaCppCoordinator:
                 "num_backends": len(healthy_backends),
                 "model_path": self.model_path,
                 "ctx_size": self.ctx_size,
-                "command": ' '.join(cmd)
+                "command": " ".join(cmd),
             },
-            severity="info"
+            severity="info",
         )
 
         try:
@@ -230,9 +246,7 @@ class LlamaCppCoordinator:
 
             # Start a thread to parse llama-server output for layer distribution
             self._output_parser_task = threading.Thread(
-                target=self._parse_llama_output,
-                daemon=True,
-                name="LlamaServerOutputParser"
+                target=self._parse_llama_output, daemon=True, name="LlamaServerOutputParser"
             )
             self._output_parser_task.start()
 
@@ -252,11 +266,13 @@ class LlamaCppCoordinator:
                             "coordinator": f"{self.host}:{self.port}",
                             "reason": f"Crashed with exit code {exit_code}",
                             "error": "Process terminated during startup",
-                            "log_file": "/tmp/llama-server.log"
+                            "log_file": "/tmp/llama-server.log",
                         },
-                        severity="error"
+                        severity="error",
                     )
-                    raise RuntimeError(f"llama-server crashed with exit code {exit_code}. Check /tmp/llama-server.log for details")
+                    raise RuntimeError(
+                        f"llama-server crashed with exit code {exit_code}. Check /tmp/llama-server.log for details"
+                    )
                 else:
                     # Still running but not responding
                     observer.log_event(
@@ -267,9 +283,9 @@ class LlamaCppCoordinator:
                             "coordinator": f"{self.host}:{self.port}",
                             "reason": "Timeout waiting for health endpoint",
                             "error": str(e),
-                            "log_file": "/tmp/llama-server.log"
+                            "log_file": "/tmp/llama-server.log",
                         },
-                        severity="error"
+                        severity="error",
                     )
                     raise
 
@@ -287,9 +303,9 @@ class LlamaCppCoordinator:
                     "rpc_backends": len(healthy_backends),
                     "rpc_addresses": [b.address for b in healthy_backends],
                     "model": os.path.basename(self.model_path),
-                    "type": "coordinator_ready"
+                    "type": "coordinator_ready",
                 },
-                severity="info"
+                severity="info",
             )
 
             # Start heartbeat loop for dashboard visibility
@@ -307,9 +323,9 @@ class LlamaCppCoordinator:
                     "coordinator": f"{self.host}:{self.port}",
                     "reason": "Startup failed",
                     "error": str(e),
-                    "log_file": "/tmp/llama-server.log"
+                    "log_file": "/tmp/llama-server.log",
                 },
-                severity="error"
+                severity="error",
             )
             raise
 
@@ -328,17 +344,19 @@ class LlamaCppCoordinator:
         # Example: "llm_load_tensors: using CUDA for GPU acceleration"
         # Example: "llama_model_load: total VRAM used: 4096 MB"
         layer_pattern = re.compile(r"offloading (\d+) .*?layers? to (GPU|CPU|RPC)")
-        memory_pattern = re.compile(r"total (VRAM|RAM|memory) used:?\s*(\d+\.?\d*)\s*(MB|GB|KiB)", re.IGNORECASE)
+        memory_pattern = re.compile(
+            r"total (VRAM|RAM|memory) used:?\s*(\d+\.?\d*)\s*(MB|GB|KiB)", re.IGNORECASE
+        )
         backend_pattern = re.compile(r"RPC backend: ([\w\.\-]+:\d+)")
 
         model_load_details = {
             "layers_offloaded": {},
             "memory_allocated": {},
-            "rpc_backends_used": []
+            "rpc_backends_used": [],
         }
 
         try:
-            for line in iter(self.process.stdout.readline, ''):
+            for line in iter(self.process.stdout.readline, ""):
                 if not line:
                     break
 
@@ -370,7 +388,7 @@ class LlamaCppCoordinator:
 
                     model_load_details["memory_allocated"][mem_type] = {
                         "value_mb": mem_value,
-                        "display": f"{mem_value:.2f} MB"
+                        "display": f"{mem_value:.2f} MB",
                     }
 
                     logger.info(f"💾 {mem_type} allocated: {mem_value:.2f} MB")
@@ -386,7 +404,10 @@ class LlamaCppCoordinator:
                 # Detect model load completion
                 if "model loaded" in line.lower() or "ready" in line.lower():
                     # Publish model load event with sharding details
-                    if model_load_details["layers_offloaded"] or model_load_details["memory_allocated"]:
+                    if (
+                        model_load_details["layers_offloaded"]
+                        or model_load_details["memory_allocated"]
+                    ):
                         observer.log_event(
                             EventType.COORDINATOR_MODEL_LOAD,
                             backend=f"{self.host}:{self.port}",
@@ -397,9 +418,9 @@ class LlamaCppCoordinator:
                                 "rpc_backends": len(self.rpc_backends),
                                 "rpc_addresses": [b.address for b in self.rpc_backends],
                                 "status": "loaded",
-                                "type": "model_sharding"
+                                "type": "model_sharding",
                             },
-                            severity="info"
+                            severity="info",
                         )
 
                         logger.info(
@@ -411,7 +432,7 @@ class LlamaCppCoordinator:
                         model_load_details = {
                             "layers_offloaded": {},
                             "memory_allocated": {},
-                            "rpc_backends_used": []
+                            "rpc_backends_used": [],
                         }
 
         except Exception as e:
@@ -447,8 +468,7 @@ class LlamaCppCoordinator:
             # Try to hit health endpoint with short timeout
             health_url = f"http://{self.host}:{self.port}/health"
             response = await asyncio.wait_for(
-                self.http_client.get(health_url),
-                timeout=self._health_check_timeout
+                self.http_client.get(health_url), timeout=self._health_check_timeout
             )
 
             if response.status_code == 200:
@@ -460,7 +480,9 @@ class LlamaCppCoordinator:
                 return False
 
         except asyncio.TimeoutError:
-            logger.warning(f"⚠️  Coordinator health check timeout after {self._health_check_timeout}s")
+            logger.warning(
+                f"⚠️  Coordinator health check timeout after {self._health_check_timeout}s"
+            )
             return False
         except Exception as e:
             logger.warning(f"⚠️  Coordinator health check error: {e}")
@@ -474,7 +496,9 @@ class LlamaCppCoordinator:
         cause the C++ coordinator to get stuck.
         """
         self._restart_count += 1
-        logger.warning(f"🔄 Restarting coordinator (attempt {self._restart_count}/{self._max_restarts})...")
+        logger.warning(
+            f"🔄 Restarting coordinator (attempt {self._restart_count}/{self._max_restarts})..."
+        )
 
         # Log restart event
         observer = get_observer()
@@ -487,7 +511,7 @@ class LlamaCppCoordinator:
                 "consecutive_failures": self._consecutive_failures,
                 "restart_attempt": self._restart_count,
             },
-            severity="warning"
+            severity="warning",
         )
 
         # Kill old process
@@ -582,7 +606,7 @@ class LlamaCppCoordinator:
                             "uptime_seconds": time.time() - self._last_successful_health_check,
                             "restart_count": self._restart_count,
                         },
-                        severity="info"
+                        severity="info",
                     )
                     logger.debug(f"💚 Coordinator healthy: {len(self.rpc_backends)} RPC backends")
 
@@ -609,7 +633,7 @@ class LlamaCppCoordinator:
                                     "reason": "Max restarts exceeded",
                                     "restart_count": self._restart_count,
                                 },
-                                severity="error"
+                                severity="error",
                             )
                             break  # Stop health monitoring
 
@@ -649,7 +673,7 @@ class LlamaCppCoordinator:
             backend=backend_key,
             model=model,
             rpc_backends=len(self.rpc_backends),
-            operation="generate"
+            operation="generate",
         )
 
         start_time = time.time()
@@ -675,7 +699,7 @@ class LlamaCppCoordinator:
                 backend=backend_key,
                 model=model,
                 latency_ms=latency_ms,
-                rpc_backends=len(self.rpc_backends)
+                rpc_backends=len(self.rpc_backends),
             )
 
             return response.json()
@@ -684,12 +708,7 @@ class LlamaCppCoordinator:
             latency_ms = (time.time() - start_time) * 1000
 
             # Log error
-            log_rpc_error(
-                backend=backend_key,
-                model=model,
-                error=str(e),
-                latency_ms=latency_ms
-            )
+            log_rpc_error(backend=backend_key, model=model, error=str(e), latency_ms=latency_ms)
             raise
 
     async def chat(
@@ -716,10 +735,7 @@ class LlamaCppCoordinator:
         model = kwargs.get("model", "distributed")
 
         log_rpc_request(
-            backend=backend_key,
-            model=model,
-            rpc_backends=len(self.rpc_backends),
-            operation="chat"
+            backend=backend_key, model=model, rpc_backends=len(self.rpc_backends), operation="chat"
         )
 
         start_time = time.time()
@@ -745,7 +761,7 @@ class LlamaCppCoordinator:
                 backend=backend_key,
                 model=model,
                 latency_ms=latency_ms,
-                rpc_backends=len(self.rpc_backends)
+                rpc_backends=len(self.rpc_backends),
             )
 
             return response.json()
@@ -754,12 +770,7 @@ class LlamaCppCoordinator:
             latency_ms = (time.time() - start_time) * 1000
 
             # Log error
-            log_rpc_error(
-                backend=backend_key,
-                model=model,
-                error=str(e),
-                latency_ms=latency_ms
-            )
+            log_rpc_error(backend=backend_key, model=model, error=str(e), latency_ms=latency_ms)
             raise
 
     async def stop(self):

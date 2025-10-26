@@ -41,7 +41,9 @@ class AdaptiveParallelismStrategy:
         """Set the OllamaPool after initialization."""
         self.pool = pool
 
-    def should_parallelize(self, batch_size: int, model_name: Optional[str] = None) -> Tuple[bool, Dict]:
+    def should_parallelize(
+        self, batch_size: int, model_name: Optional[str] = None
+    ) -> Tuple[bool, Dict]:
         """
         Decide whether to parallelize based on cluster state.
 
@@ -54,7 +56,10 @@ class AdaptiveParallelismStrategy:
         """
         if not self.pool:
             logger.warning("No OllamaPool set, defaulting to parallel")
-            return True, {"reason": "no_pool", "detail": "No pool configured, using parallel by default"}
+            return True, {
+                "reason": "no_pool",
+                "detail": "No pool configured, using parallel by default",
+            }
 
         nodes = self.pool.nodes
         node_performance = self.pool.stats.get("node_performance", {})
@@ -90,12 +95,14 @@ class AdaptiveParallelismStrategy:
                 is_available = stats.get("available", True)
                 speed_score = 50 if is_available else 1  # Assume available = reasonably fast
 
-            node_speeds.append({
-                "node": node_key,
-                "speed_score": speed_score,
-                "total_requests": total_requests,
-                "is_available": stats.get("available", True)
-            })
+            node_speeds.append(
+                {
+                    "node": node_key,
+                    "speed_score": speed_score,
+                    "total_requests": total_requests,
+                    "is_available": stats.get("available", True),
+                }
+            )
 
         # Sort by speed (fastest first)
         node_speeds.sort(key=lambda x: x["speed_score"], reverse=True)
@@ -249,14 +256,16 @@ class AdaptiveParallelismStrategy:
             # Try to detect GPU capability from stats or node info
             has_gpu = node.get("has_gpu", False)
 
-            node_info.append({
-                "key": node_key,
-                "node": node,
-                "avg_latency": avg_latency,
-                "has_gpu": has_gpu,
-                "is_available": is_available,
-                "successful_requests": successful_requests
-            })
+            node_info.append(
+                {
+                    "key": node_key,
+                    "node": node,
+                    "avg_latency": avg_latency,
+                    "has_gpu": has_gpu,
+                    "is_available": is_available,
+                    "successful_requests": successful_requests,
+                }
+            )
 
         # Filter to available nodes only
         available_nodes = [n for n in node_info if n["is_available"]]
@@ -273,12 +282,16 @@ class AdaptiveParallelismStrategy:
         if gpu_nodes:
             # Return fastest GPU node (lowest avg latency)
             fastest_gpu = min(gpu_nodes, key=lambda n: n["avg_latency"])
-            logger.debug(f"Selected GPU node: {fastest_gpu['key']} (latency: {fastest_gpu['avg_latency']:.3f}s)")
+            logger.debug(
+                f"Selected GPU node: {fastest_gpu['key']} (latency: {fastest_gpu['avg_latency']:.3f}s)"
+            )
             return fastest_gpu["key"]
 
         # Fallback to fastest CPU node
         fastest_cpu = min(available_nodes, key=lambda n: n["avg_latency"])
-        logger.debug(f"Selected CPU node: {fastest_cpu['key']} (latency: {fastest_cpu['avg_latency']:.3f}s)")
+        logger.debug(
+            f"Selected CPU node: {fastest_cpu['key']} (latency: {fastest_cpu['avg_latency']:.3f}s)"
+        )
         return fastest_cpu["key"]
 
     def print_parallelism_report(self, batch_size: int):
@@ -358,7 +371,7 @@ def print_parallelism_report(pool):
     Args:
         pool: OllamaPool instance with parallelism strategy
     """
-    if not hasattr(pool, '_parallelism_strategy'):
+    if not hasattr(pool, "_parallelism_strategy"):
         print("⚠️  Adaptive parallelism not enabled on this pool")
         return
 
@@ -368,7 +381,7 @@ def print_parallelism_report(pool):
     print("=" * 60)
 
     # Get metrics from strategy
-    if hasattr(strategy, 'metrics') and strategy.metrics:
+    if hasattr(strategy, "metrics") and strategy.metrics:
         metrics = strategy.metrics
         print(f"\n📊 Decision Metrics:")
         print(f"   Sequential calls: {metrics.get('sequential_count', 0)}")
@@ -383,7 +396,7 @@ def print_parallelism_report(pool):
     print(f"   Min parallel:      {strategy.min_parallel_requests}")
 
     # Show recent decisions
-    if hasattr(strategy, 'recent_decisions'):
+    if hasattr(strategy, "recent_decisions"):
         print(f"\n📝 Recent Decisions:")
         for decision in strategy.recent_decisions[-5:]:
             print(f"   {decision['timestamp']}: {decision['mode']} - {decision['reason']}")

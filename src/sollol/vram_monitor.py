@@ -3,10 +3,11 @@ VRAM Monitoring for SOLLOL - Real GPU memory tracking.
 Supports NVIDIA (nvidia-smi), AMD (rocm-smi), and Intel GPUs.
 """
 
-import subprocess
 import json
-import requests
+import subprocess
 from typing import Dict, List, Optional
+
+import requests
 
 
 class VRAMMonitor:
@@ -96,9 +97,7 @@ class VRAMMonitor:
                             "used_mb": int(parts[3]),
                             "free_mb": int(parts[4]),
                             "utilization_percent": int(parts[5]),
-                            "temperature_c": (
-                                int(parts[6]) if parts[6].isdigit() else None
-                            ),
+                            "temperature_c": (int(parts[6]) if parts[6].isdigit() else None),
                             "vendor": "NVIDIA",
                         }
                     )
@@ -166,8 +165,8 @@ class VRAMMonitor:
                             "index": gpu_index,
                             "name": gpu_name,
                             "total_mb": 0,  # Unknown
-                            "used_mb": 0,   # Unknown
-                            "free_mb": 0,   # Unknown - triggers fallback routing
+                            "used_mb": 0,  # Unknown
+                            "free_mb": 0,  # Unknown - triggers fallback routing
                             "utilization_percent": None,
                             "temperature_c": None,
                             "vendor": "NVIDIA",
@@ -182,7 +181,7 @@ class VRAMMonitor:
                     "gpus": gpus,
                     "total_vram_mb": 0,  # Unknown
                     "used_vram_mb": 0,
-                    "free_vram_mb": 0,   # Routing will handle gracefully
+                    "free_vram_mb": 0,  # Routing will handle gracefully
                     "legacy_gpu": True,  # Flag for logging/debugging
                 }
 
@@ -278,12 +277,8 @@ class VRAMMonitor:
 
             for gpu_id, gpu_data in data.items():
                 if gpu_id.startswith("card"):
-                    vram_used_mb = (
-                        gpu_data.get("VRAM Total Used Memory (B)", 0) / (1024**2)
-                    )
-                    vram_total_mb = (
-                        gpu_data.get("VRAM Total Memory (B)", 0) / (1024**2)
-                    )
+                    vram_used_mb = gpu_data.get("VRAM Total Used Memory (B)", 0) / (1024**2)
+                    vram_total_mb = gpu_data.get("VRAM Total Memory (B)", 0) / (1024**2)
 
                     gpus.append(
                         {
@@ -377,9 +372,7 @@ class VRAMMonitor:
         except Exception:
             return None
 
-    def get_comprehensive_report(
-        self, node_url: str = "http://localhost:11434"
-    ) -> Dict:
+    def get_comprehensive_report(self, node_url: str = "http://localhost:11434") -> Dict:
         """
         Get comprehensive VRAM report combining local GPU info and Ollama usage.
         """
@@ -411,11 +404,7 @@ class VRAMMonitor:
                 "ollama_using_ram_mb": ollama_info.get("total_ram_mb", 0),
                 "free_vram_mb": local_info.get("free_vram_mb", 0),
                 "vram_utilization_percent": (
-                    (
-                        local_info.get("used_vram_mb", 0)
-                        / local_info.get("total_vram_mb", 1)
-                    )
-                    * 100
+                    (local_info.get("used_vram_mb", 0) / local_info.get("total_vram_mb", 1)) * 100
                     if local_info.get("total_vram_mb", 0) > 0
                     else 0
                 ),

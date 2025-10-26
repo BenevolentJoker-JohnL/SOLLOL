@@ -10,8 +10,9 @@ from typing import Callable, Optional
 
 class CircuitState(Enum):
     """Circuit breaker states."""
-    CLOSED = "closed"      # Normal operation, requests pass through
-    OPEN = "open"          # Circuit broken, requests fail fast
+
+    CLOSED = "closed"  # Normal operation, requests pass through
+    OPEN = "open"  # Circuit broken, requests fail fast
     HALF_OPEN = "half_open"  # Testing if service recovered
 
 
@@ -87,9 +88,7 @@ class CircuitBreaker:
         # Limit requests in HALF_OPEN state
         if self.state == CircuitState.HALF_OPEN:
             if self.half_open_requests >= self.half_open_max_requests:
-                raise CircuitBreakerOpen(
-                    "Circuit breaker is HALF_OPEN with max requests reached"
-                )
+                raise CircuitBreakerOpen("Circuit breaker is HALF_OPEN with max requests reached")
             self.half_open_requests += 1
 
         # Execute function
@@ -115,9 +114,7 @@ class CircuitBreaker:
 
         if self.state == CircuitState.HALF_OPEN:
             if self.half_open_requests >= self.half_open_max_requests:
-                raise CircuitBreakerOpen(
-                    "Circuit breaker is HALF_OPEN with max requests reached"
-                )
+                raise CircuitBreakerOpen("Circuit breaker is HALF_OPEN with max requests reached")
             self.half_open_requests += 1
 
         # Execute async function
@@ -192,7 +189,9 @@ class CircuitBreaker:
             "state": self.state.value,
             "failure_count": self.failure_count,
             "success_count": self.success_count,
-            "seconds_until_retry": self._seconds_until_retry() if self.state == CircuitState.OPEN else 0,
+            "seconds_until_retry": self._seconds_until_retry()
+            if self.state == CircuitState.OPEN
+            else 0,
             "half_open_requests": self.half_open_requests,
         }
 
@@ -203,4 +202,5 @@ class CircuitBreaker:
 
 class CircuitBreakerOpen(Exception):
     """Exception raised when circuit breaker is open."""
+
     pass

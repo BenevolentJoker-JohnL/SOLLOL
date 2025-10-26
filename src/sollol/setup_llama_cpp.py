@@ -242,7 +242,9 @@ def main():
 
         # Check Redis
         try:
-            result = subprocess.run(["redis-cli", "ping"], capture_output=True, text=True, timeout=2)
+            result = subprocess.run(
+                ["redis-cli", "ping"], capture_output=True, text=True, timeout=2
+            )
             if result.returncode != 0 or "PONG" not in result.stdout:
                 print("❌ Redis not available")
                 print("   Install Redis: sudo apt-get install redis-server")
@@ -256,8 +258,11 @@ def main():
 
         # Install Python dependencies
         print("📦 Installing Python dependencies (gpustat, redis)...")
-        result = subprocess.run([sys.executable, "-m", "pip", "install", "gpustat", "redis"],
-                                capture_output=True, text=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "gpustat", "redis"],
+            capture_output=True,
+            text=True,
+        )
         if result.returncode != 0:
             print(f"❌ Failed to install dependencies: {result.stderr}")
             return 1
@@ -288,7 +293,9 @@ def main():
         start_rpc_server(install_dir, args.host, args.port, args.mem)
 
     # No args - show help
-    if not (args.clone or args.build or args.start or args.all or args.service or args.gpu_monitoring):
+    if not (
+        args.clone or args.build or args.start or args.all or args.service or args.gpu_monitoring
+    ):
         parser.print_help()
         print("\n" + "=" * 70)
         print("QUICK START:")
@@ -310,7 +317,9 @@ def main():
         print("RECOMMENDED BUILD:")
         print("=" * 70)
         print("llama.cpp build 6743+ includes stability fixes for distributed inference")
-        print("Update existing installation: cd ~/llama.cpp && git pull && python setup_llama_cpp.py --build")
+        print(
+            "Update existing installation: cd ~/llama.cpp && git pull && python setup_llama_cpp.py --build"
+        )
         print("")
 
     return 0

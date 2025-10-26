@@ -169,6 +169,7 @@ class DistributedExecutor:
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
             import traceback
+
             logger.error(f"Task {task.task_id} failed: {e}")
             logger.error(f"Traceback: {traceback.format_exc()}")
 

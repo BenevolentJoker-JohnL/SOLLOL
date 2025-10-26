@@ -20,10 +20,10 @@ Example:
 """
 
 import asyncio
-import threading
 import logging
-from typing import Dict, List, Any, Optional
+import threading
 from functools import wraps
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -47,9 +47,7 @@ class AsyncEventLoop:
     def _start_loop(self):
         """Start the background event loop thread."""
         self._thread = threading.Thread(
-            target=self._run_loop,
-            daemon=True,
-            name="sollol-async-loop"
+            target=self._run_loop, daemon=True, name="sollol-async-loop"
         )
         self._thread.start()
         self._started.wait()  # Wait for loop to be ready
@@ -136,14 +134,11 @@ class HybridRouter:
     async def _create_async_router(self, *args, **kwargs):
         """Create the async router instance."""
         from sollol.hybrid_router import HybridRouter as AsyncHybridRouter
+
         return AsyncHybridRouter(*args, **kwargs)
 
     def route_request(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        timeout: Optional[float] = 300,
-        **kwargs
+        self, model: str, messages: List[Dict[str, str]], timeout: Optional[float] = 300, **kwargs
     ) -> Dict[str, Any]:
         """
         Route a request synchronously.
@@ -161,11 +156,7 @@ class HybridRouter:
             TimeoutError: If request exceeds timeout
             Exception: Any error from routing or inference
         """
-        coro = self._async_router.route_request(
-            model=model,
-            messages=messages,
-            **kwargs
-        )
+        coro = self._async_router.route_request(model=model, messages=messages, **kwargs)
         return self._loop_manager.run_coroutine(coro, timeout=timeout)
 
     def get_stats(self) -> Dict[str, Any]:
@@ -240,8 +231,7 @@ class OllamaPool:
 
         loop_manager = get_event_loop()
         async_pool = loop_manager.run_coroutine(
-            AsyncOllamaPool.auto_configure(**kwargs),
-            timeout=30.0
+            AsyncOllamaPool.auto_configure(**kwargs), timeout=30.0
         )
 
         instance = cls.__new__(cls)
@@ -256,7 +246,7 @@ class OllamaPool:
         messages: List[Dict[str, str]],
         priority: int = 5,
         timeout: Optional[float] = 300,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
         """
         Send a chat completion request synchronously.
@@ -271,21 +261,11 @@ class OllamaPool:
         Returns:
             Response dict
         """
-        coro = self._async_pool.chat(
-            model=model,
-            messages=messages,
-            priority=priority,
-            **kwargs
-        )
+        coro = self._async_pool.chat(model=model, messages=messages, priority=priority, **kwargs)
         return self._loop_manager.run_coroutine(coro, timeout=timeout)
 
     def generate(
-        self,
-        model: str,
-        prompt: str,
-        priority: int = 5,
-        timeout: Optional[float] = 300,
-        **kwargs
+        self, model: str, prompt: str, priority: int = 5, timeout: Optional[float] = 300, **kwargs
     ) -> Dict[str, Any]:
         """
         Generate text synchronously.
@@ -300,21 +280,11 @@ class OllamaPool:
         Returns:
             Response dict
         """
-        coro = self._async_pool.generate(
-            model=model,
-            prompt=prompt,
-            priority=priority,
-            **kwargs
-        )
+        coro = self._async_pool.generate(model=model, prompt=prompt, priority=priority, **kwargs)
         return self._loop_manager.run_coroutine(coro, timeout=timeout)
 
     def embed(
-        self,
-        model: str,
-        input: str,
-        priority: int = 5,
-        timeout: Optional[float] = 60,
-        **kwargs
+        self, model: str, input: str, priority: int = 5, timeout: Optional[float] = 60, **kwargs
     ) -> Dict[str, Any]:
         """
         Generate embeddings synchronously.
@@ -329,12 +299,7 @@ class OllamaPool:
         Returns:
             Response dict with embeddings
         """
-        coro = self._async_pool.embed(
-            model=model,
-            input=input,
-            priority=priority,
-            **kwargs
-        )
+        coro = self._async_pool.embed(model=model, input=input, priority=priority, **kwargs)
         return self._loop_manager.run_coroutine(coro, timeout=timeout)
 
     def get_stats(self) -> Dict[str, Any]:
@@ -381,11 +346,12 @@ def sync_wrapper(async_func):
         # Can now call synchronously
         result = my_async_function()
     """
+
     @wraps(async_func)
     def wrapper(*args, **kwargs):
         loop_manager = get_event_loop()
         coro = async_func(*args, **kwargs)
-        timeout = kwargs.pop('timeout', None)
+        timeout = kwargs.pop("timeout", None)
         return loop_manager.run_coroutine(coro, timeout=timeout)
 
     return wrapper

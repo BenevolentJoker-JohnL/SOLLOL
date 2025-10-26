@@ -62,10 +62,14 @@ class DashboardProcessLauncher:
                 sys.executable,  # Use same Python interpreter
                 "-m",
                 "sollol.dashboard_service",
-                "--port", str(self.port),
-                "--redis-url", self.redis_url,
-                "--ray-dashboard-port", str(self.ray_dashboard_port),
-                "--dask-dashboard-port", str(self.dask_dashboard_port),
+                "--port",
+                str(self.port),
+                "--redis-url",
+                self.redis_url,
+                "--ray-dashboard-port",
+                str(self.ray_dashboard_port),
+                "--dask-dashboard-port",
+                str(self.dask_dashboard_port),
             ]
 
             if not self.enable_dask:
@@ -97,7 +101,9 @@ class DashboardProcessLauncher:
                 time.sleep(2)
                 if self.process.poll() is not None:
                     # Process already exited
-                    logger.error(f"Dashboard process exited immediately (check log: {log_file_path})")
+                    logger.error(
+                        f"Dashboard process exited immediately (check log: {log_file_path})"
+                    )
                     return False
 
                 msg1 = f"✅ SOLLOL Dashboard started at http://0.0.0.0:{self.port}"

@@ -23,8 +23,8 @@ Example:
 
 import logging
 import os
-from typing import Dict, Optional, Any
 from datetime import datetime
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def log_metric(
     measurement: str,
     tags: Dict[str, str],
     fields: Dict[str, Any],
-    timestamp: Optional[datetime] = None
+    timestamp: Optional[datetime] = None,
 ) -> bool:
     """
     Log a metric point to InfluxDB.
@@ -161,7 +161,7 @@ def log_node_health(
     models_loaded: int = 0,
     vram_free_mb: int = 0,
     vram_total_mb: int = 0,
-    failure_count: int = 0
+    failure_count: int = 0,
 ):
     """
     Log Ollama node health metrics.
@@ -185,19 +185,14 @@ def log_node_health(
             "vram_free_mb": vram_free_mb,
             "vram_total_mb": vram_total_mb,
             "vram_usage_percent": (
-                100 * (vram_total_mb - vram_free_mb) / vram_total_mb
-                if vram_total_mb > 0 else 0
+                100 * (vram_total_mb - vram_free_mb) / vram_total_mb if vram_total_mb > 0 else 0
             ),
             "failure_count": failure_count,
-        }
+        },
     )
 
 
-def log_rpc_backend_health(
-    backend_url: str,
-    reachable: bool,
-    latency_ms: float = 0
-):
+def log_rpc_backend_health(backend_url: str, reachable: bool, latency_ms: float = 0):
     """
     Log RPC backend health metrics.
 
@@ -212,7 +207,7 @@ def log_rpc_backend_health(
         fields={
             "reachable": reachable,
             "latency_ms": latency_ms,
-        }
+        },
     )
 
 
@@ -224,7 +219,7 @@ def log_request(
     latency_ms: float,
     success: bool,
     tokens: int = 0,
-    error: Optional[str] = None
+    error: Optional[str] = None,
 ):
     """
     Log a request/response metric.
@@ -246,14 +241,14 @@ def log_request(
             "node": node,
             "model": model,
             "operation": operation,
-            "success": "true" if success else "false"
+            "success": "true" if success else "false",
         },
         fields={
             "latency_ms": latency_ms,
             "success": success,
             "tokens": tokens,
-            "error": 1 if error else 0
-        }
+            "error": 1 if error else 0,
+        },
     )
 
 
@@ -262,7 +257,7 @@ def log_routing_decision(
     selected_node: str,
     strategy: str,
     candidate_nodes: int,
-    selection_latency_ms: float = 0
+    selection_latency_ms: float = 0,
 ):
     """
     Log a routing decision metric.
@@ -276,15 +271,8 @@ def log_routing_decision(
     """
     log_metric(
         "routing_decision",
-        tags={
-            "model": model,
-            "selected_node": selected_node,
-            "strategy": strategy
-        },
-        fields={
-            "candidate_nodes": candidate_nodes,
-            "selection_latency_ms": selection_latency_ms
-        }
+        tags={"model": model, "selected_node": selected_node, "strategy": strategy},
+        fields={"candidate_nodes": candidate_nodes, "selection_latency_ms": selection_latency_ms},
     )
 
 
@@ -330,14 +318,14 @@ def get_node_latency_avg(node_url: str, window: str = "-1h") -> Optional[float]:
     Returns:
         Average latency in ms, or None if unavailable
     """
-    query = f'''
+    query = f"""
     from(bucket:"{_bucket}")
       |> range(start: {window})
       |> filter(fn: (r) => r._measurement == "node_health")
       |> filter(fn: (r) => r.node == "{node_url}")
       |> filter(fn: (r) => r._field == "latency_ms")
       |> mean()
-    '''
+    """
 
     tables = query_metrics(query)
     for table in tables:
@@ -357,7 +345,7 @@ def get_success_rate(node_url: str, window: str = "-1h") -> Optional[float]:
     Returns:
         Success rate as percentage (0-100), or None if unavailable
     """
-    query = f'''
+    query = f"""
     from(bucket:"{_bucket}")
       |> range(start: {window})
       |> filter(fn: (r) => r._measurement == "request")
@@ -365,7 +353,7 @@ def get_success_rate(node_url: str, window: str = "-1h") -> Optional[float]:
       |> filter(fn: (r) => r._field == "success")
       |> mean()
       |> map(fn: (r) => ({{r with _value: r._value * 100.0}}))
-    '''
+    """
 
     tables = query_metrics(query)
     for table in tables:

@@ -13,8 +13,9 @@ Architecture:
 # Set Bokeh session token expiration BEFORE any imports
 # This prevents "Token is expired" errors on Dask dashboard
 import os
-os.environ['BOKEH_SESSION_TOKEN_EXPIRATION'] = '2147483647'  # Max int32 (~24 days)
-os.environ['BOKEH_ALLOW_WS_ORIGIN'] = '*'
+
+os.environ["BOKEH_SESSION_TOKEN_EXPIRATION"] = "2147483647"  # Max int32 (~24 days)
+os.environ["BOKEH_ALLOW_WS_ORIGIN"] = "*"
 
 import asyncio
 import json
@@ -77,9 +78,7 @@ class ShardedModelPool:
             f"(port {self.coordinator_port}, remote={enable_remote_coordinator})"
         )
 
-    def _select_best_coordinator_node(
-        self, model: str, gguf_path: str
-    ) -> Optional[str]:
+    def _select_best_coordinator_node(self, model: str, gguf_path: str) -> Optional[str]:
         """
         Select the best node to run the coordinator based on available resources.
 
@@ -102,11 +101,12 @@ class ShardedModelPool:
             return None
 
         try:
-            from sollol.rpc_discovery import detect_node_resources
             import os
 
             # Estimate model requirements based on name
             import re
+
+            from sollol.rpc_discovery import detect_node_resources
 
             size_match = re.search(r"(\d+)b", model.lower())
             if size_match:
@@ -145,8 +145,7 @@ class ShardedModelPool:
                     score += 5000  # 5GB bonus
 
                 logger.debug(
-                    f"  {host}: RAM={cpu_ram}MB, GPU_VRAM={gpu_vram}MB, "
-                    f"score={score:.0f}"
+                    f"  {host}: RAM={cpu_ram}MB, GPU_VRAM={gpu_vram}MB, " f"score={score:.0f}"
                 )
 
                 if score > best_score:
@@ -168,8 +167,7 @@ class ShardedModelPool:
 
         except Exception as e:
             logger.warning(
-                f"Pool {self.pool_id}: Error selecting coordinator node: {e}, "
-                "using local node"
+                f"Pool {self.pool_id}: Error selecting coordinator node: {e}, " "using local node"
             )
             return None
 
@@ -241,10 +239,7 @@ class ShardedModelPool:
         }
 
     async def chat(
-        self,
-        messages: List[Dict[str, str]],
-        stream: bool = False,
-        **kwargs
+        self, messages: List[Dict[str, str]], stream: bool = False, **kwargs
     ) -> Dict[str, Any]:
         """
         Run chat inference on this pool.
@@ -268,9 +263,7 @@ class ShardedModelPool:
 
         # Log which node is executing
         node_info = f" on {self.coordinator_node}" if self.coordinator_node else " locally"
-        logger.debug(
-            f"Pool {self.pool_id}: Running inference for {self.current_model}{node_info}"
-        )
+        logger.debug(f"Pool {self.pool_id}: Running inference for {self.current_model}{node_info}")
 
         # Coordinator executes on selected node, Ray streams result back automatically
         response = await self.coordinator.chat(messages, stream=False, **kwargs)
@@ -339,19 +332,19 @@ class RayHybridRouter:
 
         # Support remote coordinator via environment variables
         import os
+
         self.coordinator_host = os.getenv(
-            "SOLLOL_COORDINATOR_HOST",
-            coordinator_host or "127.0.0.1"
+            "SOLLOL_COORDINATOR_HOST", coordinator_host or "127.0.0.1"
         )
-        self.coordinator_base_port = int(os.getenv(
-            "SOLLOL_COORDINATOR_PORT",
-            str(coordinator_base_port or 18080)
-        ))
+        self.coordinator_base_port = int(
+            os.getenv("SOLLOL_COORDINATOR_PORT", str(coordinator_base_port or 18080))
+        )
         # Context size with environment variable override
-        self.ctx_size = int(os.getenv(
-            "SOLLOL_CTX_SIZE",
-            str(ctx_size or 8192)  # Default 8192 for long-form generation
-        ))
+        self.ctx_size = int(
+            os.getenv(
+                "SOLLOL_CTX_SIZE", str(ctx_size or 8192)  # Default 8192 for long-form generation
+            )
+        )
 
         self.backends_per_pool = backends_per_pool
         self.enable_remote_coordinator = enable_remote_coordinator
@@ -372,7 +365,11 @@ class RayHybridRouter:
         # Only auto-configure if distributed enabled AND no RPC backends
         # (If RPC backends exist, we use them for large models instead)
         if ollama_pool is None:
-            self.ollama_pool = OllamaPool.auto_configure() if (enable_distributed and not self.has_rpc_backends) else None
+            self.ollama_pool = (
+                OllamaPool.auto_configure()
+                if (enable_distributed and not self.has_rpc_backends)
+                else None
+            )
             if self.ollama_pool:
                 logger.info("✅ Auto-configured Ollama pool (no RPC backends found)")
             else:
@@ -382,25 +379,30 @@ class RayHybridRouter:
 
         # Log SOLLOL version at initialization
         from sollol import __version__
+
         logger.info(f"📦 SOLLOL v{__version__} - RayHybridRouter initializing")
 
         # Initialize Ray with dashboard enabled (for Ollama pool parallelization even without RPC)
         if self.enable_distributed:
             if not ray.is_initialized():
                 import os
+
                 # Disable Ray memory monitor
-                os.environ['RAY_memory_monitor_refresh_ms'] = '0'
+                os.environ["RAY_memory_monitor_refresh_ms"] = "0"
 
                 # Try to connect to existing Ray cluster first (multi-app coordination)
                 try:
                     logger.info("🔍 Attempting to connect to existing Ray cluster...")
-                    ray.init(address='auto', ignore_reinit_error=True)
+                    ray.init(address="auto", ignore_reinit_error=True)
                     logger.info("✅ Connected to existing Ray cluster")
                 except (ConnectionError, Exception) as e:
                     # No existing cluster, start a new one
-                    logger.info(f"🚀 Starting new Ray cluster for distributed coordination (no existing cluster found)")
+                    logger.info(
+                        f"🚀 Starting new Ray cluster for distributed coordination (no existing cluster found)"
+                    )
 
                     import json
+
                     # Conservative memory settings to avoid "insufficient memory" errors
                     ray.init(
                         ignore_reinit_error=True,
@@ -411,11 +413,13 @@ class RayHybridRouter:
                         object_store_memory=256 * 1024 * 1024,  # 256MB for object store
                         _system_config={
                             "automatic_object_spilling_enabled": True,
-                            "object_spilling_config": json.dumps({
-                                "type": "filesystem",
-                                "params": {"directory_path": "/tmp/ray_spill"}
-                            })
-                        }
+                            "object_spilling_config": json.dumps(
+                                {
+                                    "type": "filesystem",
+                                    "params": {"directory_path": "/tmp/ray_spill"},
+                                }
+                            ),
+                        },
                     )
                     logger.info("📊 Ray dashboard available at http://localhost:8265")
 
@@ -449,13 +453,18 @@ class RayHybridRouter:
                 # Check if coordinator is available (non-blocking health check)
                 try:
                     import httpx
+
                     with httpx.Client(timeout=2.0) as client:
-                        coordinator_url = f"http://{coordinator_host}:{coordinator_base_port}/health"
+                        coordinator_url = (
+                            f"http://{coordinator_host}:{coordinator_base_port}/health"
+                        )
                         response = client.get(coordinator_url)
                         if response.status_code == 200:
                             logger.info(f"✅ llama.cpp coordinator health check passed")
                         else:
-                            logger.warning(f"⚠️  llama.cpp coordinator health check returned {response.status_code}")
+                            logger.warning(
+                                f"⚠️  llama.cpp coordinator health check returned {response.status_code}"
+                            )
                 except Exception as e:
                     if self.ollama_pool:
                         logger.warning(
@@ -476,7 +485,9 @@ class RayHybridRouter:
                 self.num_pools = 0
                 self.pools: List[ray.actor.ActorHandle] = []
                 self.current_model: Optional[str] = None
-                logger.info("✅ RayHybridRouter initialized (Ray enabled for Ollama parallelization, no RPC backends)")
+                logger.info(
+                    "✅ RayHybridRouter initialized (Ray enabled for Ollama parallelization, no RPC backends)"
+                )
         else:
             logger.info("ℹ️  RayHybridRouter initialized without distributed support")
             self.pools = []
@@ -484,16 +495,28 @@ class RayHybridRouter:
 
         # Auto-start observability dashboard (configurable via ENV)
         import os
+
         self.dashboard = None
-        self.dashboard_enabled = os.getenv("SOLLOL_DASHBOARD", "true").lower() in ("true", "1", "yes", "on")
+        self.dashboard_enabled = os.getenv("SOLLOL_DASHBOARD", "true").lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
         self.dashboard_port = int(os.getenv("SOLLOL_DASHBOARD_PORT", "8080"))
-        self.dashboard_enable_dask = os.getenv("SOLLOL_DASHBOARD_DASK", "true").lower() in ("true", "1", "yes", "on")
+        self.dashboard_enable_dask = os.getenv("SOLLOL_DASHBOARD_DASK", "true").lower() in (
+            "true",
+            "1",
+            "yes",
+            "on",
+        )
 
         # Initialize Dask client for dashboard if enabled
         self.dask_client = None
         if self.dashboard_enable_dask:
             try:
                 from dask.distributed import Client
+
                 # Try to connect to existing Dask scheduler first (multi-app coordination)
                 try:
                     logger.info("🔍 Attempting to connect to existing Dask scheduler...")
@@ -501,9 +524,15 @@ class RayHybridRouter:
                     logger.info(f"✅ Connected to existing Dask scheduler")
                 except Exception as e:
                     # No existing scheduler, create local cluster
-                    logger.info("🚀 Starting Dask client with local cluster (no existing scheduler found)")
-                    self.dask_client = Client(processes=False, dashboard_address=':8787', silence_logs=logging.WARNING)
-                    logger.info(f"✅ Dask client initialized for dashboard observability at {self.dask_client.dashboard_link}")
+                    logger.info(
+                        "🚀 Starting Dask client with local cluster (no existing scheduler found)"
+                    )
+                    self.dask_client = Client(
+                        processes=False, dashboard_address=":8787", silence_logs=logging.WARNING
+                    )
+                    logger.info(
+                        f"✅ Dask client initialized for dashboard observability at {self.dask_client.dashboard_link}"
+                    )
             except Exception as e:
                 logger.warning(f"⚠️  Failed to initialize Dask client for dashboard: {e}")
                 self.dashboard_enable_dask = False
@@ -516,11 +545,7 @@ class RayHybridRouter:
             print(msg)
 
     async def route_request(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        stream: bool = False,
-        **kwargs
+        self, model: str, messages: List[Dict[str, str]], stream: bool = False, **kwargs
     ) -> Dict[str, Any]:
         """
         Route request to appropriate backend.
@@ -542,17 +567,16 @@ class RayHybridRouter:
 
         if route_to_rpc and self.enable_distributed and self.has_rpc_backends:
             # Large model → Route directly to llama.cpp coordinator (RPC sharding)
-            logger.info(f"Routing {model} to llama.cpp coordinator for RPC sharding (estimated large model)")
+            logger.info(
+                f"Routing {model} to llama.cpp coordinator for RPC sharding (estimated large model)"
+            )
             return await self._route_to_llama_cpp_coordinator(model, messages, stream, **kwargs)
         elif self.ollama_pool:
             # Small model → Use Ollama pool for task distribution
             logger.info(f"Routing {model} to Ollama pool (estimated small model)")
             try:
                 return await self.ollama_pool.chat_async(
-                    model=model,
-                    messages=messages,
-                    stream=stream,
-                    **kwargs
+                    model=model, messages=messages, stream=stream, **kwargs
                 )
             except Exception as e:
                 # DISABLED: Don't fallback to RPC for small models - it's slower and experimental
@@ -566,7 +590,9 @@ class RayHybridRouter:
                 raise
         elif self.enable_distributed and self.has_rpc_backends:
             # No Ollama pool but have RPC → Force RPC routing
-            logger.info(f"Routing {model} to llama.cpp coordinator for RPC sharding (no Ollama pool available)")
+            logger.info(
+                f"Routing {model} to llama.cpp coordinator for RPC sharding (no Ollama pool available)"
+            )
             return await self._route_to_llama_cpp_coordinator(model, messages, stream, **kwargs)
         else:
             raise RuntimeError(
@@ -575,11 +601,7 @@ class RayHybridRouter:
             )
 
     async def _route_to_llama_cpp_coordinator(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        stream: bool,
-        **kwargs
+        self, model: str, messages: List[Dict[str, str]], stream: bool, **kwargs
     ) -> Dict[str, Any]:
         """
         Route request directly to llama.cpp coordinator for RPC sharding.
@@ -602,21 +624,26 @@ class RayHybridRouter:
             Chat completion response from llama.cpp coordinator or Ollama fallback
         """
         if stream and not self.ollama_pool:
-            raise NotImplementedError("Streaming not supported for RPC sharding (no Ollama pool available)")
+            raise NotImplementedError(
+                "Streaming not supported for RPC sharding (no Ollama pool available)"
+            )
 
         # Use the coordinator HTTP client (created during init)
-        if not hasattr(self, 'coordinator_client'):
+        if not hasattr(self, "coordinator_client"):
             # Import here to avoid circular dependency
             import httpx
+
             # Separate timeouts: connect=30s, read=1200s (20min for distributed model loading), write=30s
             timeout_config = httpx.Timeout(connect=30.0, read=1200.0, write=30.0, pool=None)
             self.coordinator_client = httpx.AsyncClient(timeout=timeout_config)
 
         # Use coordinator_host and coordinator_base_port from init
-        coordinator_url = f"http://{self.coordinator_host}:{self.coordinator_base_port}/v1/chat/completions"
+        coordinator_url = (
+            f"http://{self.coordinator_host}:{self.coordinator_base_port}/v1/chat/completions"
+        )
 
         # Auto-start coordinator if not running
-        if not hasattr(self, '_coordinator_instance') or self._coordinator_instance is None:
+        if not hasattr(self, "_coordinator_instance") or self._coordinator_instance is None:
             try:
                 # Health check: try to ping coordinator
                 health_url = f"http://{self.coordinator_host}:{self.coordinator_base_port}/health"
@@ -624,10 +651,13 @@ class RayHybridRouter:
                 logger.debug(f"✅ Coordinator health check passed: {health_response.status_code}")
             except Exception as health_err:
                 # Coordinator not running - auto-start it!
-                logger.info(f"⚙️  Coordinator not running, auto-starting on {self.coordinator_host}:{self.coordinator_base_port}...")
+                logger.info(
+                    f"⚙️  Coordinator not running, auto-starting on {self.coordinator_host}:{self.coordinator_base_port}..."
+                )
 
                 # Resolve model path from Ollama if needed
                 from sollol.ollama_gguf_resolver import resolve_ollama_model
+
                 gguf_path = resolve_ollama_model(model)
 
                 # Convert dict configs to RPCBackend objects
@@ -660,18 +690,23 @@ class RayHybridRouter:
         logger.debug(f"Payload: {payload}")
 
         # Generate trace ID and record trace start
-        import uuid
-        import redis
         import json as json_module
         import time
+        import uuid
+
+        import redis
 
         trace_id = str(uuid.uuid4())
         start_time = time.time()
-        backend_list = [f"{b['host']}:{b['port']}" for b in self.rpc_backends] if self.rpc_backends else []
+        backend_list = (
+            [f"{b['host']}:{b['port']}" for b in self.rpc_backends] if self.rpc_backends else []
+        )
 
         # Publish routing decision event
         try:
-            r = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_connect_timeout=0.5)
+            r = redis.Redis(
+                host="localhost", port=6379, decode_responses=True, socket_connect_timeout=0.5
+            )
 
             routing_event = {
                 "timestamp": start_time,
@@ -693,15 +728,22 @@ class RayHybridRouter:
                 "rpc_backends": backend_list,
                 "num_backends": len(backend_list),
                 "coordinator_url": coordinator_url,
-                "prompt_tokens": sum(len(m.get("content", "").split()) for m in messages),  # Rough estimate
+                "prompt_tokens": sum(
+                    len(m.get("content", "").split()) for m in messages
+                ),  # Rough estimate
             }
             r.setex(f"sollol:trace:{trace_id}", 3600, json_module.dumps(trace_data))
 
             # Publish trace start event for real-time dashboard updates
-            r.publish("sollol:traces", json_module.dumps({
-                "event": "trace_start",
-                "trace": trace_data,
-            }))
+            r.publish(
+                "sollol:traces",
+                json_module.dumps(
+                    {
+                        "event": "trace_start",
+                        "trace": trace_data,
+                    }
+                ),
+            )
 
         except Exception as e:
             logger.error(f"Failed to publish routing event or record trace: {e}", exc_info=True)
@@ -709,7 +751,9 @@ class RayHybridRouter:
         try:
             response = await self.coordinator_client.post(coordinator_url, json=payload)
             if response.status_code != 200:
-                logger.error(f"❌ Coordinator returned {response.status_code}: {response.text[:500]}")
+                logger.error(
+                    f"❌ Coordinator returned {response.status_code}: {response.text[:500]}"
+                )
             response.raise_for_status()
             result = response.json()
 
@@ -724,26 +768,35 @@ class RayHybridRouter:
 
             # Update trace as completed
             try:
-                r = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_connect_timeout=0.5)
+                r = redis.Redis(
+                    host="localhost", port=6379, decode_responses=True, socket_connect_timeout=0.5
+                )
 
                 # Get existing trace data
                 trace_json = r.get(f"sollol:trace:{trace_id}")
                 if trace_json:
                     trace_data = json_module.loads(trace_json)
-                    trace_data.update({
-                        "status": "completed",
-                        "end_time": end_time,
-                        "latency_ms": latency_ms,
-                        "completion_tokens": completion_tokens,
-                        "total_tokens": total_tokens,
-                    })
+                    trace_data.update(
+                        {
+                            "status": "completed",
+                            "end_time": end_time,
+                            "latency_ms": latency_ms,
+                            "completion_tokens": completion_tokens,
+                            "total_tokens": total_tokens,
+                        }
+                    )
                     r.setex(f"sollol:trace:{trace_id}", 3600, json_module.dumps(trace_data))
 
                     # Publish trace completion event
-                    r.publish("sollol:traces", json_module.dumps({
-                        "event": "trace_complete",
-                        "trace": trace_data,
-                    }))
+                    r.publish(
+                        "sollol:traces",
+                        json_module.dumps(
+                            {
+                                "event": "trace_complete",
+                                "trace": trace_data,
+                            }
+                        ),
+                    )
 
                 # Publish RPC activity event
                 activity_event = {
@@ -757,7 +810,7 @@ class RayHybridRouter:
                         "status": "success",
                         "latency_ms": latency_ms,
                         "completion_tokens": completion_tokens,
-                    }
+                    },
                 }
                 r.publish("sollol:dashboard:rpc:activity", json_module.dumps(activity_event))
 
@@ -772,24 +825,33 @@ class RayHybridRouter:
             try:
                 end_time = time.time()
                 latency_ms = (end_time - start_time) * 1000
-                r = redis.Redis(host='localhost', port=6379, decode_responses=True, socket_connect_timeout=0.5)
+                r = redis.Redis(
+                    host="localhost", port=6379, decode_responses=True, socket_connect_timeout=0.5
+                )
 
                 trace_json = r.get(f"sollol:trace:{trace_id}")
                 if trace_json:
                     trace_data = json_module.loads(trace_json)
-                    trace_data.update({
-                        "status": "failed",
-                        "end_time": end_time,
-                        "latency_ms": latency_ms,
-                        "error": str(e),
-                    })
+                    trace_data.update(
+                        {
+                            "status": "failed",
+                            "end_time": end_time,
+                            "latency_ms": latency_ms,
+                            "error": str(e),
+                        }
+                    )
                     r.setex(f"sollol:trace:{trace_id}", 3600, json_module.dumps(trace_data))
 
                     # Publish trace failure event
-                    r.publish("sollol:traces", json_module.dumps({
-                        "event": "trace_failed",
-                        "trace": trace_data,
-                    }))
+                    r.publish(
+                        "sollol:traces",
+                        json_module.dumps(
+                            {
+                                "event": "trace_failed",
+                                "trace": trace_data,
+                            }
+                        ),
+                    )
             except Exception as trace_err:
                 logger.debug(f"Failed to update trace on error: {trace_err}")
 
@@ -800,10 +862,7 @@ class RayHybridRouter:
                 )
                 try:
                     return await self.ollama_pool.chat_async(
-                        model=model,
-                        messages=messages,
-                        stream=stream,
-                        **kwargs
+                        model=model, messages=messages, stream=stream, **kwargs
                     )
                 except Exception as ollama_error:
                     logger.error(f"Ollama fallback also failed: {ollama_error}")
@@ -820,11 +879,7 @@ class RayHybridRouter:
                 )
 
     async def _route_to_ray_pool(
-        self,
-        model: str,
-        messages: List[Dict[str, str]],
-        stream: bool,
-        **kwargs
+        self, model: str, messages: List[Dict[str, str]], stream: bool, **kwargs
     ) -> Dict[str, Any]:
         """
         Route request to Ray-managed sharded pool.
@@ -846,16 +901,12 @@ class RayHybridRouter:
             logger.info(f"🔄 Loading {model} into {len(self.pools)} Ray pools...")
 
             # Load model into all pools in parallel
-            load_tasks = [
-                pool.load_model.remote(model, gguf_path)
-                for pool in self.pools
-            ]
+            load_tasks = [pool.load_model.remote(model, gguf_path) for pool in self.pools]
             # Use ray.get directly in gather (it's async-compatible)
             # Increased timeout to 300s for large model sharding (70B+ models take time to distribute)
-            results = await asyncio.gather(*[
-                asyncio.to_thread(ray.get, task, timeout=300)
-                for task in load_tasks
-            ])
+            results = await asyncio.gather(
+                *[asyncio.to_thread(ray.get, task, timeout=300) for task in load_tasks]
+            )
 
             for result in results:
                 logger.info(
@@ -885,6 +936,7 @@ class RayHybridRouter:
         """
         # Extract size from model name
         import re
+
         size_match = re.search(r"(\d+)b", model.lower())
         if size_match:
             size_billions = int(size_match.group(1))
@@ -901,10 +953,7 @@ class RayHybridRouter:
         if self.pools:
             logger.info(f"🛑 Shutting down {len(self.pools)} Ray pools...")
             shutdown_tasks = [pool.shutdown.remote() for pool in self.pools]
-            await asyncio.gather(*[
-                asyncio.wrap_future(ray.get(task))
-                for task in shutdown_tasks
-            ])
+            await asyncio.gather(*[asyncio.wrap_future(ray.get(task)) for task in shutdown_tasks])
             self.pools = []
             logger.info("✅ All Ray pools shut down")
 
@@ -915,12 +964,14 @@ class RayHybridRouter:
             "ollama_pool": {
                 "nodes": len(self.ollama_pool.nodes) if self.ollama_pool else 0,
                 "requests": self.ollama_pool.stats["total_requests"] if self.ollama_pool else 0,
-            } if self.ollama_pool else None,
+            }
+            if self.ollama_pool
+            else None,
             "ray_pools": {
-                "num_pools": len(self.pools) if hasattr(self, 'pools') else 0,
+                "num_pools": len(self.pools) if hasattr(self, "pools") else 0,
                 "backends_per_pool": self.backends_per_pool,
                 "total_backends": len(self.rpc_backends),
-                "current_model": self.current_model if hasattr(self, 'current_model') else None,
+                "current_model": self.current_model if hasattr(self, "current_model") else None,
             },
         }
 
@@ -946,7 +997,7 @@ class RayHybridRouter:
         """
         try:
             from .dashboard_launcher import launch_dashboard_subprocess
-            from .dashboard_log_hooks import install_log_hook_main, auto_install_hooks
+            from .dashboard_log_hooks import auto_install_hooks, install_log_hook_main
 
             # Get Redis URL from environment or coordinator
             redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
@@ -996,8 +1047,10 @@ class RayHybridRouter:
 
             # Publish router metadata to Redis for dashboard
             try:
-                import redis
                 import json
+
+                import redis
+
                 r = redis.from_url(redis_url, decode_responses=True)
 
                 # Get nodes from ollama_pool
@@ -1012,15 +1065,21 @@ class RayHybridRouter:
                         if isinstance(b, dict):
                             rpc_list.append({"host": b.get("host"), "port": b.get("port")})
                         else:
-                            rpc_list.append({"host": getattr(b, "host", ""), "port": getattr(b, "port", "")})
+                            rpc_list.append(
+                                {"host": getattr(b, "host", ""), "port": getattr(b, "port", "")}
+                            )
 
                 router_metadata = {
                     "nodes": nodes_list,
                     "rpc_backends": rpc_list,
                     "metrics": self.get_stats() if hasattr(self, "get_stats") else {},
                 }
-                r.set("sollol:router:metadata", json.dumps(router_metadata), ex=3600)  # Expire after 1 hour
-                logger.info(f"📡 Published router metadata to Redis: {len(nodes_list)} nodes, {len(rpc_list)} RPC backends")
+                r.set(
+                    "sollol:router:metadata", json.dumps(router_metadata), ex=3600
+                )  # Expire after 1 hour
+                logger.info(
+                    f"📡 Published router metadata to Redis: {len(nodes_list)} nodes, {len(rpc_list)} RPC backends"
+                )
             except Exception as e:
                 logger.warning(f"Failed to publish router metadata to Redis: {e}")
 

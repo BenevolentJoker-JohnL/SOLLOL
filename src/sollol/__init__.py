@@ -42,11 +42,15 @@ import logging
 logging.getLogger("sollol").addHandler(logging.NullHandler())
 logging.getLogger("sollol").setLevel(logging.WARNING)  # Only show warnings/errors by default
 
+# Adaptive parallelism
+from sollol.adaptive_parallelism import AdaptiveParallelismStrategy
 from sollol.client import SOLLOLClient
 from sollol.config import SOLLOLConfig
+from sollol.dashboard_client import DashboardClient
 
 # Discovery
 from sollol.discovery import discover_ollama_nodes
+from sollol.distributed_tracing import DistributedTracer, get_tracer
 
 # Docker IP Resolution
 from sollol.docker_ip_resolver import (
@@ -59,49 +63,44 @@ from sollol.docker_ip_resolver import (
     resolve_docker_ip_with_alternatives,
 )
 
+# Distributed execution
+from sollol.execution import AsyncDistributedExecutor, DistributedExecutor
+from sollol.gpu_auto_setup import GPUAutoSetup, auto_setup_gpu_monitoring
+
+# GPU monitoring
+from sollol.gpu_redis_subscriber import GPURedisSubscriber
+
 # Distributed inference
 from sollol.hybrid_router import HybridRouter
-from sollol.ray_hybrid_router import RayHybridRouter
-from sollol.ray_advanced_router import RayAdvancedRouter
 from sollol.llama_cpp_coordinator import LlamaCppCoordinator
 from sollol.llama_cpp_rpc import LlamaCppDistributedCluster, LlamaCppRPCClient
 
-# Monitoring & Dashboards
-from sollol.unified_dashboard import UnifiedDashboard, run_unified_dashboard
-from sollol.distributed_tracing import DistributedTracer, get_tracer
-from sollol.dashboard_client import DashboardClient
-from sollol.network_observer import NetworkObserver, get_observer
-
 # Time-Series Metrics (InfluxDB)
+from sollol.metrics_logger import is_enabled as metrics_enabled
 from sollol.metrics_logger import (
-    is_enabled as metrics_enabled,
     log_metric,
     log_node_health,
-    log_rpc_backend_health,
     log_request,
     log_routing_decision,
+    log_rpc_backend_health,
     query_metrics,
 )
-
-# Distributed execution
-from sollol.execution import AsyncDistributedExecutor, DistributedExecutor
-from sollol.tasks import DistributedTask, ExecutionResult, TaskResult
+from sollol.network_observer import NetworkObserver, get_observer
 
 # Core load balancing
 from sollol.pool import OllamaPool
+from sollol.ray_advanced_router import RayAdvancedRouter
+from sollol.ray_hybrid_router import RayHybridRouter
 from sollol.rpc_auto_setup import RPCAutoSetup, auto_setup_rpc_backends
 from sollol.rpc_discovery import auto_discover_rpc_backends, check_rpc_server
 from sollol.rpc_registry import RPCBackendRegistry
 
-# Adaptive parallelism
-from sollol.adaptive_parallelism import AdaptiveParallelismStrategy
-
-# GPU monitoring
-from sollol.gpu_redis_subscriber import GPURedisSubscriber
-from sollol.gpu_auto_setup import GPUAutoSetup, auto_setup_gpu_monitoring
-
 # Legacy support
 from sollol.sollol import SOLLOL
+from sollol.tasks import DistributedTask, ExecutionResult, TaskResult
+
+# Monitoring & Dashboards
+from sollol.unified_dashboard import UnifiedDashboard, run_unified_dashboard
 
 __version__ = "0.9.58"
 __all__ = [

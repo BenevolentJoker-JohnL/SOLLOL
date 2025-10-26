@@ -211,21 +211,21 @@ class RPCAutoSetup:
         from sollol.rpc_discovery import detect_node_resources
 
         logger.info("🔍 Auto-detecting hybrid GPU+CPU resources for RPC server...")
-        resources = detect_node_resources('localhost')
+        resources = detect_node_resources("localhost")
 
         # Log detected configuration
-        if resources['has_gpu']:
+        if resources["has_gpu"]:
             logger.info(f"✅ Detected {resources['total_parallel_workers']} parallel workers:")
             logger.info(f"   • CPU device: {resources['cpu_ram_mb']} MB RAM")
-            for device, vram in zip(resources['gpu_devices'], resources['gpu_vram_mb']):
+            for device, vram in zip(resources["gpu_devices"], resources["gpu_vram_mb"]):
                 logger.info(f"   • {device}: {vram} MB VRAM")
         else:
             logger.info(f"✅ Detected CPU-only configuration: {resources['cpu_ram_mb']} MB RAM")
 
         # Build command with hybrid device config
         cmd = [str(rpc_server), "--host", host, "--port", str(port)]
-        cmd.extend(["--device", resources['device_config']])
-        cmd.extend(["--mem", resources['memory_config']])
+        cmd.extend(["--device", resources["device_config"]])
+        cmd.extend(["--mem", resources["memory_config"]])
 
         try:
             if background:
@@ -245,13 +245,15 @@ class RPCAutoSetup:
 
                 # Verify it's running
                 if check_rpc_server(host, port):
-                    if resources['has_gpu']:
+                    if resources["has_gpu"]:
                         logger.info(
                             f"✅ RPC server started on {host}:{port} (PID: {process.pid}) "
                             f"with {resources['total_parallel_workers']} parallel workers (HYBRID mode)"
                         )
                     else:
-                        logger.info(f"✅ RPC server started on {host}:{port} (PID: {process.pid}) (CPU-only mode)")
+                        logger.info(
+                            f"✅ RPC server started on {host}:{port} (PID: {process.pid}) (CPU-only mode)"
+                        )
                     return True
                 else:
                     logger.error(f"Failed to verify RPC server on {host}:{port}")

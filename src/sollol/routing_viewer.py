@@ -151,7 +151,7 @@ class RoutingViewer:
 
         # Extract time from ISO timestamp
         try:
-            dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+            dt = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
             time_str = dt.strftime("%H:%M:%S.%f")[:-3]  # HH:MM:SS.mmm
         except:
             time_str = timestamp
@@ -177,16 +177,12 @@ class RoutingViewer:
 
         # Add reason if available
         if "reason" in event:
-            lines.append(
-                f"  {Colors.GRAY}├─ reason: {Colors.WHITE}{event['reason']}{Colors.RESET}"
-            )
+            lines.append(f"  {Colors.GRAY}├─ reason: {Colors.WHITE}{event['reason']}{Colors.RESET}")
 
         # Add duration if available
         if "duration" in event:
-            duration = event['duration']
-            lines.append(
-                f"  {Colors.GRAY}├─ duration: {Colors.GREEN}{duration:.2f}s{Colors.RESET}"
-            )
+            duration = event["duration"]
+            lines.append(f"  {Colors.GRAY}├─ duration: {Colors.GREEN}{duration:.2f}s{Colors.RESET}")
 
         # Add coordinator info if available
         if "coordinator_host" in event:
@@ -196,28 +192,20 @@ class RoutingViewer:
 
         # Add RPC backend info if available
         if "rpc_backends" in event:
-            lines.append(
-                f"  {Colors.GRAY}├─ rpc_backends: {event['rpc_backends']}{Colors.RESET}"
-            )
+            lines.append(f"  {Colors.GRAY}├─ rpc_backends: {event['rpc_backends']}{Colors.RESET}")
 
         # Add node URL if available
         if "node_url" in event:
-            lines.append(
-                f"  {Colors.GRAY}├─ node: {event['node_url']}{Colors.RESET}"
-            )
+            lines.append(f"  {Colors.GRAY}├─ node: {event['node_url']}{Colors.RESET}")
 
         # Add confidence if available
         if "confidence" in event:
-            confidence = event['confidence']
-            lines.append(
-                f"  {Colors.GRAY}├─ confidence: {confidence:.2f}{Colors.RESET}"
-            )
+            confidence = event["confidence"]
+            lines.append(f"  {Colors.GRAY}├─ confidence: {confidence:.2f}{Colors.RESET}")
 
         # Add parameter count if available
         if "parameter_count" in event:
-            lines.append(
-                f"  {Colors.GRAY}└─ parameters: {event['parameter_count']}B{Colors.RESET}"
-            )
+            lines.append(f"  {Colors.GRAY}└─ parameters: {event['parameter_count']}B{Colors.RESET}")
         else:
             # Close the box
             lines[-1] = lines[-1].replace("├─", "└─")
@@ -242,10 +230,7 @@ class RoutingViewer:
 
         try:
             # Read from stream (oldest to newest)
-            messages = self.redis_client.xrevrange(
-                self.stream_key,
-                count=count
-            )
+            messages = self.redis_client.xrevrange(self.stream_key, count=count)
 
             if not messages:
                 print(f"{Colors.YELLOW}No historical events found{Colors.RESET}\n")
@@ -287,7 +272,9 @@ class RoutingViewer:
 
         except KeyboardInterrupt:
             print(f"\n\n{Colors.YELLOW}⏸️  Stopped by user{Colors.RESET}")
-            print(f"{Colors.GRAY}Total events: {self.event_count}, Filtered: {self.filtered_count}{Colors.RESET}\n")
+            print(
+                f"{Colors.GRAY}Total events: {self.event_count}, Filtered: {self.filtered_count}{Colors.RESET}\n"
+            )
         except Exception as e:
             print(f"\n{Colors.RED}❌ Error: {e}{Colors.RESET}\n")
 

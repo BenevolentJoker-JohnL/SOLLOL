@@ -35,15 +35,18 @@ class GPURedisSubscriber:
         """Connect to Redis server."""
         try:
             import redis
+
             self.redis_client = redis.Redis(
                 host=self.redis_host,
                 port=self.redis_port,
                 decode_responses=True,
                 socket_connect_timeout=5,
-                socket_timeout=5
+                socket_timeout=5,
             )
             self.redis_client.ping()
-            logger.info(f"✅ GPU subscriber connected to Redis at {self.redis_host}:{self.redis_port}")
+            logger.info(
+                f"✅ GPU subscriber connected to Redis at {self.redis_host}:{self.redis_port}"
+            )
             return True
         except Exception as e:
             logger.warning(f"Failed to connect GPU subscriber to Redis: {e}")
@@ -157,10 +160,7 @@ class GPURedisSubscriber:
 
         self._stop_event.clear()
         self._thread = threading.Thread(
-            target=self.run_loop,
-            args=(interval,),
-            daemon=True,
-            name="GPUStatsSubscriber"
+            target=self.run_loop, args=(interval,), daemon=True, name="GPUStatsSubscriber"
         )
         self._thread.start()
         logger.info("GPU stats subscriber started in background")

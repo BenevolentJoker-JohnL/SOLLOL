@@ -11,7 +11,8 @@ Ported from FlockParser and integrated with SOLLOL's architecture.
 
 import logging
 from typing import Dict, List, Optional, Tuple
-from sollol.model_sizes import get_model_size, estimate_model_size, can_fit_in_vram
+
+from sollol.model_sizes import can_fit_in_vram, estimate_model_size, get_model_size
 
 logger = logging.getLogger(__name__)
 
@@ -64,38 +65,33 @@ class IntelligentGPURouter:
             Dict with VRAM info
         """
         # Try to get from VRAM monitor if available
-        if self.vram_monitor and hasattr(node, 'url'):
+        if self.vram_monitor and hasattr(node, "url"):
             try:
                 vram_info = self.vram_monitor.get_vram_stats(node.url)
                 if vram_info:
                     return {
-                        'total_vram_mb': vram_info.get('total_mb', 0),
-                        'used_vram_mb': vram_info.get('used_mb', 0),
-                        'free_vram_mb': vram_info.get('free_mb', 0),
-                        'has_gpu': vram_info.get('has_gpu', False)
+                        "total_vram_mb": vram_info.get("total_mb", 0),
+                        "used_vram_mb": vram_info.get("used_mb", 0),
+                        "free_vram_mb": vram_info.get("free_mb", 0),
+                        "has_gpu": vram_info.get("has_gpu", False),
                     }
             except Exception as e:
                 logger.debug(f"Could not get VRAM info from monitor: {e}")
 
         # Fallback to node capabilities
-        if hasattr(node, 'capabilities'):
-            has_gpu = getattr(node.capabilities, 'has_gpu', False)
-            vram_total = getattr(node.capabilities, 'vram_total_mb', 0)
+        if hasattr(node, "capabilities"):
+            has_gpu = getattr(node.capabilities, "has_gpu", False)
+            vram_total = getattr(node.capabilities, "vram_total_mb", 0)
 
             return {
-                'total_vram_mb': vram_total,
-                'used_vram_mb': 0,  # Unknown
-                'free_vram_mb': vram_total,  # Assume all free
-                'has_gpu': has_gpu
+                "total_vram_mb": vram_total,
+                "used_vram_mb": 0,  # Unknown
+                "free_vram_mb": vram_total,  # Assume all free
+                "has_gpu": has_gpu,
             }
 
         # No info available
-        return {
-            'total_vram_mb': 0,
-            'used_vram_mb': 0,
-            'free_vram_mb': 0,
-            'has_gpu': False
-        }
+        return {"total_vram_mb": 0, "used_vram_mb": 0, "free_vram_mb": 0, "has_gpu": False}
 
     def can_fit_on_node(self, node, model_name: str) -> Tuple[bool, str]:
         """
@@ -113,16 +109,16 @@ class IntelligentGPURouter:
         vram_info = self._get_node_vram_info(node)
 
         # Check if node has GPU
-        if not vram_info['has_gpu']:
+        if not vram_info["has_gpu"]:
             return False, "Node has no GPU"
 
         # Get model size (node-specific to handle different quantizations)
-        node_url = f"http://{node.host}:{node.port}" if hasattr(node, 'host') else None
+        node_url = f"http://{node.host}:{node.port}" if hasattr(node, "host") else None
         model_size_mb = estimate_model_size(model_name, ollama_url=node_url)
 
         # Get usable VRAM (with safety margin)
-        total_vram_mb = vram_info['total_vram_mb']
-        free_vram_mb = vram_info['free_vram_mb']
+        total_vram_mb = vram_info["total_vram_mb"]
+        free_vram_mb = vram_info["free_vram_mb"]
         usable_vram_mb = int(total_vram_mb * self.safety_margin)
 
         # Check if model fits in total usable VRAM
@@ -155,11 +151,9 @@ class IntelligentGPURouter:
         for node in nodes:
             can_fit, reason = self.can_fit_on_node(node, model_name)
             if can_fit:
-                suitable_nodes.append({
-                    'node': node,
-                    'reason': reason,
-                    'vram_info': self._get_node_vram_info(node)
-                })
+                suitable_nodes.append(
+                    {"node": node, "reason": reason, "vram_info": self._get_node_vram_info(node)}
+                )
 
         return len(suitable_nodes) > 0, suitable_nodes
 
@@ -182,11 +176,11 @@ class IntelligentGPURouter:
         """
         if not self.registry:
             return {
-                'model': model_name,
-                'node': None,
-                'target': 'CPU',
-                'reason': 'No registry available',
-                'can_use_gpu': False
+                "model": model_name,
+                "node": None,
+                "target": "CPU",
+                "reason": "No registry available",
+                "can_use_gpu": False,
             }
 
         model_size_mb = estimate_model_size(model_name)
@@ -197,7 +191,7 @@ class IntelligentGPURouter:
 
         if has_suitable:
             # Pick node with most free VRAM
-            best = max(suitable_nodes, key=lambda x: x['vram_info']['free_vram_mb'])
+            best = max(suitable_nodes, key=lambda x: x["vram_info"]["free_vram_mb"])
 
             logger.info(
                 f"   ✅ GPU routing: {best['node'].url} "
@@ -205,12 +199,12 @@ class IntelligentGPURouter:
             )
 
             return {
-                'model': model_name,
-                'node': best['node'],
-                'target': 'GPU',
-                'reason': best['reason'],
-                'can_use_gpu': True,
-                'all_suitable': suitable_nodes
+                "model": model_name,
+                "node": best["node"],
+                "target": "GPU",
+                "reason": best["reason"],
+                "can_use_gpu": True,
+                "all_suitable": suitable_nodes,
             }
         else:
             # No suitable GPU nodes - route to CPU or fail
@@ -226,21 +220,21 @@ class IntelligentGPURouter:
                 logger.info(f"   ℹ️ CPU fallback: {best_cpu.url}")
 
                 return {
-                    'model': model_name,
-                    'node': best_cpu,
-                    'target': 'CPU',
-                    'reason': f'Model too large for available GPU VRAM ({model_size_mb}MB)',
-                    'can_use_gpu': False
+                    "model": model_name,
+                    "node": best_cpu,
+                    "target": "CPU",
+                    "reason": f"Model too large for available GPU VRAM ({model_size_mb}MB)",
+                    "can_use_gpu": False,
                 }
             else:
                 logger.error(f"   ❌ No healthy nodes available")
 
                 return {
-                    'model': model_name,
-                    'node': None,
-                    'target': 'CPU',
-                    'reason': 'No healthy nodes available',
-                    'can_use_gpu': False
+                    "model": model_name,
+                    "node": None,
+                    "target": "CPU",
+                    "reason": "No healthy nodes available",
+                    "can_use_gpu": False,
                 }
 
     def get_cluster_capacity(self) -> Dict:
@@ -251,41 +245,43 @@ class IntelligentGPURouter:
             Dict with cluster capacity statistics
         """
         if not self.registry:
-            return {'error': 'No registry available'}
+            return {"error": "No registry available"}
 
         nodes = list(self.registry.nodes.values())
         gpu_nodes = []
 
         for node in nodes:
             vram_info = self._get_node_vram_info(node)
-            if vram_info['has_gpu']:
-                gpu_nodes.append({
-                    'url': node.url,
-                    'total_mb': vram_info['total_vram_mb'],
-                    'free_mb': vram_info['free_vram_mb'],
-                    'usable_mb': int(vram_info['total_vram_mb'] * self.safety_margin)
-                })
+            if vram_info["has_gpu"]:
+                gpu_nodes.append(
+                    {
+                        "url": node.url,
+                        "total_mb": vram_info["total_vram_mb"],
+                        "free_mb": vram_info["free_vram_mb"],
+                        "usable_mb": int(vram_info["total_vram_mb"] * self.safety_margin),
+                    }
+                )
 
         if not gpu_nodes:
             return {
-                'total_nodes': len(nodes),
-                'gpu_nodes': 0,
-                'total_vram_mb': 0,
-                'free_vram_mb': 0,
-                'usable_vram_mb': 0
+                "total_nodes": len(nodes),
+                "gpu_nodes": 0,
+                "total_vram_mb": 0,
+                "free_vram_mb": 0,
+                "usable_vram_mb": 0,
             }
 
-        total_vram = sum(n['total_mb'] for n in gpu_nodes)
-        free_vram = sum(n['free_mb'] for n in gpu_nodes)
-        usable_vram = sum(n['usable_mb'] for n in gpu_nodes)
+        total_vram = sum(n["total_mb"] for n in gpu_nodes)
+        free_vram = sum(n["free_mb"] for n in gpu_nodes)
+        usable_vram = sum(n["usable_mb"] for n in gpu_nodes)
 
         return {
-            'total_nodes': len(nodes),
-            'gpu_nodes': len(gpu_nodes),
-            'total_vram_mb': total_vram,
-            'free_vram_mb': free_vram,
-            'usable_vram_mb': usable_vram,
-            'nodes': gpu_nodes
+            "total_nodes": len(nodes),
+            "gpu_nodes": len(gpu_nodes),
+            "total_vram_mb": total_vram,
+            "free_vram_mb": free_vram,
+            "usable_vram_mb": usable_vram,
+            "nodes": gpu_nodes,
         }
 
     def print_cluster_report(self):
@@ -296,7 +292,7 @@ class IntelligentGPURouter:
         print("🧠 SOLLOL INTELLIGENT GPU ROUTER - CLUSTER REPORT")
         print("=" * 80)
 
-        if capacity.get('error'):
+        if capacity.get("error"):
             print(f"\n❌ {capacity['error']}")
             print("=" * 80 + "\n")
             return
@@ -304,14 +300,18 @@ class IntelligentGPURouter:
         print(f"\nTotal Nodes: {capacity['total_nodes']}")
         print(f"GPU Nodes: {capacity['gpu_nodes']}")
 
-        if capacity['gpu_nodes'] > 0:
+        if capacity["gpu_nodes"] > 0:
             print(f"\nCluster VRAM:")
-            print(f"  Total: {capacity['total_vram_mb']}MB ({capacity['total_vram_mb']/1024:.1f}GB)")
-            print(f"  Usable: {capacity['usable_vram_mb']}MB ({capacity['usable_vram_mb']/1024:.1f}GB)")
+            print(
+                f"  Total: {capacity['total_vram_mb']}MB ({capacity['total_vram_mb']/1024:.1f}GB)"
+            )
+            print(
+                f"  Usable: {capacity['usable_vram_mb']}MB ({capacity['usable_vram_mb']/1024:.1f}GB)"
+            )
             print(f"  Free: {capacity['free_vram_mb']}MB ({capacity['free_vram_mb']/1024:.1f}GB)")
 
             print("\nPer-Node Breakdown:")
-            for node_info in capacity.get('nodes', []):
+            for node_info in capacity.get("nodes", []):
                 print(f"\n  🚀 {node_info['url']}")
                 print(f"     Total: {node_info['total_mb']}MB")
                 print(f"     Usable: {node_info['usable_mb']}MB (80% safety)")
@@ -322,4 +322,4 @@ class IntelligentGPURouter:
         print("\n" + "=" * 80 + "\n")
 
 
-__all__ = ['IntelligentGPURouter']
+__all__ = ["IntelligentGPURouter"]

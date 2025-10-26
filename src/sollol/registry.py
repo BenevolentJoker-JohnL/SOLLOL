@@ -87,7 +87,7 @@ class NodeRegistry:
             new_ip = socket.gethostbyname(host)
 
             # Get local IPs for duplicate detection
-            local_ips = {'127.0.0.1', 'localhost'}
+            local_ips = {"127.0.0.1", "localhost"}
             try:
                 local_hostname = socket.gethostname()
                 local_ips.add(socket.gethostbyname(local_hostname))
@@ -108,12 +108,16 @@ class NodeRegistry:
 
                     # Direct IP match
                     if new_ip == existing_ip:
-                        logger.warning(f"⚠️  Node {url} is a duplicate of {existing_url} (same IP: {new_ip}). Using existing node.")
+                        logger.warning(
+                            f"⚠️  Node {url} is a duplicate of {existing_url} (same IP: {new_ip}). Using existing node."
+                        )
                         return existing_node
 
                     # Both are localhost
                     if new_ip in local_ips and existing_ip in local_ips:
-                        logger.warning(f"⚠️  Node {url} is a duplicate of {existing_url} (both localhost). Using existing node.")
+                        logger.warning(
+                            f"⚠️  Node {url} is a duplicate of {existing_url} (both localhost). Using existing node."
+                        )
                         return existing_node
                 except:
                     pass

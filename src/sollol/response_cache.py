@@ -44,7 +44,9 @@ class ResponseCache:
         self.misses = 0
         self.evictions = 0
 
-        logger.info(f"Response cache initialized (max_size={max_size}, ttl={ttl}s, enabled={enabled})")
+        logger.info(
+            f"Response cache initialized (max_size={max_size}, ttl={ttl}s, enabled={enabled})"
+        )
 
     def get_cache_key(self, endpoint: str, data: Dict[str, Any]) -> str:
         """
@@ -244,7 +246,7 @@ class ResponseCache:
             "cache": {k: v for k, v in self.cache.items()},
             "access_times": dict(self.access_times),
             "stats": self.get_stats(),
-            "export_time": time.time()
+            "export_time": time.time(),
         }
 
     def import_cache(self, data: Dict[str, Any]) -> int:

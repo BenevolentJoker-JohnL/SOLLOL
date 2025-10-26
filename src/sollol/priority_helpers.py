@@ -23,67 +23,61 @@ from typing import Dict, Optional
 class Priority:
     """Semantic priority levels for SOLLOL requests."""
 
-    BATCH = 1           # Background batch processing, can wait indefinitely
-    LOWEST = 2          # Very low priority, bulk operations
-    LOW = 3             # Below normal, non-urgent tasks
-    BELOW_NORMAL = 4    # Slightly below normal priority
-    NORMAL = 5          # Default priority (baseline)
-    ABOVE_NORMAL = 6    # Slightly above normal
-    HIGH = 7            # Important, user-facing tasks
-    HIGHER = 8          # Very important, interactive tasks
-    URGENT = 9          # Critical tasks, fast response needed
-    CRITICAL = 10       # Highest priority, mission-critical
+    BATCH = 1  # Background batch processing, can wait indefinitely
+    LOWEST = 2  # Very low priority, bulk operations
+    LOW = 3  # Below normal, non-urgent tasks
+    BELOW_NORMAL = 4  # Slightly below normal priority
+    NORMAL = 5  # Default priority (baseline)
+    ABOVE_NORMAL = 6  # Slightly above normal
+    HIGH = 7  # Important, user-facing tasks
+    HIGHER = 8  # Very important, interactive tasks
+    URGENT = 9  # Critical tasks, fast response needed
+    CRITICAL = 10  # Highest priority, mission-critical
 
 
 # Agent Role → Priority Mapping
 # Based on SynapticLlamas multi-agent orchestration patterns
 AGENT_ROLE_PRIORITIES: Dict[str, int] = {
     # User-facing roles (high priority)
-    "researcher": 8,        # Interactive research tasks
-    "analyst": 8,           # User-requested analysis
-    "assistant": 8,         # Direct user interaction
-    "qa": 8,                # Quality assurance checks
-
+    "researcher": 8,  # Interactive research tasks
+    "analyst": 8,  # User-requested analysis
+    "assistant": 8,  # Direct user interaction
+    "qa": 8,  # Quality assurance checks
     # Content processing roles (medium-high)
-    "critic": 7,            # Critical analysis of outputs
-    "reviewer": 7,          # Review and validation
-    "editor": 6,            # Content editing and refinement
-
+    "critic": 7,  # Critical analysis of outputs
+    "reviewer": 7,  # Review and validation
+    "editor": 6,  # Content editing and refinement
     # Background processing roles (medium)
-    "summarizer": 5,        # Summarization tasks
-    "classifier": 5,        # Classification tasks
-    "extractor": 5,         # Information extraction
-
+    "summarizer": 5,  # Summarization tasks
+    "classifier": 5,  # Classification tasks
+    "extractor": 5,  # Information extraction
     # Batch processing roles (low)
-    "indexer": 3,           # Batch indexing
-    "crawler": 3,           # Web crawling
-    "background": 2,        # General background tasks
-    "batch": 1,             # Batch processing
+    "indexer": 3,  # Batch indexing
+    "crawler": 3,  # Web crawling
+    "background": 2,  # General background tasks
+    "batch": 1,  # Batch processing
 }
 
 
 # Task Type → Priority Mapping
 TASK_TYPE_PRIORITIES: Dict[str, int] = {
     # Interactive tasks (high priority)
-    "interactive": 9,       # Real-time user interaction
-    "chat": 8,              # Chat/conversation
-    "query": 8,             # User queries
-
+    "interactive": 9,  # Real-time user interaction
+    "chat": 8,  # Chat/conversation
+    "query": 8,  # User queries
     # Analysis tasks (medium-high)
-    "analysis": 7,          # Analysis and reasoning
-    "reasoning": 7,         # Complex reasoning tasks
-    "generation": 6,        # Content generation
-
+    "analysis": 7,  # Analysis and reasoning
+    "reasoning": 7,  # Complex reasoning tasks
+    "generation": 6,  # Content generation
     # Processing tasks (medium)
-    "summarization": 5,     # Summarization
-    "classification": 5,    # Classification
-    "extraction": 5,        # Information extraction
-    "embedding": 4,         # Generate embeddings
-
+    "summarization": 5,  # Summarization
+    "classification": 5,  # Classification
+    "extraction": 5,  # Information extraction
+    "embedding": 4,  # Generate embeddings
     # Background tasks (low)
-    "indexing": 3,          # Indexing operations
-    "preprocessing": 3,     # Data preprocessing
-    "batch": 1,             # Batch processing
+    "indexing": 3,  # Indexing operations
+    "preprocessing": 3,  # Data preprocessing
+    "batch": 1,  # Batch processing
 }
 
 

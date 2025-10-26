@@ -25,12 +25,13 @@ import logging
 import threading
 import time
 import uuid
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass, asdict
+from typing import Any, Dict, List, Optional
 
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -42,6 +43,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class InstanceInfo:
     """Information about a SOLLOL instance."""
+
     instance_id: str
     started_at: float
     last_heartbeat: float
@@ -52,6 +54,7 @@ class InstanceInfo:
 @dataclass
 class NodeState:
     """Aggregated state of an Ollama node across all instances."""
+
     host: str
     active_requests: int  # Total across all instances
     cpu_load: float
@@ -91,7 +94,7 @@ class RedisCoordinator:
         self,
         redis_url: str = "redis://localhost:6379/0",
         heartbeat_interval: float = 600.0,  # 10 minutes
-        state_ttl: int = 30
+        state_ttl: int = 30,
     ):
         """
         Initialize Redis coordinator.
@@ -107,8 +110,7 @@ class RedisCoordinator:
         """
         if not REDIS_AVAILABLE:
             raise ImportError(
-                "Redis library not installed. "
-                "Install with: pip install redis>=5.0.0"
+                "Redis library not installed. " "Install with: pip install redis>=5.0.0"
             )
 
         self.redis_url = redis_url
@@ -136,7 +138,7 @@ class RedisCoordinator:
         self._heartbeat_thread = threading.Thread(
             target=self._heartbeat_loop,
             daemon=True,
-            name=f"sollol-heartbeat-{self.instance_id[:8]}"
+            name=f"sollol-heartbeat-{self.instance_id[:8]}",
         )
         self._heartbeat_thread.start()
 
@@ -145,6 +147,7 @@ class RedisCoordinator:
     def _get_hostname(self) -> str:
         """Get hostname for this instance."""
         import socket
+
         try:
             return socket.gethostname()
         except Exception:
@@ -157,23 +160,18 @@ class RedisCoordinator:
             started_at=time.time(),
             last_heartbeat=time.time(),
             hostname=self.hostname,
-            version=self.version
+            version=self.version,
         )
 
         # Add to instances set
         self.redis_client.sadd("sollol:instances", self.instance_id)
 
         # Store instance info
-        self.redis_client.set(
-            f"sollol:instance:{self.instance_id}:info",
-            json.dumps(asdict(info))
-        )
+        self.redis_client.set(f"sollol:instance:{self.instance_id}:info", json.dumps(asdict(info)))
 
         # Set heartbeat
         self.redis_client.setex(
-            f"sollol:instance:{self.instance_id}:alive",
-            10,  # TTL: 10 seconds
-            "1"
+            f"sollol:instance:{self.instance_id}:alive", 10, "1"  # TTL: 10 seconds
         )
 
         logger.debug(f"Instance {self.instance_id[:8]} registered")
@@ -184,9 +182,7 @@ class RedisCoordinator:
             try:
                 # Update heartbeat
                 self.redis_client.setex(
-                    f"sollol:instance:{self.instance_id}:alive",
-                    10,  # TTL: 10 seconds
-                    "1"
+                    f"sollol:instance:{self.instance_id}:alive", 10, "1"  # TTL: 10 seconds
                 )
 
                 # Update last_heartbeat in info
@@ -194,7 +190,7 @@ class RedisCoordinator:
                 info_json = self.redis_client.get(info_key)
                 if info_json:
                     info = json.loads(info_json)
-                    info['last_heartbeat'] = time.time()
+                    info["last_heartbeat"] = time.time()
                     self.redis_client.set(info_key, json.dumps(info))
 
                 # Clean up dead instances
@@ -246,7 +242,7 @@ class RedisCoordinator:
 
         # Merge with new state
         current_state.update(state)
-        current_state['updated_at'] = time.time()
+        current_state["updated_at"] = time.time()
 
         self.redis_client.hset(key, host, json.dumps(current_state))
         self.redis_client.expire(key, self.state_ttl)
@@ -269,10 +265,7 @@ class RedisCoordinator:
         # Collect state from all instances
         states = []
         for instance_id in all_instances:
-            state_json = self.redis_client.hget(
-                f"sollol:instance:{instance_id}:node_state",
-                host
-            )
+            state_json = self.redis_client.hget(f"sollol:instance:{instance_id}:node_state", host)
             if state_json:
                 states.append(json.loads(state_json))
 
@@ -280,12 +273,12 @@ class RedisCoordinator:
             return None
 
         # Aggregate metrics
-        total_active_requests = sum(s.get('active_requests', 0) for s in states)
-        avg_cpu_load = sum(s.get('cpu_load', 0) for s in states) / len(states)
-        min_gpu_mem = min((s.get('gpu_free_mem', 0) for s in states), default=0)
-        avg_success_rate = sum(s.get('success_rate', 1.0) for s in states) / len(states)
-        avg_latency = sum(s.get('avg_latency_ms', 0) for s in states) / len(states)
-        latest_update = max((s.get('updated_at', 0) for s in states), default=0)
+        total_active_requests = sum(s.get("active_requests", 0) for s in states)
+        avg_cpu_load = sum(s.get("cpu_load", 0) for s in states) / len(states)
+        min_gpu_mem = min((s.get("gpu_free_mem", 0) for s in states), default=0)
+        avg_success_rate = sum(s.get("success_rate", 1.0) for s in states) / len(states)
+        avg_latency = sum(s.get("avg_latency_ms", 0) for s in states) / len(states)
+        latest_update = max((s.get("updated_at", 0) for s in states), default=0)
 
         return NodeState(
             host=host,
@@ -294,7 +287,7 @@ class RedisCoordinator:
             gpu_free_mem=min_gpu_mem,
             success_rate=avg_success_rate,
             avg_latency_ms=avg_latency,
-            last_updated=latest_update
+            last_updated=latest_update,
         )
 
     def increment_active_requests(self, host: str) -> int:
@@ -345,9 +338,7 @@ class RedisCoordinator:
             timeout: Lock timeout in seconds
         """
         return self.redis_client.lock(
-            "sollol:routing_lock",
-            timeout=timeout,
-            blocking_timeout=timeout
+            "sollol:routing_lock", timeout=timeout, blocking_timeout=timeout
         )
 
     def close(self):
@@ -386,16 +377,19 @@ class LocalCoordinator:
 
     def get_active_instances(self) -> List[InstanceInfo]:
         """Only this instance."""
-        return [InstanceInfo(
-            instance_id=self.instance_id,
-            started_at=time.time(),
-            last_heartbeat=time.time(),
-            hostname=self._get_hostname(),
-            version="0.3.7"
-        )]
+        return [
+            InstanceInfo(
+                instance_id=self.instance_id,
+                started_at=time.time(),
+                last_heartbeat=time.time(),
+                hostname=self._get_hostname(),
+                version="0.3.7",
+            )
+        ]
 
     def _get_hostname(self) -> str:
         import socket
+
         try:
             return socket.gethostname()
         except Exception:
@@ -413,34 +407,34 @@ class LocalCoordinator:
 
         return NodeState(
             host=host,
-            active_requests=state.get('active_requests', 0),
-            cpu_load=state.get('cpu_load', 0.5),
-            gpu_free_mem=state.get('gpu_free_mem', 0),
-            success_rate=state.get('success_rate', 1.0),
-            avg_latency_ms=state.get('avg_latency_ms', 200.0),
-            last_updated=time.time()
+            active_requests=state.get("active_requests", 0),
+            cpu_load=state.get("cpu_load", 0.5),
+            gpu_free_mem=state.get("gpu_free_mem", 0),
+            success_rate=state.get("success_rate", 1.0),
+            avg_latency_ms=state.get("avg_latency_ms", 200.0),
+            last_updated=time.time(),
         )
 
     def increment_active_requests(self, host: str) -> int:
         """Increment locally."""
         if host not in self.local_state:
-            self.local_state[host] = {'active_requests': 0}
-        self.local_state[host]['active_requests'] += 1
-        return self.local_state[host]['active_requests']
+            self.local_state[host] = {"active_requests": 0}
+        self.local_state[host]["active_requests"] += 1
+        return self.local_state[host]["active_requests"]
 
     def decrement_active_requests(self, host: str) -> int:
         """Decrement locally."""
         if host not in self.local_state:
             return 0
-        self.local_state[host]['active_requests'] = max(
-            0,
-            self.local_state[host]['active_requests'] - 1
+        self.local_state[host]["active_requests"] = max(
+            0, self.local_state[host]["active_requests"] - 1
         )
-        return self.local_state[host]['active_requests']
+        return self.local_state[host]["active_requests"]
 
     def routing_lock(self, timeout: float = 1.0):
         """No-op lock for local mode."""
         from contextlib import nullcontext
+
         return nullcontext()
 
     def close(self):
@@ -454,10 +448,7 @@ class LocalCoordinator:
         self.close()
 
 
-def create_coordinator(
-    redis_url: Optional[str] = None,
-    enable_distributed: bool = True
-) -> Any:
+def create_coordinator(redis_url: Optional[str] = None, enable_distributed: bool = True) -> Any:
     """
     Factory function to create appropriate coordinator.
 

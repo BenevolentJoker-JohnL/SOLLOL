@@ -54,30 +54,22 @@ class QueueLogHandler(Handler):
         log_entry = self.format(record)
         self.log_queue.put(log_entry)
 
+
 # Prometheus metrics
 request_counter = Counter(
-    'sollol_requests_total',
-    'Total requests processed',
-    ['model', 'status', 'backend']
+    "sollol_requests_total", "Total requests processed", ["model", "status", "backend"]
 )
 
 request_duration = Histogram(
-    'sollol_request_duration_seconds',
-    'Request duration in seconds',
-    ['model', 'backend'],
-    buckets=[0.1, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0]
+    "sollol_request_duration_seconds",
+    "Request duration in seconds",
+    ["model", "backend"],
+    buckets=[0.1, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
 )
 
-active_pools = Gauge(
-    'sollol_active_pools',
-    'Number of active Ray pools'
-)
+active_pools = Gauge("sollol_active_pools", "Number of active Ray pools")
 
-gpu_utilization = Gauge(
-    'sollol_gpu_utilization',
-    'GPU utilization per node',
-    ['node', 'gpu_id']
-)
+gpu_utilization = Gauge("sollol_gpu_utilization", "GPU utilization per node", ["node", "gpu_id"])
 
 
 class UnifiedDashboard:
@@ -118,13 +110,14 @@ class UnifiedDashboard:
         # Initialize Dask if requested
         if enable_dask:
             try:
-                from dask.distributed import LocalCluster, Client
-                import dask
                 import os
 
+                import dask
+                from dask.distributed import Client, LocalCluster
+
                 # Set environment variables before cluster creation
-                os.environ['DASK_DISTRIBUTED__LOGGING__DISTRIBUTED'] = 'error'
-                os.environ['DASK_LOGGING__DISTRIBUTED'] = 'error'
+                os.environ["DASK_DISTRIBUTED__LOGGING__DISTRIBUTED"] = "error"
+                os.environ["DASK_LOGGING__DISTRIBUTED"] = "error"
 
                 dask.config.set({"distributed.worker.daemon": False})
                 dask.config.set({"distributed.logging.distributed": "error"})
@@ -136,7 +129,9 @@ class UnifiedDashboard:
                     logger.info("🔍 Attempting to connect to existing Dask scheduler...")
                     # Try default scheduler address
                     self.dask_client = Client("tcp://127.0.0.1:8786", timeout=2)
-                    logger.info(f"✅ Connected to existing Dask scheduler at {self.dask_client.scheduler.address}")
+                    logger.info(
+                        f"✅ Connected to existing Dask scheduler at {self.dask_client.scheduler.address}"
+                    )
                 except Exception as e:
                     # No existing scheduler, create local cluster
                     logger.info("🚀 Starting new Dask cluster (no existing scheduler found)")
@@ -156,7 +151,7 @@ class UnifiedDashboard:
                 # This catches warnings from threaded workers at the handler level
                 class DaskWarningFilter(logging.Filter):
                     def filter(self, record):
-                        return 'Task queue depth' not in record.getMessage()
+                        return "Task queue depth" not in record.getMessage()
 
                 dask_filter = DaskWarningFilter()
 
@@ -166,8 +161,13 @@ class UnifiedDashboard:
                     handler.addFilter(dask_filter)
 
                 # Apply to all distributed loggers and their handlers
-                for logger_name in ['distributed', 'distributed.worker', 'distributed.scheduler',
-                                   'distributed.core', 'distributed.comm']:
+                for logger_name in [
+                    "distributed",
+                    "distributed.worker",
+                    "distributed.scheduler",
+                    "distributed.core",
+                    "distributed.comm",
+                ]:
                     dist_logger = logging.getLogger(logger_name)
                     dist_logger.addFilter(dask_filter)
                     dist_logger.setLevel(logging.CRITICAL)
@@ -175,24 +175,33 @@ class UnifiedDashboard:
                         handler.addFilter(dask_filter)
 
                 # Get actual dashboard URL from client (may be on different port if 8787 was taken)
-                if hasattr(self.dask_client, 'dashboard_link'):
+                if hasattr(self.dask_client, "dashboard_link"):
                     actual_dashboard_url = self.dask_client.dashboard_link
                     # Extract port from URL like http://127.0.0.1:45423/status
                     import re
-                    port_match = re.search(r':(\d+)', actual_dashboard_url)
+
+                    port_match = re.search(r":(\d+)", actual_dashboard_url)
                     if port_match:
                         self.dask_dashboard_port = int(port_match.group(1))
-                        logger.info(f"📊 Dask client initialized - dashboard at {actual_dashboard_url}")
+                        logger.info(
+                            f"📊 Dask client initialized - dashboard at {actual_dashboard_url}"
+                        )
                     else:
-                        logger.info(f"📊 Dask client initialized - dashboard at http://localhost:{dask_dashboard_port}")
+                        logger.info(
+                            f"📊 Dask client initialized - dashboard at http://localhost:{dask_dashboard_port}"
+                        )
                 else:
-                    logger.info(f"📊 Dask client initialized - dashboard at http://localhost:{dask_dashboard_port}")
+                    logger.info(
+                        f"📊 Dask client initialized - dashboard at http://localhost:{dask_dashboard_port}"
+                    )
             except Exception as e:
                 logger.warning(f"⚠️  Could not initialize Dask client: {e}")
 
         # Check Ray dashboard availability
         if ray.is_initialized():
-            logger.info(f"📊 Ray is initialized - dashboard should be at http://localhost:{ray_dashboard_port}")
+            logger.info(
+                f"📊 Ray is initialized - dashboard should be at http://localhost:{ray_dashboard_port}"
+            )
         else:
             logger.warning("⚠️  Ray is not initialized - Ray dashboard will not be available")
 
@@ -224,7 +233,7 @@ class UnifiedDashboard:
         def metrics():
             """Get SOLLOL metrics."""
             try:
-                if self.router and hasattr(self.router, 'get_stats'):
+                if self.router and hasattr(self.router, "get_stats"):
                     # get_stats() is not async - call it directly
                     stats = self.router.get_stats()
                 else:
@@ -246,10 +255,10 @@ class UnifiedDashboard:
                 pool = None
                 if self.router:
                     # Direct OllamaPool
-                    if hasattr(self.router, 'nodes') and isinstance(self.router.nodes, list):
+                    if hasattr(self.router, "nodes") and isinstance(self.router.nodes, list):
                         pool = self.router
                     # HybridRouter with ollama_pool attribute
-                    elif hasattr(self.router, 'ollama_pool') and self.router.ollama_pool:
+                    elif hasattr(self.router, "ollama_pool") and self.router.ollama_pool:
                         pool = self.router.ollama_pool
 
                 if pool:
@@ -257,8 +266,8 @@ class UnifiedDashboard:
                     for node in pool.nodes:
                         # Handle both OllamaNode objects and dict formats
                         if isinstance(node, dict):
-                            host = node.get('host', 'localhost')
-                            port = node.get('port', 11434)
+                            host = node.get("host", "localhost")
+                            port = node.get("port", 11434)
                             url = f"http://{host}:{port}"
                             node_key = f"{host}:{port}"
 
@@ -269,33 +278,41 @@ class UnifiedDashboard:
                             gpu_mem = perf_stats.get("gpu_free_mem", 0)
                             available = perf_stats.get("available", True)
 
-                            nodes.append({
-                                "url": url,
-                                "status": "healthy" if available else "offline",
-                                "latency_ms": int(latency),
-                                "load_percent": int(cpu_load * 100),
-                                "memory_mb": int(gpu_mem),
-                            })
+                            nodes.append(
+                                {
+                                    "url": url,
+                                    "status": "healthy" if available else "offline",
+                                    "latency_ms": int(latency),
+                                    "load_percent": int(cpu_load * 100),
+                                    "memory_mb": int(gpu_mem),
+                                }
+                            )
                         else:
                             # OllamaNode object - normalize keys for frontend
-                            nodes.append({
-                                "url": node.url,
-                                "status": "healthy" if node.healthy else "unhealthy",
-                                "latency_ms": node.last_latency_ms or 0,
-                                "load_percent": getattr(node, 'load_percent', 0),
-                                "memory_mb": node.free_vram_mb or 0,
-                                "healthy": node.healthy,
-                                "failure_count": node.failure_count,
-                                "models": node.models,
-                                "total_vram_mb": node.total_vram_mb,
-                                "free_vram_mb": node.free_vram_mb,
-                            })
+                            nodes.append(
+                                {
+                                    "url": node.url,
+                                    "status": "healthy" if node.healthy else "unhealthy",
+                                    "latency_ms": node.last_latency_ms or 0,
+                                    "load_percent": getattr(node, "load_percent", 0),
+                                    "memory_mb": node.free_vram_mb or 0,
+                                    "healthy": node.healthy,
+                                    "failure_count": node.failure_count,
+                                    "models": node.models,
+                                    "total_vram_mb": node.total_vram_mb,
+                                    "free_vram_mb": node.free_vram_mb,
+                                }
+                            )
                     return jsonify({"nodes": nodes, "total": len(nodes)})
                 else:
                     # Fallback: auto-discover nodes and transform to expected format
-                    from sollol.discovery import discover_ollama_nodes
                     import requests
-                    discovered = discover_ollama_nodes(discover_all_nodes=True, exclude_localhost=True)
+
+                    from sollol.discovery import discover_ollama_nodes
+
+                    discovered = discover_ollama_nodes(
+                        discover_all_nodes=True, exclude_localhost=True
+                    )
                     nodes = []
                     for node_data in discovered:
                         host = node_data.get("host", "localhost")
@@ -311,13 +328,15 @@ class UnifiedDashboard:
                             healthy = False
                             latency = 0
 
-                        nodes.append({
-                            "url": url,
-                            "status": "healthy" if healthy else "offline",
-                            "latency_ms": latency,
-                            "load_percent": 0,  # Unknown without pool
-                            "memory_mb": 0,  # Unknown without pool
-                        })
+                        nodes.append(
+                            {
+                                "url": url,
+                                "status": "healthy" if healthy else "offline",
+                                "latency_ms": latency,
+                                "load_percent": 0,  # Unknown without pool
+                                "memory_mb": 0,  # Unknown without pool
+                            }
+                        )
                     return jsonify({"nodes": nodes, "total": len(nodes)})
             except Exception as e:
                 logger.error(f"Error getting network nodes: {e}")
@@ -330,21 +349,24 @@ class UnifiedDashboard:
                 backends = []
 
                 # Try to get from router
-                if self.router and hasattr(self.router, 'rpc_backends'):
+                if self.router and hasattr(self.router, "rpc_backends"):
                     for backend in self.router.rpc_backends:
                         host = backend.get("host")
                         port = backend.get("port", 50052)
-                        backends.append({
-                            "url": f"{host}:{port}",
-                            "status": "healthy",
-                            "latency_ms": 0,
-                            "request_count": backend.get("request_count", 0),
-                            "failure_count": backend.get("failure_count", 0),
-                        })
+                        backends.append(
+                            {
+                                "url": f"{host}:{port}",
+                                "status": "healthy",
+                                "latency_ms": 0,
+                                "request_count": backend.get("request_count", 0),
+                                "failure_count": backend.get("failure_count", 0),
+                            }
+                        )
 
                 # Try to get from RPC registry
                 try:
                     from sollol.rpc_registry import RPCBackendRegistry
+
                     registry = RPCBackendRegistry()
                     # registry.backends is Dict[str, RPCBackend], need to iterate values()
                     for backend_obj in registry.backends.values():
@@ -353,13 +375,15 @@ class UnifiedDashboard:
                         port = backend_dict["port"]
                         is_healthy = backend_dict["healthy"]
                         metrics = backend_dict.get("metrics", {})
-                        backends.append({
-                            "url": f"{host}:{port}",
-                            "status": "healthy" if is_healthy else "offline",
-                            "latency_ms": metrics.get("avg_latency_ms", 0),
-                            "request_count": metrics.get("total_requests", 0),
-                            "failure_count": metrics.get("total_failures", 0),
-                        })
+                        backends.append(
+                            {
+                                "url": f"{host}:{port}",
+                                "status": "healthy" if is_healthy else "offline",
+                                "latency_ms": metrics.get("avg_latency_ms", 0),
+                                "request_count": metrics.get("total_requests", 0),
+                                "failure_count": metrics.get("total_failures", 0),
+                            }
+                        )
                 except Exception as e:
                     logger.debug(f"RPC registry lookup failed: {e}")
                     pass
@@ -368,45 +392,57 @@ class UnifiedDashboard:
                 if not backends:
                     try:
                         from sollol.rpc_discovery import auto_discover_rpc_backends
+
                         discovered = auto_discover_rpc_backends()
                         for backend in discovered:
                             host = backend.get("host")
                             port = backend.get("port", 50052)
-                            backends.append({
-                                "url": f"{host}:{port}",
-                                "status": "healthy",
-                                "latency_ms": 0,
-                                "request_count": 0,
-                                "failure_count": 0,
-                            })
+                            backends.append(
+                                {
+                                    "url": f"{host}:{port}",
+                                    "status": "healthy",
+                                    "latency_ms": 0,
+                                    "request_count": 0,
+                                    "failure_count": 0,
+                                }
+                            )
                         logger.info(f"Auto-discovered {len(discovered)} RPC backends")
                     except Exception as e:
                         logger.debug(f"RPC auto-discovery failed: {e}")
 
                 # If still no backends, try Redis metadata (same source as /api/dashboard)
                 if not backends:
-                    logger.debug(f"No backends found, trying Redis metadata. has redis_client: {self.redis_client is not None}")
+                    logger.debug(
+                        f"No backends found, trying Redis metadata. has redis_client: {self.redis_client is not None}"
+                    )
                     if self.redis_client:
                         try:
                             metadata_json = self.redis_client.get("sollol:router:metadata")
                             logger.debug(f"Redis metadata exists: {metadata_json is not None}")
                             if metadata_json:
                                 import json
+
                                 metadata = json.loads(metadata_json)
                                 rpc_backends_from_redis = metadata.get("rpc_backends", [])
-                                logger.debug(f"RPC backends in metadata: {len(rpc_backends_from_redis)}")
+                                logger.debug(
+                                    f"RPC backends in metadata: {len(rpc_backends_from_redis)}"
+                                )
                                 for backend in rpc_backends_from_redis:
                                     host = backend.get("host")
                                     port = backend.get("port", 50052)
-                                    backends.append({
-                                        "url": f"{host}:{port}",
-                                        "status": "healthy",
-                                        "latency_ms": 0,
-                                        "request_count": 0,
-                                        "failure_count": 0,
-                                    })
+                                    backends.append(
+                                        {
+                                            "url": f"{host}:{port}",
+                                            "status": "healthy",
+                                            "latency_ms": 0,
+                                            "request_count": 0,
+                                            "failure_count": 0,
+                                        }
+                                    )
                                 if rpc_backends_from_redis:
-                                    logger.info(f"✅ Loaded {len(rpc_backends_from_redis)} RPC backends from Redis metadata")
+                                    logger.info(
+                                        f"✅ Loaded {len(rpc_backends_from_redis)} RPC backends from Redis metadata"
+                                    )
                         except Exception as e:
                             logger.error(f"❌ Redis metadata lookup failed: {e}", exc_info=True)
                     else:
@@ -432,7 +468,7 @@ class UnifiedDashboard:
 
                 # Get node health
                 try:
-                    if self.router and hasattr(self.router, 'ollama_pool'):
+                    if self.router and hasattr(self.router, "ollama_pool"):
                         pool = self.router.ollama_pool
                         health["nodes_total"] = len(pool.nodes)
                         health["nodes_healthy"] = sum(1 for n in pool.nodes if n.healthy)
@@ -441,7 +477,7 @@ class UnifiedDashboard:
 
                 # Get backend health
                 try:
-                    if self.router and hasattr(self.router, 'rpc_backends'):
+                    if self.router and hasattr(self.router, "rpc_backends"):
                         health["backends_total"] = len(self.router.rpc_backends)
                         health["backends_active"] = len(self.router.rpc_backends)  # Assume active
                 except:
@@ -466,12 +502,14 @@ class UnifiedDashboard:
         @self.app.route("/api/dashboard/config")
         def dashboard_config():
             """Get dashboard configuration (actual ports, etc)."""
-            return jsonify({
-                "ray_dashboard_port": self.ray_dashboard_port,
-                "dask_dashboard_port": self.dask_dashboard_port,
-                "ray_dashboard_url": f"http://localhost:{self.ray_dashboard_port}",
-                "dask_dashboard_url": f"http://localhost:{self.dask_dashboard_port}",
-            })
+            return jsonify(
+                {
+                    "ray_dashboard_port": self.ray_dashboard_port,
+                    "dask_dashboard_port": self.dask_dashboard_port,
+                    "ray_dashboard_url": f"http://localhost:{self.ray_dashboard_port}",
+                    "dask_dashboard_url": f"http://localhost:{self.dask_dashboard_port}",
+                }
+            )
 
         @self.app.route("/api/ray/metrics")
         def ray_metrics():
@@ -500,7 +538,7 @@ class UnifiedDashboard:
                     # Get Dask metrics
                     dask_stats = {
                         "dashboard_url": f"http://localhost:{self.dask_dashboard_port}",
-                        "workers": len(self.dask_client.scheduler_info().get('workers', {})),
+                        "workers": len(self.dask_client.scheduler_info().get("workers", {})),
                         "status": "active",
                     }
                     return jsonify(dask_stats)
@@ -535,24 +573,28 @@ class UnifiedDashboard:
                     uptime = time.time() - app_info["start_time"]
                     last_seen = time.time() - app_info["last_heartbeat"]
 
-                    apps.append({
-                        "app_id": app_id,
-                        "name": app_info["name"],
-                        "router_type": app_info.get("router_type", "unknown"),
-                        "version": app_info.get("version", "unknown"),
-                        "start_time": app_info["start_time"],
-                        "last_heartbeat": app_info["last_heartbeat"],
-                        "uptime_seconds": int(uptime),
-                        "last_seen_seconds": int(last_seen),
-                        "status": "active" if last_seen < self.application_timeout else "stale",
-                        "metadata": app_info.get("metadata", {}),
-                    })
+                    apps.append(
+                        {
+                            "app_id": app_id,
+                            "name": app_info["name"],
+                            "router_type": app_info.get("router_type", "unknown"),
+                            "version": app_info.get("version", "unknown"),
+                            "start_time": app_info["start_time"],
+                            "last_heartbeat": app_info["last_heartbeat"],
+                            "uptime_seconds": int(uptime),
+                            "last_seen_seconds": int(last_seen),
+                            "status": "active" if last_seen < self.application_timeout else "stale",
+                            "metadata": app_info.get("metadata", {}),
+                        }
+                    )
 
-                return jsonify({
-                    "applications": apps,
-                    "total": len(apps),
-                    "active": sum(1 for a in apps if a["status"] == "active"),
-                })
+                return jsonify(
+                    {
+                        "applications": apps,
+                        "total": len(apps),
+                        "active": sum(1 for a in apps if a["status"] == "active"),
+                    }
+                )
             except Exception as e:
                 logger.error(f"Error getting applications: {e}")
                 return jsonify({"error": str(e), "applications": []}), 500
@@ -583,12 +625,18 @@ class UnifiedDashboard:
                 else:
                     # Update existing
                     self.applications[app_id]["last_heartbeat"] = now
-                    self.applications[app_id].update({
-                        "name": data.get("name", self.applications[app_id]["name"]),
-                        "router_type": data.get("router_type", self.applications[app_id]["router_type"]),
-                        "version": data.get("version", self.applications[app_id]["version"]),
-                        "metadata": data.get("metadata", self.applications[app_id].get("metadata", {})),
-                    })
+                    self.applications[app_id].update(
+                        {
+                            "name": data.get("name", self.applications[app_id]["name"]),
+                            "router_type": data.get(
+                                "router_type", self.applications[app_id]["router_type"]
+                            ),
+                            "version": data.get("version", self.applications[app_id]["version"]),
+                            "metadata": data.get(
+                                "metadata", self.applications[app_id].get("metadata", {})
+                            ),
+                        }
+                    )
 
                 return jsonify({"status": "ok", "app_id": app_id})
             except Exception as e:
@@ -636,7 +684,7 @@ class UnifiedDashboard:
         """Setup centralized logging queue."""
         # Add queue handler to root logger
         log_handler = QueueLogHandler(log_queue)
-        log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         log_handler.setFormatter(log_formatter)
 
         root_logger = logging.getLogger()
@@ -647,7 +695,7 @@ class UnifiedDashboard:
     def _setup_websocket_routes(self):
         """Setup WebSocket routes for real-time streaming."""
 
-        @self.sock.route('/ws/logs')
+        @self.sock.route("/ws/logs")
         def ws_logs(ws):
             """WebSocket endpoint for streaming logs."""
             logger.info("🔌 Log streaming WebSocket connected")
@@ -661,7 +709,7 @@ class UnifiedDashboard:
                     logger.warning(f"Log streaming disconnected: {e}")
                     break
 
-        @self.sock.route('/ws/network/nodes')
+        @self.sock.route("/ws/network/nodes")
         def ws_network_nodes(ws):
             """WebSocket endpoint for streaming node state changes (event-driven)."""
             logger.info("🔌 Network nodes WebSocket connected")
@@ -670,23 +718,31 @@ class UnifiedDashboard:
             while True:
                 try:
                     # Get current nodes (router-agnostic - uses fallback discovery)
-                    if self.router and hasattr(self.router, 'ollama_pool'):
+                    if self.router and hasattr(self.router, "ollama_pool"):
                         pool = self.router.ollama_pool
                         nodes = []
                         for node in pool.nodes:
                             node_key = node.url
-                            nodes.append({
-                                "url": node.url,
-                                "healthy": node.healthy,
-                                "latency_ms": node.last_latency_ms,
-                                "failure_count": node.failure_count,
-                                "status": "healthy" if node.healthy else "unhealthy",
-                            })
+                            nodes.append(
+                                {
+                                    "url": node.url,
+                                    "healthy": node.healthy,
+                                    "latency_ms": node.last_latency_ms,
+                                    "failure_count": node.failure_count,
+                                    "status": "healthy" if node.healthy else "unhealthy",
+                                }
+                            )
                     else:
                         # Fallback: auto-discover
                         from sollol.discovery import discover_ollama_nodes
-                        discovered = discover_ollama_nodes(discover_all_nodes=True, exclude_localhost=True)
-                        nodes = [{"url": f"http://{n['host']}:{n['port']}", "status": "discovered"} for n in discovered]
+
+                        discovered = discover_ollama_nodes(
+                            discover_all_nodes=True, exclude_localhost=True
+                        )
+                        nodes = [
+                            {"url": f"http://{n['host']}:{n['port']}", "status": "discovered"}
+                            for n in discovered
+                        ]
 
                     # Event-driven change detection (SynapticLlamas pattern)
                     events = []
@@ -697,23 +753,27 @@ class UnifiedDashboard:
 
                         # Detect status change
                         if previous_status and current_status != previous_status:
-                            events.append({
-                                "type": "status_change",
-                                "timestamp": time.time(),
-                                "node": node_url,
-                                "old_status": previous_status,
-                                "new_status": current_status,
-                                "message": f"Node {node_url}: {previous_status} → {current_status}"
-                            })
+                            events.append(
+                                {
+                                    "type": "status_change",
+                                    "timestamp": time.time(),
+                                    "node": node_url,
+                                    "old_status": previous_status,
+                                    "new_status": current_status,
+                                    "message": f"Node {node_url}: {previous_status} → {current_status}",
+                                }
+                            )
 
                         # Detect new node
                         if node_url not in previous_state:
-                            events.append({
-                                "type": "node_discovered",
-                                "timestamp": time.time(),
-                                "node": node_url,
-                                "message": f"✅ New node discovered: {node_url}"
-                            })
+                            events.append(
+                                {
+                                    "type": "node_discovered",
+                                    "timestamp": time.time(),
+                                    "node": node_url,
+                                    "message": f"✅ New node discovered: {node_url}",
+                                }
+                            )
 
                         previous_state[node_url] = node
 
@@ -721,12 +781,14 @@ class UnifiedDashboard:
                     current_urls = {n["url"] for n in nodes}
                     removed = set(previous_state.keys()) - current_urls
                     for node_url in removed:
-                        events.append({
-                            "type": "node_removed",
-                            "timestamp": time.time(),
-                            "node": node_url,
-                            "message": f"❌ Node removed: {node_url}"
-                        })
+                        events.append(
+                            {
+                                "type": "node_removed",
+                                "timestamp": time.time(),
+                                "node": node_url,
+                                "message": f"❌ Node removed: {node_url}",
+                            }
+                        )
                         del previous_state[node_url]
 
                     # Send events
@@ -735,15 +797,19 @@ class UnifiedDashboard:
 
                     # Heartbeat if no events (every 10 seconds)
                     if len(events) == 0:
-                        if not hasattr(ws, '_last_heartbeat'):
+                        if not hasattr(ws, "_last_heartbeat"):
                             ws._last_heartbeat = 0
                         if time.time() - ws._last_heartbeat >= 10:
-                            ws.send(json.dumps({
-                                "type": "heartbeat",
-                                "timestamp": time.time(),
-                                "nodes_count": len(nodes),
-                                "message": f"✓ Monitoring {len(nodes)} nodes"
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "heartbeat",
+                                        "timestamp": time.time(),
+                                        "nodes_count": len(nodes),
+                                        "message": f"✓ Monitoring {len(nodes)} nodes",
+                                    }
+                                )
+                            )
                             ws._last_heartbeat = time.time()
 
                     time.sleep(2)  # Poll every 2 seconds
@@ -752,7 +818,7 @@ class UnifiedDashboard:
                     logger.error(f"Network nodes WebSocket error: {e}")
                     break
 
-        @self.sock.route('/ws/network/backends')
+        @self.sock.route("/ws/network/backends")
         def ws_network_backends(ws):
             """WebSocket endpoint for streaming RPC backend events (event-driven)."""
             logger.info("🔌 RPC backends WebSocket connected")
@@ -763,7 +829,7 @@ class UnifiedDashboard:
                     backends = []
 
                     # Get from router
-                    if self.router and hasattr(self.router, 'rpc_backends'):
+                    if self.router and hasattr(self.router, "rpc_backends"):
                         for backend in self.router.rpc_backends:
                             backend_addr = f"{backend.get('host')}:{backend.get('port', 50052)}"
                             backends.append(backend_addr)
@@ -771,6 +837,7 @@ class UnifiedDashboard:
                     # Try RPC registry fallback
                     try:
                         from sollol.rpc_registry import RPCBackendRegistry
+
                         registry = RPCBackendRegistry()
                         # registry.backends is Dict[str, RPCBackend], need to iterate values()
                         for backend_obj in registry.backends.values():
@@ -786,36 +853,48 @@ class UnifiedDashboard:
                     # Detect new backends
                     new_backends = current_backends - previous_backends
                     for backend_addr in new_backends:
-                        ws.send(json.dumps({
-                            "type": "backend_connected",
-                            "timestamp": time.time(),
-                            "backend": backend_addr,
-                            "message": f"🔗 RPC backend connected: {backend_addr}"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "backend_connected",
+                                    "timestamp": time.time(),
+                                    "backend": backend_addr,
+                                    "message": f"🔗 RPC backend connected: {backend_addr}",
+                                }
+                            )
+                        )
 
                     # Detect removed backends
                     removed_backends = previous_backends - current_backends
                     for backend_addr in removed_backends:
-                        ws.send(json.dumps({
-                            "type": "backend_disconnected",
-                            "timestamp": time.time(),
-                            "backend": backend_addr,
-                            "message": f"🔌 RPC backend disconnected: {backend_addr}"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "backend_disconnected",
+                                    "timestamp": time.time(),
+                                    "backend": backend_addr,
+                                    "message": f"🔌 RPC backend disconnected: {backend_addr}",
+                                }
+                            )
+                        )
 
                     previous_backends = current_backends
 
                     # Heartbeat if no changes
                     if len(new_backends) == 0 and len(removed_backends) == 0:
-                        if not hasattr(ws, '_last_heartbeat'):
+                        if not hasattr(ws, "_last_heartbeat"):
                             ws._last_heartbeat = 0
                         if time.time() - ws._last_heartbeat >= 10:
-                            ws.send(json.dumps({
-                                "type": "heartbeat",
-                                "timestamp": time.time(),
-                                "backends_count": len(backends),
-                                "message": f"✓ Monitoring {len(backends)} RPC backends"
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "heartbeat",
+                                        "timestamp": time.time(),
+                                        "backends_count": len(backends),
+                                        "message": f"✓ Monitoring {len(backends)} RPC backends",
+                                    }
+                                )
+                            )
                             ws._last_heartbeat = time.time()
 
                     time.sleep(2)
@@ -824,17 +903,21 @@ class UnifiedDashboard:
                     logger.error(f"RPC backends WebSocket error: {e}")
                     break
 
-        @self.sock.route('/ws/network/ollama_activity')
+        @self.sock.route("/ws/network/ollama_activity")
         def ws_ollama_activity(ws):
             """WebSocket endpoint for Ollama model lifecycle events (load/unload/processing)."""
             logger.info("🔌 Ollama activity WebSocket connected")
 
             # Send immediate connection confirmation
-            ws.send(json.dumps({
-                "type": "connected",
-                "timestamp": time.time(),
-                "message": "🔌 Connected to Ollama activity stream"
-            }))
+            ws.send(
+                json.dumps(
+                    {
+                        "type": "connected",
+                        "timestamp": time.time(),
+                        "message": "🔌 Connected to Ollama activity stream",
+                    }
+                )
+            )
 
             previous_state = {}
             last_heartbeat = 0
@@ -848,19 +931,29 @@ class UnifiedDashboard:
                     # Try multiple ways to get the pool
                     if self.router:
                         # Direct OllamaPool
-                        if hasattr(self.router, 'nodes') and isinstance(getattr(self.router, 'nodes', None), list):
+                        if hasattr(self.router, "nodes") and isinstance(
+                            getattr(self.router, "nodes", None), list
+                        ):
                             pool = self.router
                         # HybridRouter with ollama_pool
-                        elif hasattr(self.router, 'ollama_pool'):
+                        elif hasattr(self.router, "ollama_pool"):
                             pool = self.router.ollama_pool
 
                     if pool:
-                        nodes_to_monitor = [(node.url, node.url) for node in pool.nodes if node.healthy]
+                        nodes_to_monitor = [
+                            (node.url, node.url) for node in pool.nodes if node.healthy
+                        ]
                     else:
                         # Fallback: auto-discover
                         from sollol.discovery import discover_ollama_nodes
-                        discovered = discover_ollama_nodes(discover_all_nodes=True, exclude_localhost=True)
-                        nodes_to_monitor = [(f"http://{n['host']}:{n['port']}", f"{n['host']}:{n['port']}") for n in discovered]
+
+                        discovered = discover_ollama_nodes(
+                            discover_all_nodes=True, exclude_localhost=True
+                        )
+                        nodes_to_monitor = [
+                            (f"http://{n['host']}:{n['port']}", f"{n['host']}:{n['port']}")
+                            for n in discovered
+                        ]
 
                     # Monitor each node for model activity
                     for url, node_key in nodes_to_monitor:
@@ -868,82 +961,106 @@ class UnifiedDashboard:
                             response = requests.get(f"{url}/api/ps", timeout=2)
                             if response.status_code == 200:
                                 data = response.json()
-                                models = data.get('models', [])
+                                models = data.get("models", [])
 
                                 # Current state
-                                current_models = {m['name'] for m in models}
+                                current_models = {m["name"] for m in models}
 
                                 # Get previous state
-                                prev_models = previous_state.get(node_key, {}).get('models', set())
+                                prev_models = previous_state.get(node_key, {}).get("models", set())
 
                                 # Detect new models loaded
                                 newly_loaded = current_models - prev_models
                                 for model_name in newly_loaded:
-                                    ws.send(json.dumps({
-                                        "type": "model_loaded",
-                                        "timestamp": time.time(),
-                                        "node": node_key,
-                                        "model": model_name,
-                                        "message": f"✅ Model loaded on {node_key}: {model_name}"
-                                    }))
+                                    ws.send(
+                                        json.dumps(
+                                            {
+                                                "type": "model_loaded",
+                                                "timestamp": time.time(),
+                                                "node": node_key,
+                                                "model": model_name,
+                                                "message": f"✅ Model loaded on {node_key}: {model_name}",
+                                            }
+                                        )
+                                    )
 
                                 # Detect unloaded models
                                 unloaded = prev_models - current_models
                                 for model_name in unloaded:
-                                    ws.send(json.dumps({
-                                        "type": "model_unloaded",
-                                        "timestamp": time.time(),
-                                        "node": node_key,
-                                        "model": model_name,
-                                        "message": f"⏹️  Model unloaded from {node_key}: {model_name}"
-                                    }))
-
-                                # Detect active processing
-                                for model_info in models:
-                                    model_name = model_info['name']
-                                    processor = model_info.get('processor', {})
-                                    if processor:  # Model actively processing
-                                        size_vram = model_info.get('size_vram', 0) / (1024**3)
-                                        # Only send if this is a new processing session
-                                        was_processing = previous_state.get(node_key, {}).get('processing', set())
-                                        if model_name not in was_processing:
-                                            ws.send(json.dumps({
-                                                "type": "model_processing",
+                                    ws.send(
+                                        json.dumps(
+                                            {
+                                                "type": "model_unloaded",
                                                 "timestamp": time.time(),
                                                 "node": node_key,
                                                 "model": model_name,
-                                                "vram_gb": round(size_vram, 2),
-                                                "message": f"🔄 Processing on {node_key}: {model_name} (VRAM: {size_vram:.2f}GB)"
-                                            }))
+                                                "message": f"⏹️  Model unloaded from {node_key}: {model_name}",
+                                            }
+                                        )
+                                    )
+
+                                # Detect active processing
+                                for model_info in models:
+                                    model_name = model_info["name"]
+                                    processor = model_info.get("processor", {})
+                                    if processor:  # Model actively processing
+                                        size_vram = model_info.get("size_vram", 0) / (1024**3)
+                                        # Only send if this is a new processing session
+                                        was_processing = previous_state.get(node_key, {}).get(
+                                            "processing", set()
+                                        )
+                                        if model_name not in was_processing:
+                                            ws.send(
+                                                json.dumps(
+                                                    {
+                                                        "type": "model_processing",
+                                                        "timestamp": time.time(),
+                                                        "node": node_key,
+                                                        "model": model_name,
+                                                        "vram_gb": round(size_vram, 2),
+                                                        "message": f"🔄 Processing on {node_key}: {model_name} (VRAM: {size_vram:.2f}GB)",
+                                                    }
+                                                )
+                                            )
 
                                 # Update state
-                                processing_models = {m['name'] for m in models if m.get('processor')}
+                                processing_models = {
+                                    m["name"] for m in models if m.get("processor")
+                                }
                                 previous_state[node_key] = {
-                                    'models': current_models,
-                                    'processing': processing_models,
-                                    'reachable': True
+                                    "models": current_models,
+                                    "processing": processing_models,
+                                    "reachable": True,
                                 }
 
                         except Exception as e:
                             # Node unreachable
-                            was_reachable = previous_state.get(node_key, {}).get('reachable', True)
+                            was_reachable = previous_state.get(node_key, {}).get("reachable", True)
                             if was_reachable:
-                                ws.send(json.dumps({
-                                    "type": "node_error",
-                                    "timestamp": time.time(),
-                                    "node": node_key,
-                                    "message": f"❌ Node unreachable: {node_key}"
-                                }))
-                            previous_state[node_key] = {'reachable': False}
+                                ws.send(
+                                    json.dumps(
+                                        {
+                                            "type": "node_error",
+                                            "timestamp": time.time(),
+                                            "node": node_key,
+                                            "message": f"❌ Node unreachable: {node_key}",
+                                        }
+                                    )
+                                )
+                            previous_state[node_key] = {"reachable": False}
 
                     # Send heartbeat only every 30 seconds if no events
                     current_time = time.time()
                     if current_time - last_heartbeat >= 30:
-                        ws.send(json.dumps({
-                            "type": "heartbeat",
-                            "timestamp": current_time,
-                            "message": f"✓ Monitoring {len(nodes_to_monitor)} Ollama nodes"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "heartbeat",
+                                    "timestamp": current_time,
+                                    "message": f"✓ Monitoring {len(nodes_to_monitor)} Ollama nodes",
+                                }
+                            )
+                        )
                         last_heartbeat = current_time
 
                     time.sleep(2)  # Poll every 2 seconds
@@ -952,17 +1069,21 @@ class UnifiedDashboard:
                     logger.error(f"Ollama activity WebSocket error: {e}")
                     break
 
-        @self.sock.route('/ws/network/rpc_activity')
+        @self.sock.route("/ws/network/rpc_activity")
         def ws_rpc_activity(ws):
             """WebSocket endpoint for llama.cpp RPC backend activity."""
             logger.info("🔌 RPC activity WebSocket connected")
 
             # Send immediate connection confirmation
-            ws.send(json.dumps({
-                "type": "connected",
-                "timestamp": time.time(),
-                "message": "🔌 Connected to RPC activity stream"
-            }))
+            ws.send(
+                json.dumps(
+                    {
+                        "type": "connected",
+                        "timestamp": time.time(),
+                        "message": "🔌 Connected to RPC activity stream",
+                    }
+                )
+            )
 
             previous_state = {}
             last_heartbeat = 0
@@ -973,18 +1094,23 @@ class UnifiedDashboard:
                     backends_to_monitor = []
 
                     # Try getting from router first (fast)
-                    if self.router and hasattr(self.router, 'rpc_backends'):
-                        backends_to_monitor = [(f"{b['host']}:{b['port']}", f"{b['host']}:{b['port']}")
-                                             for b in self.router.rpc_backends]
+                    if self.router and hasattr(self.router, "rpc_backends"):
+                        backends_to_monitor = [
+                            (f"{b['host']}:{b['port']}", f"{b['host']}:{b['port']}")
+                            for b in self.router.rpc_backends
+                        ]
 
                     # Try RPC registry (fast - cached backends)
                     if not backends_to_monitor:
                         try:
                             from sollol.rpc_registry import RPCBackendRegistry
+
                             registry = RPCBackendRegistry()
                             # registry.backends is Dict[str, RPCBackend], need to iterate values()
-                            backends_to_monitor = [(f"{b.host}:{b.port}", f"{b.host}:{b.port}")
-                                                 for b in registry.backends.values()]
+                            backends_to_monitor = [
+                                (f"{b.host}:{b.port}", f"{b.host}:{b.port}")
+                                for b in registry.backends.values()
+                            ]
                         except Exception as e:
                             logger.debug(f"RPC registry lookup failed: {e}")
 
@@ -992,9 +1118,12 @@ class UnifiedDashboard:
                     if not backends_to_monitor:
                         try:
                             from sollol.rpc_discovery import auto_discover_rpc_backends
+
                             discovered = auto_discover_rpc_backends()
-                            backends_to_monitor = [(f"{b['host']}:{b['port']}", f"{b['host']}:{b['port']}")
-                                                 for b in discovered]
+                            backends_to_monitor = [
+                                (f"{b['host']}:{b['port']}", f"{b['host']}:{b['port']}")
+                                for b in discovered
+                            ]
                         except Exception as e:
                             logger.debug(f"RPC discovery failed: {e}")
 
@@ -1002,70 +1131,95 @@ class UnifiedDashboard:
                     for backend_key, display_key in backends_to_monitor:
                         # Only send discovery message if we haven't seen this backend before
                         if backend_key not in previous_state:
-                            ws.send(json.dumps({
-                                "type": "backend_discovered",
-                                "timestamp": time.time(),
-                                "backend": display_key,
-                                "message": f"🔍 RPC backend: {display_key}"
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "backend_discovered",
+                                        "timestamp": time.time(),
+                                        "backend": display_key,
+                                        "message": f"🔍 RPC backend: {display_key}",
+                                    }
+                                )
+                            )
 
                     any_state_change = False
 
                     # Monitor each backend
                     for backend_key, display_key in backends_to_monitor:
                         try:
-                            host, port = backend_key.split(':')
+                            host, port = backend_key.split(":")
                             # Try to check if backend is alive (simplified - actual health check would be gRPC)
                             import socket
+
                             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                             sock.settimeout(1)
                             result = sock.connect_ex((host, int(port)))
                             sock.close()
 
-                            is_reachable = (result == 0)
-                            was_reachable = previous_state.get(backend_key, {}).get('reachable', False)
+                            is_reachable = result == 0
+                            was_reachable = previous_state.get(backend_key, {}).get(
+                                "reachable", False
+                            )
 
                             # Detect state changes ONLY
                             if is_reachable and not was_reachable:
-                                ws.send(json.dumps({
-                                    "type": "backend_online",
-                                    "timestamp": time.time(),
-                                    "backend": display_key,
-                                    "message": f"✅ RPC backend online: {display_key}"
-                                }))
+                                ws.send(
+                                    json.dumps(
+                                        {
+                                            "type": "backend_online",
+                                            "timestamp": time.time(),
+                                            "backend": display_key,
+                                            "message": f"✅ RPC backend online: {display_key}",
+                                        }
+                                    )
+                                )
                                 any_state_change = True
                             elif not is_reachable and was_reachable:
-                                ws.send(json.dumps({
-                                    "type": "backend_offline",
-                                    "timestamp": time.time(),
-                                    "backend": display_key,
-                                    "message": f"❌ RPC backend offline: {display_key}"
-                                }))
+                                ws.send(
+                                    json.dumps(
+                                        {
+                                            "type": "backend_offline",
+                                            "timestamp": time.time(),
+                                            "backend": display_key,
+                                            "message": f"❌ RPC backend offline: {display_key}",
+                                        }
+                                    )
+                                )
                                 any_state_change = True
 
-                            previous_state[backend_key] = {'reachable': is_reachable}
+                            previous_state[backend_key] = {"reachable": is_reachable}
 
                         except Exception as e:
                             # Mark as unreachable
-                            was_reachable = previous_state.get(backend_key, {}).get('reachable', True)
+                            was_reachable = previous_state.get(backend_key, {}).get(
+                                "reachable", True
+                            )
                             if was_reachable:
-                                ws.send(json.dumps({
-                                    "type": "backend_error",
-                                    "timestamp": time.time(),
-                                    "backend": display_key,
-                                    "message": f"⚠️  RPC backend error: {display_key}"
-                                }))
+                                ws.send(
+                                    json.dumps(
+                                        {
+                                            "type": "backend_error",
+                                            "timestamp": time.time(),
+                                            "backend": display_key,
+                                            "message": f"⚠️  RPC backend error: {display_key}",
+                                        }
+                                    )
+                                )
                                 any_state_change = True
-                            previous_state[backend_key] = {'reachable': False}
+                            previous_state[backend_key] = {"reachable": False}
 
                     # Only send heartbeat every 30 seconds if no state changes
                     current_time = time.time()
                     if not any_state_change and (current_time - last_heartbeat >= 30):
-                        ws.send(json.dumps({
-                            "type": "heartbeat",
-                            "timestamp": current_time,
-                            "message": f"✓ Monitoring {len(backends_to_monitor)} RPC backends"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "heartbeat",
+                                    "timestamp": current_time,
+                                    "message": f"✓ Monitoring {len(backends_to_monitor)} RPC backends",
+                                }
+                            )
+                        )
                         last_heartbeat = current_time
 
                     time.sleep(3)  # Poll every 3 seconds
@@ -1074,7 +1228,7 @@ class UnifiedDashboard:
                     logger.error(f"RPC activity WebSocket error: {e}")
                     break
 
-        @self.sock.route('/ws/applications')
+        @self.sock.route("/ws/applications")
         def ws_applications(ws):
             """WebSocket endpoint for application lifecycle events (event-driven)."""
             logger.info("🔌 Applications WebSocket connected")
@@ -1092,24 +1246,32 @@ class UnifiedDashboard:
                     new_apps = current_apps - previous_apps
                     for app_id in new_apps:
                         app_info = self.applications[app_id]
-                        ws.send(json.dumps({
-                            "type": "app_registered",
-                            "timestamp": time.time(),
-                            "app_id": app_id,
-                            "name": app_info["name"],
-                            "router_type": app_info.get("router_type"),
-                            "message": f"📱 Application started: {app_info['name']} ({app_info.get('router_type')})"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "app_registered",
+                                    "timestamp": time.time(),
+                                    "app_id": app_id,
+                                    "name": app_info["name"],
+                                    "router_type": app_info.get("router_type"),
+                                    "message": f"📱 Application started: {app_info['name']} ({app_info.get('router_type')})",
+                                }
+                            )
+                        )
 
                     # Detect removed applications
                     removed_apps = previous_apps - current_apps
                     for app_id in removed_apps:
-                        ws.send(json.dumps({
-                            "type": "app_unregistered",
-                            "timestamp": time.time(),
-                            "app_id": app_id,
-                            "message": f"📱 Application stopped: {app_id}"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "app_unregistered",
+                                    "timestamp": time.time(),
+                                    "app_id": app_id,
+                                    "message": f"📱 Application stopped: {app_id}",
+                                }
+                            )
+                        )
 
                     # Detect status changes (active → stale)
                     now = time.time()
@@ -1118,18 +1280,22 @@ class UnifiedDashboard:
                         is_stale = last_seen > self.application_timeout
 
                         # Store previous status
-                        if not hasattr(ws, '_app_status'):
+                        if not hasattr(ws, "_app_status"):
                             ws._app_status = {}
                         prev_stale = ws._app_status.get(app_id, False)
 
                         if is_stale and not prev_stale:
-                            ws.send(json.dumps({
-                                "type": "app_stale",
-                                "timestamp": time.time(),
-                                "app_id": app_id,
-                                "name": app_info["name"],
-                                "message": f"⚠️  Application not responding: {app_info['name']} (last seen {int(last_seen)}s ago)"
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "app_stale",
+                                        "timestamp": time.time(),
+                                        "app_id": app_id,
+                                        "name": app_info["name"],
+                                        "message": f"⚠️  Application not responding: {app_info['name']} (last seen {int(last_seen)}s ago)",
+                                    }
+                                )
+                            )
 
                         ws._app_status[app_id] = is_stale
 
@@ -1137,15 +1303,19 @@ class UnifiedDashboard:
 
                     # Heartbeat if no changes
                     if len(new_apps) == 0 and len(removed_apps) == 0:
-                        if not hasattr(ws, '_last_heartbeat'):
+                        if not hasattr(ws, "_last_heartbeat"):
                             ws._last_heartbeat = 0
                         if time.time() - ws._last_heartbeat >= 10:
-                            ws.send(json.dumps({
-                                "type": "heartbeat",
-                                "timestamp": time.time(),
-                                "apps_count": len(self.applications),
-                                "message": f"✓ Monitoring {len(self.applications)} applications"
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "heartbeat",
+                                        "timestamp": time.time(),
+                                        "apps_count": len(self.applications),
+                                        "message": f"✓ Monitoring {len(self.applications)} applications",
+                                    }
+                                )
+                            )
                             ws._last_heartbeat = time.time()
 
                     time.sleep(2)
@@ -1158,8 +1328,10 @@ class UnifiedDashboard:
         """Remove applications that haven't sent heartbeat recently."""
         now = time.time()
         stale_apps = [
-            app_id for app_id, app_info in self.applications.items()
-            if now - app_info["last_heartbeat"] > self.application_timeout * 2  # 2x timeout = remove
+            app_id
+            for app_id, app_info in self.applications.items()
+            if now - app_info["last_heartbeat"]
+            > self.application_timeout * 2  # 2x timeout = remove
         ]
         for app_id in stale_apps:
             app_name = self.applications[app_id].get("name", app_id)
@@ -1194,21 +1366,17 @@ class UnifiedDashboard:
             "success_rate": successful / total if total > 0 else 0,
         }
 
-    def record_request(
-        self,
-        model: str,
-        backend: str,
-        latency_ms: float,
-        status: str = "success"
-    ):
+    def record_request(self, model: str, backend: str, latency_ms: float, status: str = "success"):
         """Record request for analytics."""
-        self.request_history.append({
-            "model": model,
-            "backend": backend,
-            "latency_ms": latency_ms,
-            "status": status,
-            "timestamp": time.time(),
-        })
+        self.request_history.append(
+            {
+                "model": model,
+                "backend": backend,
+                "latency_ms": latency_ms,
+                "status": status,
+                "timestamp": time.time(),
+            }
+        )
 
         # Update Prometheus metrics
         request_counter.labels(model=model, status=status, backend=backend).inc()
@@ -1226,14 +1394,17 @@ class UnifiedDashboard:
         # Check if dashboard is already running on this port
         if allow_fallback:
             import socket
+
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            result = sock.connect_ex(('localhost', self.dashboard_port))
+            result = sock.connect_ex(("localhost", self.dashboard_port))
             sock.close()
 
             if result == 0:
                 # Port is in use - another dashboard is likely running
                 logger.info(f"📊 Dashboard already running on port {self.dashboard_port}")
-                logger.info(f"   Connecting to existing dashboard at http://localhost:{self.dashboard_port}")
+                logger.info(
+                    f"   Connecting to existing dashboard at http://localhost:{self.dashboard_port}"
+                )
                 logger.info("✅ Application will use shared dashboard for observability")
                 return  # Don't start a new server
 
@@ -1255,7 +1426,9 @@ class UnifiedDashboard:
         except OSError as e:
             if "Address already in use" in str(e):
                 logger.warning(f"⚠️  Port {self.dashboard_port} already in use")
-                logger.info("✅ Assuming another SOLLOL dashboard is running - using shared instance")
+                logger.info(
+                    "✅ Assuming another SOLLOL dashboard is running - using shared instance"
+                )
             else:
                 raise
 
@@ -2146,7 +2319,7 @@ def run_unified_dashboard(
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         # Try to bind to the port
-        sock.bind(('127.0.0.1', dashboard_port))
+        sock.bind(("127.0.0.1", dashboard_port))
         sock.close()
         # Port is available, continue to startup logic
     except OSError:
@@ -2157,10 +2330,7 @@ def run_unified_dashboard(
 
     # LAYER 2: HTTP API check (verify it's actually a SOLLOL dashboard)
     try:
-        response = requests.get(
-            f"{dashboard_url}/api/applications",
-            timeout=1
-        )
+        response = requests.get(f"{dashboard_url}/api/applications", timeout=1)
         if response.status_code == 200:
             logger.info(f"ℹ️  Dashboard already running at {dashboard_url}")
             logger.info("   → Using existing dashboard (skipping embedded dashboard)")
@@ -2174,15 +2344,12 @@ def run_unified_dashboard(
 
     try:
         # Try to acquire exclusive lock (non-blocking)
-        lock_file = open(lock_file_path, 'w')
+        lock_file = open(lock_file_path, "w")
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
 
         # We got the lock! Final check before starting
         try:
-            response = requests.get(
-                f"{dashboard_url}/api/applications",
-                timeout=1
-            )
+            response = requests.get(f"{dashboard_url}/api/applications", timeout=1)
             if response.status_code == 200:
                 logger.info(f"ℹ️  Dashboard started by another process")
                 logger.info(f"   → Using existing dashboard at {dashboard_url}")

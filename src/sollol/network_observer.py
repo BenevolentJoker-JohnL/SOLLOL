@@ -28,6 +28,7 @@ from typing import Any, Dict, List, Optional
 
 try:
     import redis
+
     REDIS_AVAILABLE = True
 except ImportError:
     REDIS_AVAILABLE = False
@@ -37,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 class EventType(Enum):
     """Network event types."""
+
     # Ollama events
     OLLAMA_REQUEST = "ollama_request"
     OLLAMA_RESPONSE = "ollama_response"
@@ -71,6 +73,7 @@ class EventType(Enum):
 @dataclass
 class NetworkEvent:
     """A network observability event."""
+
     event_type: EventType
     timestamp: float
     backend: str
@@ -101,7 +104,7 @@ class NetworkObserver:
         max_events: int = None,
         redis_url: str = None,
         enable_sampling: bool = None,
-        sample_rate: float = None
+        sample_rate: float = None,
     ):
         """
         Initialize network observer.
@@ -118,7 +121,11 @@ class NetworkObserver:
         if redis_url is None:
             redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
         if enable_sampling is None:
-            enable_sampling = os.getenv("SOLLOL_OBSERVER_SAMPLING", "true").lower() in ("true", "1", "yes")
+            enable_sampling = os.getenv("SOLLOL_OBSERVER_SAMPLING", "true").lower() in (
+                "true",
+                "1",
+                "yes",
+            )
         if sample_rate is None:
             sample_rate = float(os.getenv("SOLLOL_OBSERVER_SAMPLE_RATE", "0.1"))
 
@@ -156,18 +163,20 @@ class NetworkObserver:
                 self.redis_client.ping()
                 logger.info(f"📡 Network Observer connected to Redis at {redis_url}")
             except Exception as e:
-                logger.warning(f"Failed to connect to Redis: {e} - dashboard activity logs will be unavailable")
+                logger.warning(
+                    f"Failed to connect to Redis: {e} - dashboard activity logs will be unavailable"
+                )
                 self.redis_client = None
 
         # Start event processing thread
         self._event_thread = threading.Thread(
-            target=self._process_events_loop,
-            daemon=True,
-            name="NetworkObserver-EventProcessor"
+            target=self._process_events_loop, daemon=True, name="NetworkObserver-EventProcessor"
         )
         self._event_thread.start()
 
-        sampling_status = f"sampling={self.sample_rate:.0%}" if self.enable_sampling else "sampling=disabled"
+        sampling_status = (
+            f"sampling={self.sample_rate:.0%}" if self.enable_sampling else "sampling=disabled"
+        )
         logger.info(f"🔍 Network Observer initialized (event-driven monitoring, {sampling_status})")
 
     def log_event(
@@ -175,7 +184,7 @@ class NetworkObserver:
         event_type: EventType,
         backend: str,
         details: Optional[Dict[str, Any]] = None,
-        severity: str = "info"
+        severity: str = "info",
     ):
         """
         Log a network event.
@@ -191,7 +200,7 @@ class NetworkObserver:
             timestamp=time.time(),
             backend=backend,
             details=details or {},
-            severity=severity
+            severity=severity,
         )
 
         # Add to queue for async processing
@@ -236,16 +245,19 @@ class NetworkObserver:
             self.events.append(event)
 
             event_type_key = event.event_type.value
-            self.stats["events_by_type"][event_type_key] = \
+            self.stats["events_by_type"][event_type_key] = (
                 self.stats["events_by_type"].get(event_type_key, 0) + 1
+            )
 
-            self.stats["events_by_backend"][event.backend] = \
+            self.stats["events_by_backend"][event.backend] = (
                 self.stats["events_by_backend"].get(event.backend, 0) + 1
+            )
 
             # Track errors
             if event.severity in ["error", "critical"]:
-                self.stats["errors_by_backend"][event.backend] = \
+                self.stats["errors_by_backend"][event.backend] = (
                     self.stats["errors_by_backend"].get(event.backend, 0) + 1
+                )
 
             # Track active requests
             if event.event_type in [EventType.OLLAMA_REQUEST, EventType.RPC_REQUEST]:
@@ -259,8 +271,12 @@ class NetworkObserver:
                 self.active_requests[event.backend].append(request_info)
                 self.stats["current_active_requests"] += 1
 
-            elif event.event_type in [EventType.OLLAMA_RESPONSE, EventType.RPC_RESPONSE,
-                                       EventType.OLLAMA_ERROR, EventType.RPC_ERROR]:
+            elif event.event_type in [
+                EventType.OLLAMA_RESPONSE,
+                EventType.RPC_RESPONSE,
+                EventType.OLLAMA_ERROR,
+                EventType.RPC_ERROR,
+            ]:
                 # Remove from active requests
                 if event.backend in self.active_requests:
                     if self.active_requests[event.backend]:
@@ -277,9 +293,7 @@ class NetworkObserver:
 
             # Log significant events
             if event.severity in ["warning", "error", "critical"]:
-                logger.info(
-                    f"⚠️  {event.event_type.value}: {event.backend} - {event.details}"
-                )
+                logger.info(f"⚠️  {event.event_type.value}: {event.backend} - {event.details}")
 
     def _update_backend_metrics(self, event: NetworkEvent):
         """Update backend-specific metrics."""
@@ -322,12 +336,22 @@ class NetworkObserver:
         try:
             # Determine the Redis channel based on event type
             channel = None
-            if event.event_type in [EventType.OLLAMA_REQUEST, EventType.OLLAMA_RESPONSE, EventType.OLLAMA_ERROR]:
+            if event.event_type in [
+                EventType.OLLAMA_REQUEST,
+                EventType.OLLAMA_RESPONSE,
+                EventType.OLLAMA_ERROR,
+            ]:
                 channel = "sollol:dashboard:ollama:activity"
-            elif event.event_type in [EventType.RPC_REQUEST, EventType.RPC_RESPONSE, EventType.RPC_ERROR,
-                                       EventType.RPC_BACKEND_CONNECT, EventType.RPC_BACKEND_DISCONNECT,
-                                       EventType.COORDINATOR_START, EventType.COORDINATOR_STOP,
-                                       EventType.COORDINATOR_MODEL_LOAD]:
+            elif event.event_type in [
+                EventType.RPC_REQUEST,
+                EventType.RPC_RESPONSE,
+                EventType.RPC_ERROR,
+                EventType.RPC_BACKEND_CONNECT,
+                EventType.RPC_BACKEND_DISCONNECT,
+                EventType.COORDINATOR_START,
+                EventType.COORDINATOR_STOP,
+                EventType.COORDINATOR_MODEL_LOAD,
+            ]:
                 channel = "sollol:dashboard:rpc:activity"
 
             if not channel:
@@ -346,14 +370,17 @@ class NetworkObserver:
             self.redis_client.publish(channel, json.dumps(message))
 
             # Also publish coordinator events to routing_events channel for dashboard routing decisions
-            if event.event_type in [EventType.COORDINATOR_START, EventType.COORDINATOR_STOP,
-                                     EventType.COORDINATOR_MODEL_LOAD]:
+            if event.event_type in [
+                EventType.COORDINATOR_START,
+                EventType.COORDINATOR_STOP,
+                EventType.COORDINATOR_MODEL_LOAD,
+            ]:
                 routing_message = {
                     "timestamp": event.timestamp,
                     "event": event.event_type.value,
                     "backend": event.backend,
                     "details": event.details,
-                    "severity": event.severity
+                    "severity": event.severity,
                 }
                 self.redis_client.publish("sollol:routing_events", json.dumps(routing_message))
 
@@ -365,7 +392,7 @@ class NetworkObserver:
         limit: int = 100,
         event_type: Optional[EventType] = None,
         backend: Optional[str] = None,
-        min_severity: str = "info"
+        min_severity: str = "info",
     ) -> List[Dict[str, Any]]:
         """
         Get recent network events.
@@ -473,7 +500,7 @@ def log_ollama_request(backend: str, model: str, operation: str, **details):
         EventType.OLLAMA_REQUEST,
         backend=backend,
         details={"model": model, "operation": operation, **details},
-        severity="info"
+        severity="info",
     )
 
 
@@ -485,7 +512,7 @@ def log_ollama_response(backend: str, model: str, latency_ms: float, **details):
         EventType.OLLAMA_RESPONSE,
         backend=backend,
         details={"model": model, "latency_ms": latency_ms, **details},
-        severity=severity
+        severity=severity,
     )
 
 
@@ -496,7 +523,7 @@ def log_ollama_error(backend: str, model: str, error: str, **details):
         EventType.OLLAMA_ERROR,
         backend=backend,
         details={"model": model, "error": error, **details},
-        severity="error"
+        severity="error",
     )
 
 
@@ -504,10 +531,7 @@ def log_rpc_request(backend: str, model: str, **details):
     """Log an RPC request."""
     observer = get_observer()
     observer.log_event(
-        EventType.RPC_REQUEST,
-        backend=backend,
-        details={"model": model, **details},
-        severity="info"
+        EventType.RPC_REQUEST, backend=backend, details={"model": model, **details}, severity="info"
     )
 
 
@@ -519,7 +543,7 @@ def log_rpc_response(backend: str, model: str, latency_ms: float, **details):
         EventType.RPC_RESPONSE,
         backend=backend,
         details={"model": model, "latency_ms": latency_ms, **details},
-        severity=severity
+        severity=severity,
     )
 
 
@@ -530,7 +554,7 @@ def log_rpc_error(backend: str, model: str, error: str, **details):
         EventType.RPC_ERROR,
         backend=backend,
         details={"model": model, "error": error, **details},
-        severity="error"
+        severity="error",
     )
 
 
@@ -542,7 +566,7 @@ def log_node_health_check(backend: str, status: str, latency_ms: float, **detail
         EventType.NODE_HEALTH_CHECK,
         backend=backend,
         details={"status": status, "latency_ms": latency_ms, **details},
-        severity=severity
+        severity=severity,
     )
 
 
@@ -554,5 +578,5 @@ def log_node_status_change(backend: str, old_status: str, new_status: str, **det
         EventType.NODE_STATUS_CHANGE,
         backend=backend,
         details={"old_status": old_status, "new_status": new_status, **details},
-        severity=severity
+        severity=severity,
     )

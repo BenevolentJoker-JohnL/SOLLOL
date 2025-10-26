@@ -124,6 +124,7 @@ class GracefulShutdown:
 
 class ShutdownInProgress(Exception):
     """Exception raised when shutdown is in progress."""
+
     pass
 
 
@@ -142,15 +143,19 @@ class GracefulShutdownMiddleware:
 
         # Check if shutting down
         if self.shutdown.is_shutting_down:
-            await send({
-                "type": "http.response.start",
-                "status": 503,
-                "headers": [[b"content-type", b"application/json"]],
-            })
-            await send({
-                "type": "http.response.body",
-                "body": b'{"error": "Server is shutting down"}',
-            })
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 503,
+                    "headers": [[b"content-type", b"application/json"]],
+                }
+            )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": b'{"error": "Server is shutting down"}',
+                }
+            )
             return
 
         # Track request

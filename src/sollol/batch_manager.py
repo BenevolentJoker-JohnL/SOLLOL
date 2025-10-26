@@ -254,12 +254,8 @@ class BatchJobManager:
 
     def get_stats(self) -> Dict:
         """Get manager statistics."""
-        active_jobs = sum(
-            1 for j in self.jobs.values() if j.status == BatchJobStatus.RUNNING
-        )
-        pending_jobs = sum(
-            1 for j in self.jobs.values() if j.status == BatchJobStatus.PENDING
-        )
+        active_jobs = sum(1 for j in self.jobs.values() if j.status == BatchJobStatus.RUNNING)
+        pending_jobs = sum(1 for j in self.jobs.values() if j.status == BatchJobStatus.PENDING)
 
         return {
             "total_jobs_created": self.total_jobs_created,

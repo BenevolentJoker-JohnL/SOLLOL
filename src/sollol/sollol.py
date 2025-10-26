@@ -98,11 +98,29 @@ class SOLLOL:
         self.logger = logging.getLogger(__name__)
 
         # Read from environment variables if not provided
-        self.port = port if port is not None else int(os.getenv("SOLLOL_PORT", os.getenv("PORT", "11434")))
-        self.ray_workers = ray_workers if ray_workers is not None else int(os.getenv("SOLLOL_RAY_WORKERS", os.getenv("RAY_WORKERS", "4")))
-        self.dask_workers = dask_workers if dask_workers is not None else int(os.getenv("SOLLOL_DASK_WORKERS", os.getenv("DASK_WORKERS", "2")))
-        self.enable_batch_processing = enable_batch_processing if enable_batch_processing is not None else os.getenv("SOLLOL_BATCH_PROCESSING", "true").lower() in ("true", "1", "yes")
-        self.autobatch_interval = autobatch_interval if autobatch_interval is not None else int(os.getenv("SOLLOL_AUTOBATCH_INTERVAL", os.getenv("AUTOBATCH_INTERVAL", "60")))
+        self.port = (
+            port if port is not None else int(os.getenv("SOLLOL_PORT", os.getenv("PORT", "11434")))
+        )
+        self.ray_workers = (
+            ray_workers
+            if ray_workers is not None
+            else int(os.getenv("SOLLOL_RAY_WORKERS", os.getenv("RAY_WORKERS", "4")))
+        )
+        self.dask_workers = (
+            dask_workers
+            if dask_workers is not None
+            else int(os.getenv("SOLLOL_DASK_WORKERS", os.getenv("DASK_WORKERS", "2")))
+        )
+        self.enable_batch_processing = (
+            enable_batch_processing
+            if enable_batch_processing is not None
+            else os.getenv("SOLLOL_BATCH_PROCESSING", "true").lower() in ("true", "1", "yes")
+        )
+        self.autobatch_interval = (
+            autobatch_interval
+            if autobatch_interval is not None
+            else int(os.getenv("SOLLOL_AUTOBATCH_INTERVAL", os.getenv("AUTOBATCH_INTERVAL", "60")))
+        )
         self.ollama_nodes = ollama_nodes
         self.rpc_backends = rpc_backends
 
@@ -114,9 +132,15 @@ class SOLLOL:
         self.logger.info(f"  Port: {self.port}")
         self.logger.info(f"  Ray workers: {self.ray_workers}")
         self.logger.info(f"  Dask workers: {self.dask_workers}")
-        self.logger.info(f"  Batch processing: {'enabled' if self.enable_batch_processing else 'disabled'}")
-        self.logger.info(f"  Ollama nodes: {len(self.ollama_nodes) if self.ollama_nodes else 'auto-discover'}")
-        self.logger.info(f"  RPC backends: {len(self.rpc_backends) if self.rpc_backends else 'auto-discover'}")
+        self.logger.info(
+            f"  Batch processing: {'enabled' if self.enable_batch_processing else 'disabled'}"
+        )
+        self.logger.info(
+            f"  Ollama nodes: {len(self.ollama_nodes) if self.ollama_nodes else 'auto-discover'}"
+        )
+        self.logger.info(
+            f"  RPC backends: {len(self.rpc_backends) if self.rpc_backends else 'auto-discover'}"
+        )
 
     def start(self, blocking: bool = False):
         """

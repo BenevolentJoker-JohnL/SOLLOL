@@ -171,9 +171,7 @@ class RateLimiter:
         # Check per-node rate limit
         if node and self.per_node_rate and self.per_node_capacity:
             if node not in self.node_limiters:
-                self.node_limiters[node] = TokenBucket(
-                    self.per_node_rate, self.per_node_capacity
-                )
+                self.node_limiters[node] = TokenBucket(self.per_node_rate, self.per_node_capacity)
 
             if not self.node_limiters[node].consume():
                 return False, f"node_rate_limit_exceeded:{node}"

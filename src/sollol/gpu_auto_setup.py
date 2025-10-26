@@ -81,6 +81,7 @@ class GPUAutoSetup:
         # Check gpustat
         try:
             import gpustat
+
             deps["gpustat"] = True
             logger.debug("gpustat is installed")
         except ImportError:
@@ -90,6 +91,7 @@ class GPUAutoSetup:
         # Check redis
         try:
             import redis
+
             deps["redis"] = True
             logger.debug("redis-py is installed")
         except ImportError:
@@ -310,9 +312,7 @@ class GPUAutoSetup:
         logger.info(f"🔌 Checking Redis connectivity ({self.redis_host}:{self.redis_port})...")
         redis_available = self.check_redis_connectivity()
         if not redis_available:
-            logger.warning(
-                "⚠️  Redis not accessible. GPU monitoring will not work without Redis."
-            )
+            logger.warning("⚠️  Redis not accessible. GPU monitoring will not work without Redis.")
             logger.warning(
                 f"   Please ensure Redis is running at {self.redis_host}:{self.redis_port}"
             )
@@ -334,6 +334,7 @@ class GPUAutoSetup:
 
         # Step 5: Verify service is running
         import time
+
         time.sleep(2)  # Give service time to start
 
         if self.check_gpu_reporter_running():

@@ -7,9 +7,10 @@ import logging
 import os
 import subprocess
 import time
-from pathlib import Path
-from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class CoordinatorConfig:
     """Configuration for llama.cpp coordinator"""
+
     host: str = "127.0.0.1"
     port: int = 18080
     model_path: Optional[str] = None
@@ -43,11 +45,7 @@ class CoordinatorManager:
     - Integration with SOLLOL dashboard
     """
 
-    def __init__(
-        self,
-        config: CoordinatorConfig,
-        redis_url: Optional[str] = None
-    ):
+    def __init__(self, config: CoordinatorConfig, redis_url: Optional[str] = None):
         self.config = config
         self.redis_url = redis_url
         self.process: Optional[subprocess.Popen] = None
@@ -71,23 +69,30 @@ class CoordinatorManager:
             # Try to detect RPC backends from running process if not configured
             # Check if backends are dummy/empty (coordinator:0 or None)
             needs_detection = (
-                not self.config.rpc_backends or
-                len(self.config.rpc_backends) == 0 or
-                (len(self.config.rpc_backends) == 1 and "coordinator" in self.config.rpc_backends[0])
+                not self.config.rpc_backends
+                or len(self.config.rpc_backends) == 0
+                or (
+                    len(self.config.rpc_backends) == 1
+                    and "coordinator" in self.config.rpc_backends[0]
+                )
             )
 
             if needs_detection:
                 detected_backends = self._detect_running_backends()
                 if detected_backends:
                     self.config.rpc_backends = detected_backends
-                    logger.info(f"🔍 Detected {len(detected_backends)} RPC backend(s) from running coordinator:")
+                    logger.info(
+                        f"🔍 Detected {len(detected_backends)} RPC backend(s) from running coordinator:"
+                    )
                     for backend in detected_backends:
                         logger.info(f"   • {backend}")
 
                     # Publish to Redis for dashboard
                     self._publish_backends_to_redis()
                 else:
-                    logger.warning("⚠️  Could not detect RPC backends from running coordinator process")
+                    logger.warning(
+                        "⚠️  Could not detect RPC backends from running coordinator process"
+                    )
 
             return True
 
@@ -116,15 +121,18 @@ class CoordinatorManager:
             return
 
         # Don't publish dummy backends (coordinator:0)
-        if (len(self.config.rpc_backends) == 1 and
-            "coordinator" in self.config.rpc_backends[0] and
-            ":0" in self.config.rpc_backends[0]):
+        if (
+            len(self.config.rpc_backends) == 1
+            and "coordinator" in self.config.rpc_backends[0]
+            and ":0" in self.config.rpc_backends[0]
+        ):
             logger.debug("Skipping Redis publish for dummy backend (coordinator:0)")
             return
 
         try:
-            import redis
             import json
+
+            import redis
 
             redis_client = redis.from_url(self.redis_url)
 
@@ -156,22 +164,17 @@ class CoordinatorManager:
             List of RPC backend addresses (host:port) or None
         """
         try:
-            import subprocess
             import re
+            import subprocess
 
             # Find llama-server process on the configured port
-            result = subprocess.run(
-                ["ps", "aux"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            result = subprocess.run(["ps", "aux"], capture_output=True, text=True, timeout=5)
 
             # Look for llama-server with our port and extract --rpc argument
             for line in result.stdout.split("\n"):
                 if f"llama-server" in line and f"--port {self.config.port}" in line:
                     # Extract --rpc argument
-                    rpc_match = re.search(r'--rpc\s+([^\s]+)', line)
+                    rpc_match = re.search(r"--rpc\s+([^\s]+)", line)
                     if rpc_match:
                         rpc_arg = rpc_match.group(1)
                         # Split by comma to get individual backends
@@ -209,7 +212,9 @@ class CoordinatorManager:
             return None
 
         # Look for codellama:13b specifically (known hash)
-        codellama_13b_hash = "sha256-e73cc17c718156e5ad34b119eb363e2c10389a503673f9c36144c42dfde8334c"
+        codellama_13b_hash = (
+            "sha256-e73cc17c718156e5ad34b119eb363e2c10389a503673f9c36144c42dfde8334c"
+        )
         codellama_path = ollama_blob_dir / codellama_13b_hash
 
         if codellama_path.exists():
@@ -242,6 +247,7 @@ class CoordinatorManager:
         # PRIORITY 1: Read from config file (source of truth)
         try:
             from pathlib import Path
+
             config_file = Path("/home/joker/SOLLOL/rpc_backends.conf")
             if config_file.exists():
                 backends = []
@@ -296,11 +302,16 @@ class CoordinatorManager:
         # Build command
         cmd = [
             "llama-server",
-            "--model", self.config.model_path,
-            "--host", self.config.host,
-            "--port", str(self.config.port),
-            "--ctx-size", str(self.config.ctx_size),
-            "--parallel", str(self.config.parallel),
+            "--model",
+            self.config.model_path,
+            "--host",
+            self.config.host,
+            "--port",
+            str(self.config.port),
+            "--ctx-size",
+            str(self.config.ctx_size),
+            "--parallel",
+            str(self.config.parallel),
         ]
 
         # Add RPC backends
@@ -319,7 +330,7 @@ class CoordinatorManager:
                 cmd,
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
-                start_new_session=True  # Detach from parent
+                start_new_session=True,  # Detach from parent
             )
 
             logger.info(f"📝 Coordinator logs: {log_path}")
@@ -332,7 +343,9 @@ class CoordinatorManager:
                 await asyncio.sleep(5)
                 if await self.check_health():
                     self.is_running = True
-                    logger.info(f"✅ Coordinator started successfully on {self.config.host}:{self.config.port}")
+                    logger.info(
+                        f"✅ Coordinator started successfully on {self.config.host}:{self.config.port}"
+                    )
                     return True
                 logger.info(f"   ⏳ Attempt {i+1}/12 - still loading...")
 
@@ -391,7 +404,7 @@ class CoordinatorManager:
                 "path": self.config.model_path,
                 "ctx_size": self.config.ctx_size,
             },
-            **self._metrics
+            **self._metrics,
         }
 
     async def shutdown(self):
@@ -427,7 +440,7 @@ class CoordinatorManager:
             "model": {
                 "path": self.config.model_path,
                 "name": Path(self.config.model_path).name if self.config.model_path else None,
-            }
+            },
         }
 
         # Check each RPC backend
@@ -435,11 +448,13 @@ class CoordinatorManager:
             for backend_addr in self.config.rpc_backends:
                 host, port = backend_addr.split(":")
                 # TODO: Add RPC backend health check via gRPC
-                status["rpc_backends"].append({
-                    "address": backend_addr,
-                    "host": host,
-                    "port": int(port),
-                    "healthy": None,  # Will be populated by RPC health check
-                })
+                status["rpc_backends"].append(
+                    {
+                        "address": backend_addr,
+                        "host": host,
+                        "port": int(port),
+                        "healthy": None,  # Will be populated by RPC health check
+                    }
+                )
 
         return status

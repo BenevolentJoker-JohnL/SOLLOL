@@ -47,9 +47,7 @@ async def with_timeout(
         result = await asyncio.wait_for(coro(*args, **kwargs), timeout=timeout_seconds)
         return result
     except asyncio.TimeoutError:
-        logger.warning(
-            f"⏱️  {operation} timed out after {timeout_seconds}s"
-        )
+        logger.warning(f"⏱️  {operation} timed out after {timeout_seconds}s")
         raise RequestTimeoutError(timeout_seconds, operation)
 
 
@@ -166,9 +164,7 @@ class TimeoutManager:
             Statistics dictionary
         """
         timeout_rate = (
-            (self.timed_out_requests / self.total_requests * 100)
-            if self.total_requests > 0
-            else 0
+            (self.timed_out_requests / self.total_requests * 100) if self.total_requests > 0 else 0
         )
 
         return {

@@ -130,18 +130,20 @@ SOLLOL powers two production-ready applications that leverage its intelligent ro
 The following projects are actively being developed to integrate with SOLLOL:
 
 ### Hydra
-**Status**: 🚧 Integration in progress
-- Requires additional work for full SOLLOL integration
-- Planned features will leverage SOLLOL's task distribution
-- Future development will enable new SOLLOL capabilities
+**Multi-Model Distribution Workflows**
+- **Status**: 🚧 Requires further development
+- **Purpose**: Enable complex multi-model distribution workflows across SOLLOL clusters
+- **Goal**: Orchestrate multiple models working together on distributed tasks
+- Will leverage SOLLOL's intelligent routing and task distribution
 
 ### LlamaForge
-**Status**: 🚧 Integration in progress
-- Requires additional work for full SOLLOL integration
-- Planned features will leverage SOLLOL's intelligent routing
-- Future development will enable new SOLLOL capabilities
+**Distributed Training Infrastructure**
+- **Status**: 🚧 Requires further development
+- **Purpose**: Distributed training capabilities for local LLM clusters
+- **Goal**: Enable collaborative model training across SOLLOL nodes
+- Part of expanding SOLLOL beyond inference to training workloads
 
-> **These projects are under active development and will contribute to future SOLLOL enhancements.**
+> **These projects are under active development and will expand SOLLOL's capabilities beyond inference orchestration.**
 
 ---
 - Check [Full Quick Start](#-full-quick-start) for production setup

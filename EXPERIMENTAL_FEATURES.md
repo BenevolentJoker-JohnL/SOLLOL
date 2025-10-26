@@ -35,10 +35,10 @@ Before diving into experimental features, note that SOLLOL's **stable features**
 
 The following projects are being integrated with SOLLOL and will enable future development:
 
-- **Hydra**: Integration in progress - requires additional work
-- **LlamaForge**: Integration in progress - requires additional work
+- **Hydra**: Multi-model distribution workflows - requires further development to enable complex orchestration of multiple models working together
+- **LlamaForge**: Distributed training infrastructure - requires further development to enable collaborative model training across SOLLOL nodes
 
-These projects will leverage SOLLOL's stable features and contribute to future capabilities.
+These projects will expand SOLLOL beyond inference orchestration into multi-model workflows and distributed training capabilities.
 
 ---
 

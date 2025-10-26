@@ -98,6 +98,32 @@ Hello! How can I help you today?
 
 **Next steps:**
 - Visit `http://localhost:8080` to see the dashboard
+
+---
+
+## 🏗️ Production-Ready Applications
+
+SOLLOL powers two production-ready applications that leverage its intelligent routing and task distribution capabilities:
+
+### [FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser)
+**Distributed PDF Processing & RAG System**
+- ✅ Production-stable document parsing and embedding
+- ✅ Distributed vector search across Ollama cluster
+- ✅ Automatic load balancing for embedding generation
+- ✅ Real-time monitoring via SOLLOL dashboard
+- **Use Case**: Enterprise document processing, RAG pipelines, knowledge base systems
+
+### [SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)
+**Multi-Agent Collaboration Framework**
+- ✅ Production-stable parallel agent execution
+- ✅ Collaborative workflow orchestration (research → critique → synthesis)
+- ✅ Quality control with automated validation
+- ✅ Distributed across multiple Ollama nodes via SOLLOL
+- **Use Case**: Complex reasoning tasks, research synthesis, multi-perspective analysis
+
+> **Note**: Both applications use SOLLOL's **task distribution** features (production-ready). The experimental model sharding feature is available in SynapticLlamas for research purposes only.
+
+---
 - Check [Full Quick Start](#-full-quick-start) for production setup
 - Read [Examples](#-integration-examples) for multi-agent, batch, and distributed inference patterns
 

@@ -35,7 +35,8 @@ jobs:
       run: |
         # Ruff is much faster and has no version compatibility issues
         # Ignore non-critical errors and false positives
-        ruff check src/sollol tests/ --ignore=E402,E501,E722,F401,F541,F841
+        # F811: Redefinition of imports (intentional for conditional imports)
+        ruff check src/sollol tests/ --ignore=E402,E501,E722,F401,F541,F811,F841
 
     - name: Type check with mypy
       run: |

@@ -39,6 +39,7 @@ def test_mock_nodes_running():
             pytest.skip(f"Mock node on port {port} not available")
 
     print("\n✅ All mock nodes are running\n")
+    return True
 
 
 def test_sollol_auto_discovery():
@@ -69,11 +70,7 @@ def test_sollol_auto_discovery():
     for node in pool.nodes:
         print(f"   - {node['host']}:{node['port']}")
 
-    # Cleanup
-    try:
-        pool.stop()
-    except:
-        pass
+    return pool
 
 
 def test_end_to_end_routing(pool):
@@ -99,6 +96,8 @@ def test_end_to_end_routing(pool):
         routing_info = response["_sollol_routing"]
         print(f"   Routed to: {routing_info.get('host', 'unknown')}:{routing_info.get('port', 'unknown')}")
         print(f"   Task type: {routing_info.get('task_type', 'unknown')}")
+
+    return True
 
 
 def test_routing_strategies(pool):
@@ -130,6 +129,7 @@ def test_routing_strategies(pool):
         print(f"✅ {strategy.value}: PASSED")
 
     print("\n✅ All routing strategies working\n")
+    return True
 
 
 def test_multiple_requests(pool):
@@ -162,6 +162,8 @@ def test_multiple_requests(pool):
         print("✅ Load distribution working\n")
     else:
         print("⚠️  All requests went to same node (may be expected)\n")
+
+    return True
 
 
 def main():

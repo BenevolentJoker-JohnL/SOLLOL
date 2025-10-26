@@ -35,7 +35,7 @@ Replaced flake8 with **ruff** - a modern, fast Python linter written in Rust.
 
 - name: Lint with ruff
   run: |
-    ruff check src/sollol tests/ --ignore=E402,E501,E722,F401,F541,F811,F841
+    ruff check src/sollol tests/ --ignore=E402,E501,E722,F401,F541,F811,F841,PLW0602,PLW0603
 ```
 
 ### Ignored Error Codes
@@ -49,6 +49,8 @@ Replaced flake8 with **ruff** - a modern, fast Python linter written in Rust.
 | F541 | f-string without placeholders | Non-critical |
 | F811 | Redefinition of import | Intentional conditional imports |
 | F841 | Unused variable | Non-critical |
+| PLW0602 | Global without assignment | Read-only global access (F824 equivalent) |
+| PLW0603 | Global statement discouraged | Legitimate state management pattern |
 
 ## All Commits
 

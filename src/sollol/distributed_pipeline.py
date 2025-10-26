@@ -79,6 +79,7 @@ Inspired by:
 Implemented using Ray for better integration with SOLLOL's existing infrastructure.
 """
 
+import asyncio
 import logging
 import os
 import struct

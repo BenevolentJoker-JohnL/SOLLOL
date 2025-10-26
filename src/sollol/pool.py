@@ -1751,10 +1751,11 @@ class OllamaPool:
         # Track last check request count per node (check every N requests instead of time-based)
         last_check_request_counts = {}
         health_check_interval_requests = 100  # Check every 100 requests per node
+        interval = 5  # Base loop interval in seconds
 
         while self._health_check_enabled:
             try:
-                time.sleep(5)  # Base loop interval
+                time.sleep(interval)  # Base loop interval
 
                 # Check health of all nodes based on request count
                 with self._lock:

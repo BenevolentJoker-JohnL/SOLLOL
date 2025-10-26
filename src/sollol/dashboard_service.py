@@ -667,10 +667,11 @@ class DashboardService:
 
                 # Get Ray worker count (try Redis first, then ray.nodes())
                 try:
+                    import ray
                     ray_info = ray.nodes()
                     ray_workers = sum(1 for node in ray_info if node.get("Alive", False))
                     dashboard_data["status"]["ray_workers"] = ray_workers
-                except Exception as e:
+                except (ImportError, Exception) as e:
                     logger.debug(f"Could not get Ray worker count: {e}")
 
                 # Get Dask worker count

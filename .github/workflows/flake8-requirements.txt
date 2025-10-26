@@ -1,0 +1,7 @@
+# Flake8 requirements for CI
+# Use these versions to avoid compatibility issues
+
+flake8>=6.0.0
+pycodestyle>=2.11.0
+pyflakes>=3.0.0
+mccabe>=0.7.0

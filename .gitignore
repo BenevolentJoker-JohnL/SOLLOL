@@ -145,3 +145,4 @@ llama.cpp/
 
 # RPC backends
 rpc_backends/
+SynapticLlamas/

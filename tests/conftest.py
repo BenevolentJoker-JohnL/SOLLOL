@@ -122,13 +122,13 @@ def pool():
         nodes=[
             {"host": "localhost", "port": 21434},
             {"host": "localhost", "port": 21435},
-            {"host": "localhost", "port": 21436}
+            {"host": "localhost", "port": 21436},
         ],
         enable_intelligent_routing=True,
         register_with_dashboard=False,
         enable_cache=False,
         enable_ray=False,
-        enable_dask=False
+        enable_dask=False,
     )
 
     yield pool

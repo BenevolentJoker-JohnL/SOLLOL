@@ -8,7 +8,8 @@ Tests:
 """
 
 import pytest
-from sollol.rpc_registry import RPCBackendRegistry, RPCBackend, RPCMetrics
+
+from sollol.rpc_registry import RPCBackend, RPCBackendRegistry, RPCMetrics
 
 
 class TestRPCBackendMetadata:

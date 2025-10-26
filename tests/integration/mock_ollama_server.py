@@ -8,7 +8,7 @@ Simulates basic Ollama API endpoints without requiring actual models.
 import argparse
 import json
 import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 class MockOllamaHandler(BaseHTTPRequestHandler):
@@ -28,7 +28,7 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
                         "name": "llama3.2",
                         "modified_at": "2024-01-01T00:00:00Z",
                         "size": 2000000000,
-                        "digest": "sha256:mock"
+                        "digest": "sha256:mock",
                     }
                 ]
             }
@@ -62,9 +62,9 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
                     "created_at": "2024-01-01T00:00:00Z",
                     "message": {
                         "role": "assistant",
-                        "content": f"Mock response from port {self.server.server_port}"
+                        "content": f"Mock response from port {self.server.server_port}",
                     },
-                    "done": True
+                    "done": True,
                 }
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -81,7 +81,7 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
                     "model": request_data.get("model", "llama3.2"),
                     "created_at": "2024-01-01T00:00:00Z",
                     "response": f"Mock generation from port {self.server.server_port}",
-                    "done": True
+                    "done": True,
                 }
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
@@ -97,7 +97,7 @@ class MockOllamaHandler(BaseHTTPRequestHandler):
                 # Return mock 384-dimensional embedding
                 response = {
                     "model": request_data.get("model", "mxbai-embed-large"),
-                    "embeddings": [[0.1] * 384]  # Mock embedding vector
+                    "embeddings": [[0.1] * 384],  # Mock embedding vector
                 }
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")

@@ -9,21 +9,22 @@ Tests:
 4. Routing strategy validation
 """
 
-import sys
 import os
+import sys
 import time
-import requests
+
 import pytest
+import requests
 
 # Add src to path for local testing
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../src"))
 
 
 def test_mock_nodes_running():
     """Verify mock Ollama nodes are accessible."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 1: Verify mock nodes are running")
-    print("="*80)
+    print("=" * 80)
 
     ports = [21434, 21435, 21436]
     for port in ports:
@@ -44,9 +45,9 @@ def test_mock_nodes_running():
 
 def test_sollol_auto_discovery():
     """Test SOLLOL auto-discovery of mock nodes."""
-    print("="*80)
+    print("=" * 80)
     print("TEST 2: SOLLOL auto-discovery")
-    print("="*80)
+    print("=" * 80)
 
     from sollol import OllamaPool
 
@@ -55,13 +56,13 @@ def test_sollol_auto_discovery():
         nodes=[
             {"host": "localhost", "port": 21434},
             {"host": "localhost", "port": 21435},
-            {"host": "localhost", "port": 21436}
+            {"host": "localhost", "port": 21436},
         ],
         enable_intelligent_routing=True,
         register_with_dashboard=False,  # Disable dashboard for CI
         enable_cache=False,
         enable_ray=False,  # Disable Ray for simpler CI
-        enable_dask=False  # Disable Dask for simpler CI
+        enable_dask=False,  # Disable Dask for simpler CI
     )
 
     assert len(pool.nodes) == 3, f"Expected 3 nodes, found {len(pool.nodes)}"
@@ -75,15 +76,12 @@ def test_sollol_auto_discovery():
 
 def test_end_to_end_routing(pool):
     """Test end-to-end request routing across nodes."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 3: End-to-end routing")
-    print("="*80)
+    print("=" * 80)
 
     # Make a chat request
-    response = pool.chat(
-        model="llama3.2",
-        messages=[{"role": "user", "content": "Hello!"}]
-    )
+    response = pool.chat(model="llama3.2", messages=[{"role": "user", "content": "Hello!"}])
 
     assert "message" in response, "Missing 'message' in response"
     assert "content" in response["message"], "Missing 'content' in message"
@@ -94,7 +92,9 @@ def test_end_to_end_routing(pool):
     # Verify routing metadata
     if "_sollol_routing" in response:
         routing_info = response["_sollol_routing"]
-        print(f"   Routed to: {routing_info.get('host', 'unknown')}:{routing_info.get('port', 'unknown')}")
+        print(
+            f"   Routed to: {routing_info.get('host', 'unknown')}:{routing_info.get('port', 'unknown')}"
+        )
         print(f"   Task type: {routing_info.get('task_type', 'unknown')}")
 
     return True
@@ -102,9 +102,9 @@ def test_end_to_end_routing(pool):
 
 def test_routing_strategies(pool):
     """Test all routing strategies."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("TEST 4: Routing strategies")
-    print("="*80)
+    print("=" * 80)
 
     from sollol.routing_strategy import RoutingStrategy
 
@@ -112,7 +112,7 @@ def test_routing_strategies(pool):
         RoutingStrategy.ROUND_ROBIN,
         RoutingStrategy.LATENCY_FIRST,
         RoutingStrategy.LEAST_LOADED,
-        RoutingStrategy.FAIRNESS
+        RoutingStrategy.FAIRNESS,
     ]
 
     for strategy in strategies:
@@ -121,8 +121,7 @@ def test_routing_strategies(pool):
 
         # Make a request
         response = pool.chat(
-            model="llama3.2",
-            messages=[{"role": "user", "content": f"Test {strategy.value}"}]
+            model="llama3.2", messages=[{"role": "user", "content": f"Test {strategy.value}"}]
         )
 
         assert "message" in response, f"Strategy {strategy.value} failed"
@@ -134,19 +133,19 @@ def test_routing_strategies(pool):
 
 def test_multiple_requests(pool):
     """Test multiple concurrent-ish requests (simulated)."""
-    print("="*80)
+    print("=" * 80)
     print("TEST 5: Multiple requests distribution")
-    print("="*80)
+    print("=" * 80)
 
     from sollol.routing_strategy import RoutingStrategy
+
     pool.routing_strategy = RoutingStrategy.ROUND_ROBIN
 
     nodes_used = []
 
     for i in range(6):  # 6 requests across 3 nodes
         response = pool.chat(
-            model="llama3.2",
-            messages=[{"role": "user", "content": f"Request {i+1}"}]
+            model="llama3.2", messages=[{"role": "user", "content": f"Request {i+1}"}]
         )
 
         if "_sollol_routing" in response:
@@ -168,9 +167,9 @@ def test_multiple_requests(pool):
 
 def main():
     """Run all integration tests."""
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("SOLLOL Multi-Node Integration Test Suite")
-    print("="*80)
+    print("=" * 80)
 
     # Test 1: Verify mock nodes
     if not test_mock_nodes_running():
@@ -206,9 +205,9 @@ def main():
         print(f"⚠️  Pool stop error: {e}")
 
     # Summary
-    print("\n" + "="*80)
+    print("\n" + "=" * 80)
     print("✅ ALL TESTS PASSED")
-    print("="*80)
+    print("=" * 80)
     print("\nSOLLOL multi-node routing is working correctly!")
     print("- Auto-discovery: ✅")
     print("- Intelligent routing: ✅")

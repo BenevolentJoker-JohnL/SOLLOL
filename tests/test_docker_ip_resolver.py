@@ -3,14 +3,15 @@ Tests for Docker IP resolution functionality.
 """
 
 import pytest
+
 from sollol.docker_ip_resolver import (
-    is_docker_ip,
-    resolve_docker_ip,
     auto_resolve_ips,
-    resolve_docker_ip_with_alternatives,
-    is_running_in_docker,
-    get_docker_network_mode,
     get_deployment_context,
+    get_docker_network_mode,
+    is_docker_ip,
+    is_running_in_docker,
+    resolve_docker_ip,
+    resolve_docker_ip_with_alternatives,
 )
 
 
@@ -55,10 +56,7 @@ class TestDockerIPResolution:
         # This test assumes localhost:11434 is NOT running
         # In real usage, it would return "127.0.0.1" if Ollama is running locally
         result = resolve_docker_ip(
-            "172.17.0.5",
-            11434,
-            timeout=0.1,
-            verify_func=None  # Skip verification for testing
+            "172.17.0.5", 11434, timeout=0.1, verify_func=None  # Skip verification for testing
         )
         # Should return first accessible candidate or None
         assert result in ("127.0.0.1", "localhost", None)
@@ -67,10 +65,7 @@ class TestDockerIPResolution:
         """Test getting all accessible alternatives."""
         # This should return a list of (ip, port) tuples
         alternatives = resolve_docker_ip_with_alternatives(
-            "172.17.0.5",
-            11434,
-            timeout=0.1,
-            verify_func=None
+            "172.17.0.5", 11434, timeout=0.1, verify_func=None
         )
         # Should be a list (may be empty if nothing accessible)
         assert isinstance(alternatives, list)
@@ -88,8 +83,8 @@ class TestDockerIPResolution:
         """Test auto-resolution with mix of Docker and regular IPs."""
         nodes = [
             {"host": "192.168.1.100", "port": "11434"},  # Regular IP
-            {"host": "172.17.0.5", "port": "11434"},     # Docker IP
-            {"host": "127.0.0.1", "port": "11434"},      # Localhost
+            {"host": "172.17.0.5", "port": "11434"},  # Docker IP
+            {"host": "127.0.0.1", "port": "11434"},  # Localhost
         ]
 
         resolved = auto_resolve_ips(nodes, timeout=0.1, verify_func=None)
@@ -194,11 +189,7 @@ class TestDeploymentAwareResolution:
         context = get_deployment_context()
 
         result = resolve_docker_ip(
-            "172.17.0.5",
-            11434,
-            timeout=0.1,
-            verify_func=None,
-            deployment_context=context
+            "172.17.0.5", 11434, timeout=0.1, verify_func=None, deployment_context=context
         )
 
         # Should complete without error
@@ -211,15 +202,11 @@ class TestDeploymentAwareResolution:
             "mode": "bare_metal",
             "is_docker": False,
             "network_mode": "unknown",
-            "container_id": None
+            "container_id": None,
         }
 
         result = resolve_docker_ip(
-            "172.17.0.5",
-            11434,
-            timeout=0.1,
-            verify_func=None,
-            deployment_context=context
+            "172.17.0.5", 11434, timeout=0.1, verify_func=None, deployment_context=context
         )
 
         # Should try localhost first (bare metal strategy)
@@ -232,15 +219,11 @@ class TestDeploymentAwareResolution:
             "mode": "docker",
             "is_docker": True,
             "network_mode": "bridge",
-            "container_id": "abc123"
+            "container_id": "abc123",
         }
 
         result = resolve_docker_ip(
-            "172.17.0.5",
-            11434,
-            timeout=0.1,
-            verify_func=None,
-            deployment_context=context
+            "172.17.0.5", 11434, timeout=0.1, verify_func=None, deployment_context=context
         )
 
         # Should try Docker IP directly first (Docker strategy)
@@ -257,28 +240,20 @@ class TestEdgeCases:
             "172.17.0.99",
             9999,  # Unlikely port
             timeout=0.1,
-            verify_func=lambda h, p, t: False  # Always fail verification
+            verify_func=lambda h, p, t: False,  # Always fail verification
         )
         # Should return None if unresolvable
         assert result is None
 
     def test_invalid_port(self):
         """Test handling of invalid port numbers."""
-        result = resolve_docker_ip(
-            "172.17.0.5",
-            -1,  # Invalid port
-            timeout=0.1
-        )
+        result = resolve_docker_ip("172.17.0.5", -1, timeout=0.1)  # Invalid port
         # Should handle gracefully
         assert result in (None, "127.0.0.1", "localhost")
 
     def test_very_short_timeout(self):
         """Test with very short timeout."""
-        result = resolve_docker_ip(
-            "172.17.0.5",
-            11434,
-            timeout=0.001  # 1ms - very aggressive
-        )
+        result = resolve_docker_ip("172.17.0.5", 11434, timeout=0.001)  # 1ms - very aggressive
         # Should complete without error
         assert result in (None, "127.0.0.1", "localhost") or result is not None
 

@@ -8,9 +8,11 @@ Tests:
 """
 
 import json
+
 import pytest
-from sollol.unified_dashboard import UnifiedDashboard
+
 from sollol.rpc_registry import RPCBackendRegistry
+from sollol.unified_dashboard import UnifiedDashboard
 
 
 class TestDashboardRPCBackends:
@@ -23,7 +25,7 @@ class TestDashboardRPCBackends:
 
         # Create a test client
         with dashboard.app.test_client() as client:
-            response = client.get('/api/network/backends')
+            response = client.get("/api/network/backends")
             assert response.status_code == 200
 
             data = json.loads(response.data)
@@ -48,13 +50,15 @@ class TestDashboardRPCBackends:
             is_healthy = backend_dict["healthy"]
             metrics = backend_dict.get("metrics", {})
 
-            backends.append({
-                "url": f"{host}:{port}",
-                "status": "healthy" if is_healthy else "offline",
-                "latency_ms": metrics.get("avg_latency_ms", 0),
-                "request_count": metrics.get("total_requests", 0),
-                "failure_count": metrics.get("total_failures", 0),
-            })
+            backends.append(
+                {
+                    "url": f"{host}:{port}",
+                    "status": "healthy" if is_healthy else "offline",
+                    "latency_ms": metrics.get("avg_latency_ms", 0),
+                    "request_count": metrics.get("total_requests", 0),
+                    "failure_count": metrics.get("total_failures", 0),
+                }
+            )
 
         # Verify structure
         assert len(backends) == 2
@@ -111,9 +115,9 @@ class TestDashboardRPCBackends:
         backends_list = []
         for backend_obj in registry.backends.values():
             # backend_obj is RPCBackend instance
-            assert hasattr(backend_obj, 'host')
-            assert hasattr(backend_obj, 'port')
-            assert hasattr(backend_obj, 'to_dict')
+            assert hasattr(backend_obj, "host")
+            assert hasattr(backend_obj, "port")
+            assert hasattr(backend_obj, "to_dict")
 
             backend_dict = backend_obj.to_dict()
             backends_list.append(backend_dict["host"])
@@ -140,13 +144,15 @@ class TestRouterBackendIntegration:
         for backend in router_backends:
             host = backend.get("host")
             port = backend.get("port", 50052)
-            backends.append({
-                "url": f"{host}:{port}",
-                "status": "healthy",
-                "latency_ms": 0,
-                "request_count": backend.get("request_count", 0),
-                "failure_count": backend.get("failure_count", 0),
-            })
+            backends.append(
+                {
+                    "url": f"{host}:{port}",
+                    "status": "healthy",
+                    "latency_ms": 0,
+                    "request_count": backend.get("request_count", 0),
+                    "failure_count": backend.get("failure_count", 0),
+                }
+            )
 
         # Verify structure
         assert len(backends) == 2

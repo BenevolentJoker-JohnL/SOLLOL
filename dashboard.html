@@ -730,7 +730,7 @@
 
         // Log streaming
         const logContainer = document.getElementById('log-container');
-        const socket = new WebSocket(`ws://${window.location.host}/api/logs/ws`);
+        const socket = new WebSocket(`ws://${window.location.host}/ws/logs`);
 
         socket.onmessage = (event) => {
             const logEntry = document.createElement('div');

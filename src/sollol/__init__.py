@@ -103,7 +103,7 @@ from sollol.gpu_auto_setup import GPUAutoSetup, auto_setup_gpu_monitoring
 # Legacy support
 from sollol.sollol import SOLLOL
 
-__version__ = "0.9.52"
+__version__ = "0.9.58"
 __all__ = [
     # Core
     "OllamaPool",

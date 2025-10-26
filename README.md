@@ -124,6 +124,26 @@ SOLLOL powers two production-ready applications that leverage its intelligent ro
 > **Note**: Both applications use SOLLOL's **task distribution** features (production-ready). The experimental model sharding feature is available in SynapticLlamas for research purposes only.
 
 ---
+
+## 🔧 In Development - SOLLOL Integration
+
+The following projects are actively being developed to integrate with SOLLOL:
+
+### Hydra
+**Status**: 🚧 Integration in progress
+- Requires additional work for full SOLLOL integration
+- Planned features will leverage SOLLOL's task distribution
+- Future development will enable new SOLLOL capabilities
+
+### LlamaForge
+**Status**: 🚧 Integration in progress
+- Requires additional work for full SOLLOL integration
+- Planned features will leverage SOLLOL's intelligent routing
+- Future development will enable new SOLLOL capabilities
+
+> **These projects are under active development and will contribute to future SOLLOL enhancements.**
+
+---
 - Check [Full Quick Start](#-full-quick-start) for production setup
 - Read [Examples](#-integration-examples) for multi-agent, batch, and distributed inference patterns
 

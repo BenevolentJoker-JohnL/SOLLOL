@@ -31,6 +31,15 @@ Before diving into experimental features, note that SOLLOL's **stable features**
 
 > **Both applications use ONLY the production-stable SOLLOL features** (task distribution, intelligent routing). They avoid the experimental features documented below.
 
+### 🔧 In Development
+
+The following projects are being integrated with SOLLOL and will enable future development:
+
+- **Hydra**: Integration in progress - requires additional work
+- **LlamaForge**: Integration in progress - requires additional work
+
+These projects will leverage SOLLOL's stable features and contribute to future capabilities.
+
 ---
 
 ## Distributed Inference via llama.cpp RPC

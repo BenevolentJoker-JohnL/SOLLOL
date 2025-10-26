@@ -34,7 +34,7 @@ from sollol.hybrid_router import HybridRouter
 from sollol.pool import OllamaPool
 from sollol.rate_limiter import RateLimiter, RateLimitExceeded
 from sollol.request_timeout import RequestTimeoutError, TimeoutConfig, TimeoutManager
-from sollol.retry_logic import RetryConfig, RetryableRequest
+from sollol.retry_logic import RetryableRequest, RetryConfig
 from sollol.vram_monitor import VRAMMonitor
 from sollol.workers import OllamaWorker
 
@@ -165,8 +165,12 @@ def start_api(
     port = int(os.getenv("SOLLOL_PORT", os.getenv("PORT", port)))
     ray_workers = int(os.getenv("SOLLOL_RAY_WORKERS", os.getenv("RAY_WORKERS", ray_workers)))
     dask_workers = int(os.getenv("SOLLOL_DASK_WORKERS", os.getenv("DASK_WORKERS", dask_workers)))
-    enable_batch_processing = os.getenv("SOLLOL_BATCH_PROCESSING", str(enable_batch_processing)).lower() in ("true", "1", "yes")
-    autobatch_interval = int(os.getenv("SOLLOL_AUTOBATCH_INTERVAL", os.getenv("AUTOBATCH_INTERVAL", autobatch_interval)))
+    enable_batch_processing = os.getenv(
+        "SOLLOL_BATCH_PROCESSING", str(enable_batch_processing)
+    ).lower() in ("true", "1", "yes")
+    autobatch_interval = int(
+        os.getenv("SOLLOL_AUTOBATCH_INTERVAL", os.getenv("AUTOBATCH_INTERVAL", autobatch_interval))
+    )
 
     # Store autobatch interval globally for startup event
     global _autobatch_interval
@@ -193,7 +197,9 @@ def start_api(
             )
             _dask_client = DaskClient(cluster)
             logger.info(f"✅ Dask initialized with {dask_workers} workers for batch operations")
-            logger.info(f"   Autobatch loop will start on FastAPI startup (interval: {autobatch_interval}s)")
+            logger.info(
+                f"   Autobatch loop will start on FastAPI startup (interval: {autobatch_interval}s)"
+            )
         except Exception as e:
             logger.warning(f"⚠️  Dask initialization failed: {e}")
             logger.warning("    Batch processing disabled")
@@ -392,7 +398,7 @@ async def chat_endpoint(request: Request):
                 raise HTTPException(
                     status_code=429,
                     detail=f"Rate limit exceeded: {reason}",
-                    headers={"Retry-After": "1"}
+                    headers={"Retry-After": "1"},
                 )
 
         if not _ollama_pool:
@@ -414,7 +420,7 @@ async def chat_endpoint(request: Request):
                 # llama.cpp model sharding was used
                 result["_sollol_routing"] = {
                     "mode": "llama.cpp-distributed",
-                    **result.get("_routing", {})
+                    **result.get("_routing", {}),
                 }
                 return result
 
@@ -447,7 +453,7 @@ async def chat_endpoint(request: Request):
                 failure_threshold=5,
                 success_threshold=2,
                 timeout_seconds=60,
-                half_open_max_requests=3
+                half_open_max_requests=3,
             )
         breaker = _circuit_breakers[node_key]
 
@@ -456,6 +462,7 @@ async def chat_endpoint(request: Request):
             if should_parallel and _ray_actors:
                 # PARALLEL: Submit to Ray actor
                 import random
+
                 actor = random.choice(_ray_actors)
                 result_future = actor.chat.remote(payload, node_key)
                 return await result_future, "ray-parallel", str(actor)
@@ -469,8 +476,7 @@ async def chat_endpoint(request: Request):
             if _retry_config:
                 retrier = RetryableRequest(_retry_config)
                 return await retrier.execute_async(
-                    lambda: breaker.call_async(execute_request),
-                    exceptions=(Exception,)
+                    lambda: breaker.call_async(execute_request), exceptions=(Exception,)
                 )
             else:
                 return await breaker.call_async(execute_request)
@@ -478,8 +484,7 @@ async def chat_endpoint(request: Request):
         # Execute with timeout + circuit breaker + retry logic
         if _timeout_manager:
             result, execution_mode, actor_info = await _timeout_manager.execute_with_timeout(
-                execute_with_resilience,
-                operation_type="chat"
+                execute_with_resilience, operation_type="chat"
             )
         else:
             result, execution_mode, actor_info = await execute_with_resilience()
@@ -490,8 +495,10 @@ async def chat_endpoint(request: Request):
                 "mode": execution_mode,
                 "node": node_key,
                 "actor_id": actor_info,
-                "intelligent_routing": decision if decision else {"reasoning": "round-robin fallback"},
-                "adaptive_parallelism": parallelism_reasoning
+                "intelligent_routing": decision
+                if decision
+                else {"reasoning": "round-robin fallback"},
+                "adaptive_parallelism": parallelism_reasoning,
             }
 
         return result
@@ -506,7 +513,7 @@ async def chat_endpoint(request: Request):
         logger.warning(f"Chat request timed out: {e}")
         raise HTTPException(
             status_code=504,
-            detail=f"Request timed out after {e.timeout_seconds}s. Consider increasing SOLLOL_CHAT_TIMEOUT for resource-constrained environments."
+            detail=f"Request timed out after {e.timeout_seconds}s. Consider increasing SOLLOL_CHAT_TIMEOUT for resource-constrained environments.",
         )
     except Exception as e:
         logger.error(f"Chat endpoint error: {e}", exc_info=True)
@@ -543,7 +550,7 @@ async def generate_endpoint(request: Request):
                 raise HTTPException(
                     status_code=429,
                     detail=f"Rate limit exceeded: {reason}",
-                    headers={"Retry-After": "1"}
+                    headers={"Retry-After": "1"},
                 )
 
         if not _ollama_pool:
@@ -569,7 +576,7 @@ async def generate_endpoint(request: Request):
                 failure_threshold=5,
                 success_threshold=2,
                 timeout_seconds=60,
-                half_open_max_requests=3
+                half_open_max_requests=3,
             )
         breaker = _circuit_breakers[node_key]
 
@@ -582,8 +589,7 @@ async def generate_endpoint(request: Request):
             if _retry_config:
                 retrier = RetryableRequest(_retry_config)
                 return await retrier.execute_async(
-                    lambda: breaker.call_async(execute_request),
-                    exceptions=(Exception,)
+                    lambda: breaker.call_async(execute_request), exceptions=(Exception,)
                 )
             else:
                 return await breaker.call_async(execute_request)
@@ -591,8 +597,7 @@ async def generate_endpoint(request: Request):
         # Execute with timeout + circuit breaker + retry logic
         if _timeout_manager:
             result = await _timeout_manager.execute_with_timeout(
-                execute_with_resilience,
-                operation_type="generate"
+                execute_with_resilience, operation_type="generate"
             )
         else:
             result = await execute_with_resilience()
@@ -603,7 +608,7 @@ async def generate_endpoint(request: Request):
         logger.warning(f"Generate request timed out: {e}")
         raise HTTPException(
             status_code=504,
-            detail=f"Request timed out after {e.timeout_seconds}s. Consider increasing SOLLOL_GENERATE_TIMEOUT for resource-constrained environments."
+            detail=f"Request timed out after {e.timeout_seconds}s. Consider increasing SOLLOL_GENERATE_TIMEOUT for resource-constrained environments.",
         )
     except Exception as e:
         logger.error(f"Generate endpoint error: {e}", exc_info=True)
@@ -666,7 +671,9 @@ async def health_check():
     # Get Dask worker count
     if _dask_client:
         try:
-            health_status["dask_batch_processing"]["workers"] = len(_dask_client.scheduler_info()["workers"])
+            health_status["dask_batch_processing"]["workers"] = len(
+                _dask_client.scheduler_info()["workers"]
+            )
         except:
             pass
 
@@ -707,7 +714,9 @@ async def health_check():
     health_status["resilience"] = {
         "rate_limiting": {
             "enabled": _rate_limiter is not None,
-            "global_rate": _rate_limiter.global_limiter.rate if _rate_limiter and _rate_limiter.global_limiter else None,
+            "global_rate": _rate_limiter.global_limiter.rate
+            if _rate_limiter and _rate_limiter.global_limiter
+            else None,
             "per_node_rate": _rate_limiter.per_node_rate if _rate_limiter else None,
         },
         "circuit_breaker": {
@@ -724,15 +733,23 @@ async def health_check():
         },
         "graceful_shutdown": {
             "enabled": _graceful_shutdown is not None,
-            "is_shutting_down": _graceful_shutdown.is_shutting_down if _graceful_shutdown else False,
+            "is_shutting_down": _graceful_shutdown.is_shutting_down
+            if _graceful_shutdown
+            else False,
             "active_requests": _graceful_shutdown.active_requests if _graceful_shutdown else 0,
             "timeout_seconds": _graceful_shutdown.timeout if _graceful_shutdown else None,
         },
         "request_timeouts": {
             "enabled": _timeout_manager is not None,
-            "chat_timeout_seconds": _timeout_manager.config.chat_timeout if _timeout_manager else None,
-            "generate_timeout_seconds": _timeout_manager.config.generate_timeout if _timeout_manager else None,
-            "embed_timeout_seconds": _timeout_manager.config.embed_timeout if _timeout_manager else None,
+            "chat_timeout_seconds": _timeout_manager.config.chat_timeout
+            if _timeout_manager
+            else None,
+            "generate_timeout_seconds": _timeout_manager.config.generate_timeout
+            if _timeout_manager
+            else None,
+            "embed_timeout_seconds": _timeout_manager.config.embed_timeout
+            if _timeout_manager
+            else None,
         },
     }
 
@@ -783,8 +800,7 @@ def stats_endpoint():
 
     if _circuit_breakers:
         stats["circuit_breakers"] = {
-            node_key: breaker.get_state()
-            for node_key, breaker in _circuit_breakers.items()
+            node_key: breaker.get_state() for node_key, breaker in _circuit_breakers.items()
         }
 
     if _graceful_shutdown:
@@ -978,9 +994,7 @@ async def batch_job_cancel_endpoint(job_id: str):
 
     cancelled = _batch_manager.cancel_job(job_id)
     if not cancelled:
-        raise HTTPException(
-            status_code=404, detail=f"Job {job_id} not found or already completed"
-        )
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found or already completed")
 
     return {
         "job_id": job_id,

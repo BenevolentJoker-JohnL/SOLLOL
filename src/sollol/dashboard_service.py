@@ -124,9 +124,7 @@ class ActivityMonitor:
 
         self.running = True
         self.monitor_thread = threading.Thread(
-            target=self._monitor_loop,
-            daemon=True,
-            name="ActivityMonitor"
+            target=self._monitor_loop, daemon=True, name="ActivityMonitor"
         )
         self.monitor_thread.start()
         logger.info("🔍 Activity monitoring started")
@@ -211,13 +209,14 @@ class DashboardService:
         # Initialize Dask if requested
         if enable_dask:
             try:
-                from dask.distributed import LocalCluster, Client
-                import dask
                 import os
 
+                import dask
+                from dask.distributed import Client, LocalCluster
+
                 # Set environment variables before cluster creation
-                os.environ['DASK_DISTRIBUTED__LOGGING__DISTRIBUTED'] = 'error'
-                os.environ['DASK_LOGGING__DISTRIBUTED'] = 'error'
+                os.environ["DASK_DISTRIBUTED__LOGGING__DISTRIBUTED"] = "error"
+                os.environ["DASK_LOGGING__DISTRIBUTED"] = "error"
 
                 dask.config.set({"distributed.worker.daemon": False})
                 dask.config.set({"distributed.logging.distributed": "error"})
@@ -229,7 +228,9 @@ class DashboardService:
                     logger.info("🔍 Attempting to connect to existing Dask scheduler...")
                     # Try default scheduler address
                     self.dask_client = Client("tcp://127.0.0.1:8786", timeout=2)
-                    logger.info(f"✅ Connected to existing Dask scheduler at {self.dask_client.scheduler.address}")
+                    logger.info(
+                        f"✅ Connected to existing Dask scheduler at {self.dask_client.scheduler.address}"
+                    )
                 except Exception as e:
                     # No existing scheduler, create local cluster
                     logger.info("🚀 Starting new Dask cluster (no existing scheduler found)")
@@ -249,7 +250,7 @@ class DashboardService:
                 # This catches warnings from threaded workers at the handler level
                 class DaskWarningFilter(logging.Filter):
                     def filter(self, record):
-                        return 'Task queue depth' not in record.getMessage()
+                        return "Task queue depth" not in record.getMessage()
 
                 dask_filter = DaskWarningFilter()
 
@@ -259,8 +260,13 @@ class DashboardService:
                     handler.addFilter(dask_filter)
 
                 # Apply to all distributed loggers and their handlers
-                for logger_name in ['distributed', 'distributed.worker', 'distributed.scheduler',
-                                   'distributed.core', 'distributed.comm']:
+                for logger_name in [
+                    "distributed",
+                    "distributed.worker",
+                    "distributed.scheduler",
+                    "distributed.core",
+                    "distributed.comm",
+                ]:
                     dist_logger = logging.getLogger(logger_name)
                     dist_logger.addFilter(dask_filter)
                     dist_logger.setLevel(logging.CRITICAL)
@@ -268,14 +274,17 @@ class DashboardService:
                         handler.addFilter(dask_filter)
 
                 # Get actual dashboard URL from client (may be on different port if 8787 was taken)
-                if hasattr(self.dask_client, 'dashboard_link'):
+                if hasattr(self.dask_client, "dashboard_link"):
                     actual_dashboard_url = self.dask_client.dashboard_link
                     # Extract port from URL like http://127.0.0.1:45423/status
                     import re
-                    port_match = re.search(r':(\d+)', actual_dashboard_url)
+
+                    port_match = re.search(r":(\d+)", actual_dashboard_url)
                     if port_match:
                         self.dask_dashboard_port = int(port_match.group(1))
-                        logger.info(f"📊 Dask dashboard available at http://127.0.0.1:{self.dask_dashboard_port}")
+                        logger.info(
+                            f"📊 Dask dashboard available at http://127.0.0.1:{self.dask_dashboard_port}"
+                        )
 
                 logger.info(f"✅ Dask initialized: {self.dask_client}")
             except ImportError:
@@ -337,7 +346,9 @@ class DashboardService:
                             "total_requests": getattr(router, "total_requests", 0),
                             "success_rate": getattr(router, "success_rate", 0),
                             "avg_latency": getattr(router, "avg_latency", 0),
-                            "ray_workers": len(getattr(router, "ray_workers", [])) if hasattr(router, "ray") else 0,
+                            "ray_workers": len(getattr(router, "ray_workers", []))
+                            if hasattr(router, "ray")
+                            else 0,
                         }
 
                 # Add analytics if not present (for HTML compatibility)
@@ -346,7 +357,7 @@ class DashboardService:
                         "p50_latency_ms": 0,
                         "p95_latency_ms": 0,
                         "p99_latency_ms": 0,
-                        "success_rate": 1.0
+                        "success_rate": 1.0,
                     }
 
                 # Add total_pools if not present
@@ -376,7 +387,10 @@ class DashboardService:
 
                 # Last resort: auto-discover Ollama nodes on network
                 from sollol.discovery import discover_ollama_nodes
-                discovered = discover_ollama_nodes(timeout=0.5, discover_all_nodes=True, exclude_localhost=True)
+
+                discovered = discover_ollama_nodes(
+                    timeout=0.5, discover_all_nodes=True, exclude_localhost=True
+                )
                 logger.info(f"Auto-discovered {len(discovered)} Ollama nodes")
                 return jsonify(discovered)
             except Exception as e:
@@ -391,14 +405,14 @@ class DashboardService:
                 if router and hasattr(router, "nodes"):
                     nodes_data = []
                     for n in router.nodes:
-                        host = n.get('host', 'localhost')
-                        port = n.get('port', 11434)
+                        host = n.get("host", "localhost")
+                        port = n.get("port", 11434)
                         url = f"http://{host}:{port}"
                         node_key = f"{host}:{port}"
 
                         # Get performance metrics if available
                         perf_stats = {}
-                        if hasattr(router, 'stats'):
+                        if hasattr(router, "stats"):
                             perf_stats = router.stats.get("node_performance", {}).get(node_key, {})
 
                         latency = perf_stats.get("latency_ms", 0)
@@ -406,26 +420,32 @@ class DashboardService:
                         gpu_mem = perf_stats.get("gpu_free_mem", 0)
                         available = perf_stats.get("available", True)
 
-                        nodes_data.append({
-                            "url": url,
-                            "status": "healthy" if available else "offline",
-                            "latency_ms": int(latency),
-                            "load_percent": int(cpu_load * 100),
-                            "memory_mb": int(gpu_mem)
-                        })
+                        nodes_data.append(
+                            {
+                                "url": url,
+                                "status": "healthy" if available else "offline",
+                                "latency_ms": int(latency),
+                                "load_percent": int(cpu_load * 100),
+                                "memory_mb": int(gpu_mem),
+                            }
+                        )
 
                     return jsonify({"nodes": nodes_data, "total": len(nodes_data)})
 
                 # Last resort: auto-discover Ollama nodes with health check + GPU data from Redis
-                from sollol.discovery import discover_ollama_nodes
                 import requests
-                discovered = discover_ollama_nodes(timeout=0.5, discover_all_nodes=True, exclude_localhost=True)
+
+                from sollol.discovery import discover_ollama_nodes
+
+                discovered = discover_ollama_nodes(
+                    timeout=0.5, discover_all_nodes=True, exclude_localhost=True
+                )
                 logger.info(f"Auto-discovered {len(discovered)} Ollama nodes")
 
                 nodes_data = []
                 for n in discovered:
-                    host = n.get('host', 'localhost')
-                    port = n.get('port', 11434)
+                    host = n.get("host", "localhost")
+                    port = n.get("port", 11434)
                     url = f"http://{host}:{port}"
                     node_key = f"{host}:{port}"
 
@@ -444,13 +464,17 @@ class DashboardService:
                     gpu_vendor = "unknown"
                     try:
                         gpu_key = f"sollol:gpu:{node_key}"
-                        logger.info(f"🔍 Looking up GPU data for node {node_key} with key: {gpu_key}")
+                        logger.info(
+                            f"🔍 Looking up GPU data for node {node_key} with key: {gpu_key}"
+                        )
 
                         if not self.redis_client:
                             logger.warning(f"❌ Redis client not initialized for GPU lookup")
                         else:
                             gpu_data_json = self.redis_client.get(gpu_key)
-                            logger.info(f"📊 Redis returned: {gpu_data_json[:100] if gpu_data_json else 'None'}")
+                            logger.info(
+                                f"📊 Redis returned: {gpu_data_json[:100] if gpu_data_json else 'None'}"
+                            )
 
                             if gpu_data_json:
                                 gpu_data = json.loads(gpu_data_json)
@@ -462,22 +486,28 @@ class DashboardService:
                                     gpu_free_mb = sum(g.get("memory_free_mb", 0) for g in gpus)
                                     gpu_total_mb = sum(g.get("memory_total_mb", 0) for g in gpus)
                                     gpu_vendor = gpu_data.get("vendor", "unknown")
-                                    logger.info(f"💾 GPU Stats: {gpu_free_mb}MB free / {gpu_total_mb}MB total ({gpu_vendor})")
+                                    logger.info(
+                                        f"💾 GPU Stats: {gpu_free_mb}MB free / {gpu_total_mb}MB total ({gpu_vendor})"
+                                    )
                             else:
                                 logger.warning(f"⚠️  No GPU data found in Redis for {node_key}")
                     except Exception as e:
-                        logger.error(f"❌ Error fetching GPU data for {node_key}: {e}", exc_info=True)
+                        logger.error(
+                            f"❌ Error fetching GPU data for {node_key}: {e}", exc_info=True
+                        )
 
-                    nodes_data.append({
-                        "url": url,
-                        "status": "healthy" if healthy else "offline",
-                        "latency_ms": latency,
-                        "load_percent": 0,
-                        "memory_mb": gpu_free_mb,
-                        "total_vram_mb": gpu_total_mb,
-                        "free_vram_mb": gpu_free_mb,
-                        "gpu_vendor": gpu_vendor
-                    })
+                    nodes_data.append(
+                        {
+                            "url": url,
+                            "status": "healthy" if healthy else "offline",
+                            "latency_ms": latency,
+                            "load_percent": 0,
+                            "memory_mb": gpu_free_mb,
+                            "total_vram_mb": gpu_total_mb,
+                            "free_vram_mb": gpu_free_mb,
+                            "gpu_vendor": gpu_vendor,
+                        }
+                    )
 
                 return jsonify({"nodes": nodes_data, "total": len(nodes_data)})
             except Exception as e:
@@ -489,19 +519,17 @@ class DashboardService:
             try:
                 # PRIORITY 1: Detect from running llama-server coordinator process (most reliable)
                 try:
-                    import subprocess
                     import re
+                    import subprocess
+
                     result = subprocess.run(
-                        ["ps", "aux"],
-                        capture_output=True,
-                        text=True,
-                        timeout=2
+                        ["ps", "aux"], capture_output=True, text=True, timeout=2
                     )
 
                     for line in result.stdout.split("\n"):
                         if "llama-server" in line and "--rpc" in line:
                             # Extract --rpc argument
-                            rpc_match = re.search(r'--rpc\s+([^\s]+)', line)
+                            rpc_match = re.search(r"--rpc\s+([^\s]+)", line)
                             if rpc_match:
                                 rpc_arg = rpc_match.group(1)
                                 # Parse comma-separated backends
@@ -513,13 +541,12 @@ class DashboardService:
                                         continue
                                     parts = addr.split(":")
                                     if len(parts) == 2:
-                                        backends.append({
-                                            "host": parts[0],
-                                            "port": int(parts[1])
-                                        })
+                                        backends.append({"host": parts[0], "port": int(parts[1])})
 
                                 if backends:
-                                    logger.info(f"✅ Detected {len(backends)} RPC backends from running coordinator")
+                                    logger.info(
+                                        f"✅ Detected {len(backends)} RPC backends from running coordinator"
+                                    )
                                     return jsonify(backends)
                 except Exception as e:
                     logger.debug(f"Coordinator process detection failed: {e}")
@@ -527,6 +554,7 @@ class DashboardService:
                 # PRIORITY 1.5: Read from config file if coordinator not running
                 try:
                     from pathlib import Path
+
                     config_file = Path("/home/joker/SOLLOL/rpc_backends.conf")
                     if config_file.exists():
                         backends = []
@@ -536,10 +564,7 @@ class DashboardService:
                                 if line and not line.startswith("#"):
                                     parts = line.split(":")
                                     if len(parts) == 2:
-                                        backends.append({
-                                            "host": parts[0],
-                                            "port": int(parts[1])
-                                        })
+                                        backends.append({"host": parts[0], "port": int(parts[1])})
                         if backends:
                             logger.info(f"📄 Loaded {len(backends)} RPC backends from config file")
                             return jsonify(backends)
@@ -549,6 +574,7 @@ class DashboardService:
                 # PRIORITY 2: Auto-discovery from Redis registry
                 try:
                     from sollol.rpc_discovery import auto_discover_rpc_backends
+
                     discovered_backends = auto_discover_rpc_backends()
                     logger.info(f"Auto-discovered {len(discovered_backends)} RPC backends")
                     if discovered_backends:
@@ -566,15 +592,19 @@ class DashboardService:
                     metadata_json = self.redis_client.get("sollol:router:metadata")
                     if metadata_json:
                         import json
+
                         metadata = json.loads(metadata_json)
                         rpc_backends_from_redis = metadata.get("rpc_backends", [])
                         # Filter out dummy backends
                         real_backends = [
-                            b for b in rpc_backends_from_redis
+                            b
+                            for b in rpc_backends_from_redis
                             if not (b.get("host") == "coordinator" and b.get("port") == 0)
                         ]
                         if real_backends:
-                            logger.info(f"✅ Loaded {len(real_backends)} RPC backends from Redis metadata")
+                            logger.info(
+                                f"✅ Loaded {len(real_backends)} RPC backends from Redis metadata"
+                            )
                             return jsonify(real_backends)
                 except Exception as e:
                     logger.debug(f"Redis metadata lookup failed: {e}")
@@ -592,8 +622,8 @@ class DashboardService:
                     # Enrich backends with health status for dashboard
                     enriched = []
                     for backend in backends:
-                        host = backend.get('host', 'unknown')
-                        port = backend.get('port', 50052)
+                        host = backend.get("host", "unknown")
+                        port = backend.get("port", 50052)
                         url = f"{host}:{port}"
 
                         # RPC backends use gRPC, can't health check via TCP socket.
@@ -610,20 +640,22 @@ class DashboardService:
                             stats_json = self.redis_client.get(stats_key)
                             if stats_json:
                                 stats = json.loads(stats_json)
-                                request_count = stats.get('request_count', 0)
-                                failure_count = stats.get('failure_count', 0)
+                                request_count = stats.get("request_count", 0)
+                                failure_count = stats.get("failure_count", 0)
                         except Exception:
                             pass
 
-                        enriched.append({
-                            "host": host,
-                            "port": port,
-                            "url": url,
-                            "status": "healthy",  # Assume healthy if in Redis registry
-                            "latency_ms": latency_ms,
-                            "request_count": request_count,
-                            "failure_count": failure_count,
-                        })
+                        enriched.append(
+                            {
+                                "host": host,
+                                "port": port,
+                                "url": url,
+                                "status": "healthy",  # Assume healthy if in Redis registry
+                                "latency_ms": latency_ms,
+                                "request_count": request_count,
+                                "failure_count": failure_count,
+                            }
+                        )
                     return jsonify({"backends": enriched, "total": len(enriched)})
                 return jsonify(backends)
             except Exception as e:
@@ -656,7 +688,7 @@ class DashboardService:
                     "routing": {
                         "patterns_available": [],
                         "task_types_learned": 0,
-                    }
+                    },
                 }
 
                 if metadata_json:
@@ -668,6 +700,7 @@ class DashboardService:
                 # Get Ray worker count (try Redis first, then ray.nodes())
                 try:
                     import ray
+
                     ray_info = ray.nodes()
                     ray_workers = sum(1 for node in ray_info if node.get("Alive", False))
                     dashboard_data["status"]["ray_workers"] = ray_workers
@@ -691,10 +724,14 @@ class DashboardService:
         @self.app.route("/api/dashboard/config")
         def dashboard_config():
             """Dashboard configuration for iframe URLs."""
-            return jsonify({
-                "ray_dashboard_url": f"http://localhost:{self.ray_dashboard_port}",
-                "dask_dashboard_url": f"http://localhost:{self.dask_dashboard_port}" if self.enable_dask else None,
-            })
+            return jsonify(
+                {
+                    "ray_dashboard_url": f"http://localhost:{self.ray_dashboard_port}",
+                    "dask_dashboard_url": f"http://localhost:{self.dask_dashboard_port}"
+                    if self.enable_dask
+                    else None,
+                }
+            )
 
         @self.app.route("/api/traces")
         def traces():
@@ -738,12 +775,7 @@ class DashboardService:
             try:
                 # Get recent routing events from Redis stream
                 limit = int(request.args.get("limit", 100))
-                events = self.redis_client.xrevrange(
-                    "sollol:routing_stream",
-                    "+",
-                    "-",
-                    count=limit
-                )
+                events = self.redis_client.xrevrange("sollol:routing_stream", "+", "-", count=limit)
 
                 logs = []
                 for event_id, event_data in events:
@@ -769,15 +801,17 @@ class DashboardService:
                 apps = []
                 for app_id, app_info in self.applications.items():
                     uptime_seconds = int(time.time() - app_info["started_at"])
-                    apps.append({
-                        "app_id": app_id,
-                        "name": app_info["name"],
-                        "router_type": app_info.get("router_type", "unknown"),
-                        "status": "active",
-                        "last_heartbeat": app_info["last_heartbeat"],
-                        "started_at": app_info["started_at"],
-                        "uptime_seconds": uptime_seconds,
-                    })
+                    apps.append(
+                        {
+                            "app_id": app_id,
+                            "name": app_info["name"],
+                            "router_type": app_info.get("router_type", "unknown"),
+                            "status": "active",
+                            "last_heartbeat": app_info["last_heartbeat"],
+                            "started_at": app_info["started_at"],
+                            "uptime_seconds": uptime_seconds,
+                        }
+                    )
                 return jsonify({"applications": apps, "total": len(apps)})
             except Exception as e:
                 logger.error(f"Error getting applications: {e}")
@@ -829,9 +863,11 @@ class DashboardService:
                         "version": data.get("version", "unknown"),
                         "metadata": data.get("metadata", {}),
                         "started_at": time.time(),
-                        "last_heartbeat": time.time()
+                        "last_heartbeat": time.time(),
                     }
-                    logger.info(f"📱 Auto-registered application from heartbeat: {app_name} ({app_id})")
+                    logger.info(
+                        f"📱 Auto-registered application from heartbeat: {app_name} ({app_id})"
+                    )
                 else:
                     self.applications[app_id]["last_heartbeat"] = time.time()
 
@@ -873,36 +909,40 @@ class DashboardService:
             """Get Dask metrics from live cluster."""
             try:
                 if not self.enable_dask or not self.dask_client:
-                    return jsonify({
-                        "enabled": False,
-                        "dashboard_url": None,
-                        "workers": 0,
-                        "status": "disabled"
-                    })
+                    return jsonify(
+                        {
+                            "enabled": False,
+                            "dashboard_url": None,
+                            "workers": 0,
+                            "status": "disabled",
+                        }
+                    )
 
                 # Get scheduler info
                 scheduler_info = self.dask_client.scheduler_info()
-                workers = scheduler_info.get('workers', {})
+                workers = scheduler_info.get("workers", {})
 
                 # Calculate total cores and memory
-                total_cores = sum(w.get('nthreads', 0) for w in workers.values())
-                total_memory = sum(w.get('memory_limit', 0) for w in workers.values())
+                total_cores = sum(w.get("nthreads", 0) for w in workers.values())
+                total_memory = sum(w.get("memory_limit", 0) for w in workers.values())
 
                 # Get task info
-                tasks = scheduler_info.get('tasks', {})
-                processing = len([t for t in tasks.values() if t.get('state') == 'processing'])
+                tasks = scheduler_info.get("tasks", {})
+                processing = len([t for t in tasks.values() if t.get("state") == "processing"])
 
-                return jsonify({
-                    "enabled": True,
-                    "dashboard_url": f"http://127.0.0.1:{self.dask_dashboard_port}",
-                    "workers": len(workers),
-                    "total_cores": total_cores,
-                    "total_memory_gb": round(total_memory / (1024**3), 2),
-                    "tasks_processing": processing,
-                    "tasks_total": len(tasks),
-                    "scheduler_address": self.dask_client.scheduler.address,
-                    "status": "active"
-                })
+                return jsonify(
+                    {
+                        "enabled": True,
+                        "dashboard_url": f"http://127.0.0.1:{self.dask_dashboard_port}",
+                        "workers": len(workers),
+                        "total_cores": total_cores,
+                        "total_memory_gb": round(total_memory / (1024**3), 2),
+                        "tasks_processing": processing,
+                        "tasks_total": len(tasks),
+                        "scheduler_address": self.dask_client.scheduler.address,
+                        "status": "active",
+                    }
+                )
             except Exception as e:
                 logger.error(f"Error getting Dask metrics: {e}")
                 return jsonify({"error": str(e), "enabled": False}), 500
@@ -945,6 +985,7 @@ class DashboardService:
 
             # Create separate Redis connection for pub/sub
             import redis as redis_module
+
             pubsub_client = redis_module.from_url(self.redis_url, decode_responses=True)
             pubsub = pubsub_client.pubsub()
 
@@ -953,49 +994,55 @@ class DashboardService:
                 pubsub.subscribe("sollol:dashboard:ollama:activity")
 
                 # Send initial connected message
-                ws.send(json.dumps({
-                    "type": "connected",
-                    "timestamp": time.time(),
-                    "message": "✓ Connected to Ollama activity stream"
-                }))
+                ws.send(
+                    json.dumps(
+                        {
+                            "type": "connected",
+                            "timestamp": time.time(),
+                            "message": "✓ Connected to Ollama activity stream",
+                        }
+                    )
+                )
                 logger.info("✅ Sent Ollama activity WebSocket connected message")
 
                 # Non-blocking message polling loop
                 logger.info("🔄 Starting Ollama activity message polling loop")
                 while True:
                     message = pubsub.get_message(timeout=0.1)
-                    if message and message['type'] == 'message':
+                    if message and message["type"] == "message":
                         # Forward Redis message to WebSocket
-                        activity_data = json.loads(message['data'])
+                        activity_data = json.loads(message["data"])
                         logger.debug(f"Received Ollama activity message: {activity_data}")
 
                         # Format for display
-                        event_type = activity_data.get('event_type', 'unknown')
-                        backend = activity_data.get('backend', 'unknown')
-                        details = activity_data.get('details', {})
+                        event_type = activity_data.get("event_type", "unknown")
+                        backend = activity_data.get("backend", "unknown")
+                        details = activity_data.get("details", {})
 
                         # Create display message
-                        if event_type == 'ollama_request':
+                        if event_type == "ollama_request":
                             display_msg = f"→ REQUEST to {backend}: {details.get('model', 'unknown')} ({details.get('operation', 'chat')})"
-                        elif event_type == 'ollama_response':
-                            latency = details.get('latency_ms', 0)
+                        elif event_type == "ollama_response":
+                            latency = details.get("latency_ms", 0)
                             # Add seconds conversion for readability
                             latency_str = f"{latency:.0f}ms"
                             if latency >= 1000:
                                 latency_str += f" / {latency/1000:.2f}s"
                             display_msg = f"← RESPONSE from {backend}: {details.get('model', 'unknown')} ({latency_str})"
-                        elif event_type == 'ollama_error':
+                        elif event_type == "ollama_error":
                             display_msg = f"✗ ERROR on {backend}: {details.get('error', 'unknown')}"
                         else:
                             display_msg = f"{event_type} on {backend}"
 
-                        payload = json.dumps({
-                            "type": event_type,
-                            "timestamp": activity_data.get('timestamp', time.time()),
-                            "backend": backend,
-                            "details": details,
-                            "message": display_msg
-                        })
+                        payload = json.dumps(
+                            {
+                                "type": event_type,
+                                "timestamp": activity_data.get("timestamp", time.time()),
+                                "backend": backend,
+                                "details": details,
+                                "message": display_msg,
+                            }
+                        )
                         logger.info(f"📤 Sending Ollama activity WebSocket message: {display_msg}")
                         ws.send(payload)
 
@@ -1014,6 +1061,7 @@ class DashboardService:
 
             # Create separate Redis connection for pub/sub
             import redis as redis_module
+
             pubsub_client = redis_module.from_url(self.redis_url, decode_responses=True)
             pubsub = pubsub_client.pubsub()
 
@@ -1021,72 +1069,88 @@ class DashboardService:
                 # Subscribe to BOTH RPC activity events AND raw coordinator logs
                 pubsub.subscribe("sollol:dashboard:rpc:activity")
                 pubsub.subscribe("sollol:logs:llama_cpp")  # Raw coordinator logs
-                logger.info("📡 Subscribed to sollol:dashboard:rpc:activity and sollol:logs:llama_cpp")
+                logger.info(
+                    "📡 Subscribed to sollol:dashboard:rpc:activity and sollol:logs:llama_cpp"
+                )
 
                 # Send initial connected message
-                ws.send(json.dumps({
-                    "type": "connected",
-                    "timestamp": time.time(),
-                    "message": "✓ Connected to llama.cpp activity stream"
-                }))
+                ws.send(
+                    json.dumps(
+                        {
+                            "type": "connected",
+                            "timestamp": time.time(),
+                            "message": "✓ Connected to llama.cpp activity stream",
+                        }
+                    )
+                )
 
                 # Non-blocking message polling loop
                 while True:
                     message = pubsub.get_message(timeout=0.1)
-                    if message and message['type'] == 'message':
+                    if message and message["type"] == "message":
                         # Check which channel the message came from
-                        channel = message['channel']
+                        channel = message["channel"]
 
-                        if channel == 'sollol:logs:llama_cpp':
+                        if channel == "sollol:logs:llama_cpp":
                             # Raw coordinator log line - send directly
-                            log_line = message['data']
-                            ws.send(json.dumps({
-                                "type": "coordinator_log",
-                                "timestamp": time.time(),
-                                "backend": "coordinator",
-                                "message": log_line,
-                                "details": {}
-                            }))
+                            log_line = message["data"]
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "coordinator_log",
+                                        "timestamp": time.time(),
+                                        "backend": "coordinator",
+                                        "message": log_line,
+                                        "details": {},
+                                    }
+                                )
+                            )
                             continue
 
                         # Otherwise, it's a structured activity event from sollol:dashboard:rpc:activity
-                        activity_data = json.loads(message['data'])
+                        activity_data = json.loads(message["data"])
 
                         # Format for display
-                        event_type = activity_data.get('event_type', 'unknown')
-                        backend = activity_data.get('backend', 'unknown')
-                        details = activity_data.get('details', {})
+                        event_type = activity_data.get("event_type", "unknown")
+                        backend = activity_data.get("backend", "unknown")
+                        details = activity_data.get("details", {})
 
                         # Create display message
-                        if event_type == 'rpc_request':
+                        if event_type == "rpc_request":
                             display_msg = f"→ RPC REQUEST to {backend}"
-                        elif event_type == 'rpc_response':
-                            latency = details.get('latency_ms', 0)
+                        elif event_type == "rpc_response":
+                            latency = details.get("latency_ms", 0)
                             # Add seconds conversion for readability
                             latency_str = f"{latency:.0f}ms"
                             if latency >= 1000:
                                 latency_str += f" / {latency/1000:.2f}s"
                             display_msg = f"← RPC RESPONSE from {backend} ({latency_str})"
-                        elif event_type == 'rpc_error':
-                            display_msg = f"✗ RPC ERROR on {backend}: {details.get('error', 'unknown')}"
-                        elif event_type == 'rpc_backend_connect':
+                        elif event_type == "rpc_error":
+                            display_msg = (
+                                f"✗ RPC ERROR on {backend}: {details.get('error', 'unknown')}"
+                            )
+                        elif event_type == "rpc_backend_connect":
                             # Show RPC backend addresses for heartbeat/connect events
-                            rpc_addresses = details.get('rpc_addresses', [])
+                            rpc_addresses = details.get("rpc_addresses", [])
                             if rpc_addresses:
-                                addresses_str = ', '.join(rpc_addresses)
+                                addresses_str = ", ".join(rpc_addresses)
                                 display_msg = f"rpc_backend_connect on {backend}: {addresses_str}"
                             else:
                                 display_msg = f"rpc_backend_connect on {backend}"
                         else:
                             display_msg = f"{event_type} on {backend}"
 
-                        ws.send(json.dumps({
-                            "type": event_type,
-                            "timestamp": activity_data.get('timestamp', time.time()),
-                            "backend": backend,
-                            "details": details,
-                            "message": display_msg
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": event_type,
+                                    "timestamp": activity_data.get("timestamp", time.time()),
+                                    "backend": backend,
+                                    "details": details,
+                                    "message": display_msg,
+                                }
+                            )
+                        )
 
                     time.sleep(0.1)  # Small delay to prevent busy-waiting
 
@@ -1103,6 +1167,7 @@ class DashboardService:
 
             # Create separate Redis connection for pub/sub
             import redis as redis_module
+
             pubsub_client = redis_module.from_url(self.redis_url, decode_responses=True)
             pubsub = pubsub_client.pubsub()
 
@@ -1112,27 +1177,29 @@ class DashboardService:
                 logger.info("📡 Subscribed to sollol:traces")
 
                 # Send initial connected message
-                ws.send(json.dumps({
-                    "type": "connected",
-                    "timestamp": time.time(),
-                    "message": "✓ Connected to distributed traces stream"
-                }))
+                ws.send(
+                    json.dumps(
+                        {
+                            "type": "connected",
+                            "timestamp": time.time(),
+                            "message": "✓ Connected to distributed traces stream",
+                        }
+                    )
+                )
 
                 # Non-blocking message polling loop
                 while True:
                     message = pubsub.get_message(timeout=0.1)
-                    if message and message['type'] == 'message':
+                    if message and message["type"] == "message":
                         # Parse trace event
-                        trace_event = json.loads(message['data'])
-                        event = trace_event.get('event', 'unknown')
-                        trace = trace_event.get('trace', {})
+                        trace_event = json.loads(message["data"])
+                        event = trace_event.get("event", "unknown")
+                        trace = trace_event.get("trace", {})
 
                         # Forward to WebSocket clients
-                        ws.send(json.dumps({
-                            "type": event,
-                            "timestamp": time.time(),
-                            "trace": trace
-                        }))
+                        ws.send(
+                            json.dumps({"type": event, "timestamp": time.time(), "trace": trace})
+                        )
 
                     time.sleep(0.1)  # Small delay to prevent busy-waiting
 
@@ -1149,6 +1216,7 @@ class DashboardService:
 
             # Create separate Redis connection for pub/sub
             import redis as redis_module
+
             pubsub_client = redis_module.from_url(self.redis_url, decode_responses=True)
             pubsub = pubsub_client.pubsub()
 
@@ -1157,64 +1225,72 @@ class DashboardService:
                 pubsub.subscribe("sollol:routing_events")
 
                 # Send initial connected message
-                ws.send(json.dumps({
-                    "type": "connected",
-                    "timestamp": time.time(),
-                    "message": "✓ Connected to SOLLOL routing stream"
-                }))
+                ws.send(
+                    json.dumps(
+                        {
+                            "type": "connected",
+                            "timestamp": time.time(),
+                            "message": "✓ Connected to SOLLOL routing stream",
+                        }
+                    )
+                )
                 logger.info("✅ Sent routing events WebSocket connected message")
 
                 # Non-blocking message polling loop
                 logger.info("🔄 Starting routing events message polling loop")
                 while True:
                     message = pubsub.get_message(timeout=0.1)
-                    if message and message['type'] == 'message':
+                    if message and message["type"] == "message":
                         # Forward Redis message to WebSocket
-                        routing_event = json.loads(message['data'])
+                        routing_event = json.loads(message["data"])
                         logger.debug(f"Received routing event: {routing_event}")
 
                         # Format for display
-                        event_type = routing_event.get('event_type', 'unknown')
-                        model = routing_event.get('model', 'N/A')
-                        backend = routing_event.get('backend', 'N/A')
-                        reason = routing_event.get('reason', '')
-                        instance_id = routing_event.get('instance_id', 'unknown')
+                        event_type = routing_event.get("event_type", "unknown")
+                        model = routing_event.get("model", "N/A")
+                        backend = routing_event.get("backend", "N/A")
+                        reason = routing_event.get("reason", "")
+                        instance_id = routing_event.get("instance_id", "unknown")
 
                         # Create display message based on event type
-                        if event_type == 'ROUTE_DECISION':
+                        if event_type == "ROUTE_DECISION":
                             display_msg = f"🎯 {model} → {backend} | {reason}"
-                        elif event_type == 'CACHE_HIT':
+                        elif event_type == "CACHE_HIT":
                             display_msg = f"💾 {model} → {backend} (cached)"
-                        elif event_type == 'FALLBACK_TRIGGERED':
-                            from_backend = routing_event.get('from_backend', '?')
+                        elif event_type == "FALLBACK_TRIGGERED":
+                            from_backend = routing_event.get("from_backend", "?")
                             display_msg = f"⚠️  {model}: {from_backend} → {backend} | {reason}"
-                        elif event_type == 'COORDINATOR_START':
-                            rpc_count = routing_event.get('rpc_backends', 0)
-                            display_msg = f"🚀 Coordinator started: {model} ({rpc_count} RPC backends)"
-                        elif event_type == 'COORDINATOR_STOP':
+                        elif event_type == "COORDINATOR_START":
+                            rpc_count = routing_event.get("rpc_backends", 0)
+                            display_msg = (
+                                f"🚀 Coordinator started: {model} ({rpc_count} RPC backends)"
+                            )
+                        elif event_type == "COORDINATOR_STOP":
                             display_msg = f"⏹️  Coordinator stopped: {model}"
-                        elif event_type == 'OLLAMA_NODE_SELECTED':
-                            node_url = routing_event.get('node_url', 'unknown')
+                        elif event_type == "OLLAMA_NODE_SELECTED":
+                            node_url = routing_event.get("node_url", "unknown")
                             display_msg = f"📡 {model} → {node_url} | {reason}"
-                        elif event_type == 'rpc_coordinator_route':
+                        elif event_type == "rpc_coordinator_route":
                             # RPC coordinator routing - show list of backends
-                            rpc_backends = routing_event.get('rpc_backends', [])
-                            backends_str = ', '.join(rpc_backends) if rpc_backends else 'N/A'
+                            rpc_backends = routing_event.get("rpc_backends", [])
+                            backends_str = ", ".join(rpc_backends) if rpc_backends else "N/A"
                             display_msg = f"🔀 {model} → RPC sharding ({backends_str})"
                         else:
                             display_msg = f"{event_type}: {model} → {backend}"
 
-                        payload = json.dumps({
-                            "type": "routing_event",
-                            "event_type": event_type,
-                            "timestamp": routing_event.get('timestamp', time.time()),
-                            "instance_id": instance_id,
-                            "model": model,
-                            "backend": backend,
-                            "reason": reason,
-                            "message": display_msg,
-                            "full_event": routing_event
-                        })
+                        payload = json.dumps(
+                            {
+                                "type": "routing_event",
+                                "event_type": event_type,
+                                "timestamp": routing_event.get("timestamp", time.time()),
+                                "instance_id": instance_id,
+                                "model": model,
+                                "backend": backend,
+                                "reason": reason,
+                                "message": display_msg,
+                                "full_event": routing_event,
+                            }
+                        )
                         logger.debug(f"📤 Sending routing event WebSocket message: {display_msg}")
                         ws.send(payload)
 
@@ -1244,12 +1320,16 @@ class DashboardService:
                             # Extract Ollama nodes from metadata
                             if "ollama_pool" in metadata:
                                 for node_data in metadata["ollama_pool"].get("nodes", []):
-                                    nodes.append({
-                                        "url": node_data.get("url", "unknown"),
-                                        "status": "healthy" if node_data.get("healthy", False) else "unhealthy",
-                                        "latency_ms": node_data.get("last_latency_ms", 0),
-                                        "failure_count": node_data.get("failure_count", 0),
-                                    })
+                                    nodes.append(
+                                        {
+                                            "url": node_data.get("url", "unknown"),
+                                            "status": "healthy"
+                                            if node_data.get("healthy", False)
+                                            else "unhealthy",
+                                            "latency_ms": node_data.get("last_latency_ms", 0),
+                                            "failure_count": node_data.get("failure_count", 0),
+                                        }
+                                    )
                     except Exception as e:
                         logger.debug(f"Could not load nodes from Redis: {e}")
 
@@ -1262,23 +1342,27 @@ class DashboardService:
 
                         # Detect status change
                         if previous_status and current_status != previous_status:
-                            events.append({
-                                "type": "status_change",
-                                "timestamp": time.time(),
-                                "node": node_url,
-                                "old_status": previous_status,
-                                "new_status": current_status,
-                                "message": f"Node {node_url}: {previous_status} → {current_status}"
-                            })
+                            events.append(
+                                {
+                                    "type": "status_change",
+                                    "timestamp": time.time(),
+                                    "node": node_url,
+                                    "old_status": previous_status,
+                                    "new_status": current_status,
+                                    "message": f"Node {node_url}: {previous_status} → {current_status}",
+                                }
+                            )
 
                         # Detect new node
                         if node_url not in previous_state:
-                            events.append({
-                                "type": "node_discovered",
-                                "timestamp": time.time(),
-                                "node": node_url,
-                                "message": f"✅ New node discovered: {node_url}"
-                            })
+                            events.append(
+                                {
+                                    "type": "node_discovered",
+                                    "timestamp": time.time(),
+                                    "node": node_url,
+                                    "message": f"✅ New node discovered: {node_url}",
+                                }
+                            )
 
                         previous_state[node_url] = node
 
@@ -1286,12 +1370,14 @@ class DashboardService:
                     current_urls = {n["url"] for n in nodes}
                     removed = set(previous_state.keys()) - current_urls
                     for node_url in removed:
-                        events.append({
-                            "type": "node_removed",
-                            "timestamp": time.time(),
-                            "node": node_url,
-                            "message": f"❌ Node removed: {node_url}"
-                        })
+                        events.append(
+                            {
+                                "type": "node_removed",
+                                "timestamp": time.time(),
+                                "node": node_url,
+                                "message": f"❌ Node removed: {node_url}",
+                            }
+                        )
                         del previous_state[node_url]
 
                     # Send events
@@ -1300,15 +1386,19 @@ class DashboardService:
 
                     # Heartbeat if no events (every 10 seconds)
                     if len(events) == 0:
-                        if not hasattr(ws, '_last_heartbeat'):
+                        if not hasattr(ws, "_last_heartbeat"):
                             ws._last_heartbeat = 0
                         if time.time() - ws._last_heartbeat >= 10:
-                            ws.send(json.dumps({
-                                "type": "heartbeat",
-                                "timestamp": time.time(),
-                                "nodes_count": len(nodes),
-                                "message": f"✓ Monitoring {len(nodes)} nodes"
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "heartbeat",
+                                        "timestamp": time.time(),
+                                        "nodes_count": len(nodes),
+                                        "message": f"✓ Monitoring {len(nodes)} nodes",
+                                    }
+                                )
+                            )
                             ws._last_heartbeat = time.time()
 
                     time.sleep(30)  # Poll every 30 seconds
@@ -1344,36 +1434,48 @@ class DashboardService:
                     # Detect new backends
                     new_backends = current_backends - previous_backends
                     for backend_addr in new_backends:
-                        ws.send(json.dumps({
-                            "type": "backend_connected",
-                            "timestamp": time.time(),
-                            "backend": backend_addr,
-                            "message": f"🔗 RPC backend connected: {backend_addr}"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "backend_connected",
+                                    "timestamp": time.time(),
+                                    "backend": backend_addr,
+                                    "message": f"🔗 RPC backend connected: {backend_addr}",
+                                }
+                            )
+                        )
 
                     # Detect removed backends
                     removed_backends = previous_backends - current_backends
                     for backend_addr in removed_backends:
-                        ws.send(json.dumps({
-                            "type": "backend_disconnected",
-                            "timestamp": time.time(),
-                            "backend": backend_addr,
-                            "message": f"🔌 RPC backend disconnected: {backend_addr}"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "backend_disconnected",
+                                    "timestamp": time.time(),
+                                    "backend": backend_addr,
+                                    "message": f"🔌 RPC backend disconnected: {backend_addr}",
+                                }
+                            )
+                        )
 
                     previous_backends = current_backends
 
                     # Heartbeat if no changes
                     if len(new_backends) == 0 and len(removed_backends) == 0:
-                        if not hasattr(ws, '_last_heartbeat'):
+                        if not hasattr(ws, "_last_heartbeat"):
                             ws._last_heartbeat = 0
                         if time.time() - ws._last_heartbeat >= 10:
-                            ws.send(json.dumps({
-                                "type": "heartbeat",
-                                "timestamp": time.time(),
-                                "backends_count": len(backends),
-                                "message": f"✓ Monitoring {len(backends)} RPC backends"
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "heartbeat",
+                                        "timestamp": time.time(),
+                                        "backends_count": len(backends),
+                                        "message": f"✓ Monitoring {len(backends)} RPC backends",
+                                    }
+                                )
+                            )
                             ws._last_heartbeat = time.time()
 
                     time.sleep(30)
@@ -1389,6 +1491,7 @@ class DashboardService:
 
             # Create a separate Redis connection for pub/sub (can't use same client)
             import redis as redis_module
+
             pubsub_client = redis_module.from_url(self.redis_url, decode_responses=True)
             pubsub = pubsub_client.pubsub()
 
@@ -1398,45 +1501,53 @@ class DashboardService:
                 logger.info("📡 Subscribed to Ollama activity channel")
 
                 # Send initial connected message
-                ws.send(json.dumps({
-                    "type": "connected",
-                    "timestamp": time.time(),
-                    "message": "✓ Connected to Ollama activity stream"
-                }))
+                ws.send(
+                    json.dumps(
+                        {
+                            "type": "connected",
+                            "timestamp": time.time(),
+                            "message": "✓ Connected to Ollama activity stream",
+                        }
+                    )
+                )
 
                 # Listen for messages
                 for message in pubsub.listen():
-                    if message['type'] == 'message':
+                    if message["type"] == "message":
                         # Forward Redis message to WebSocket
-                        activity_data = json.loads(message['data'])
+                        activity_data = json.loads(message["data"])
 
                         # Format for display
-                        event_type = activity_data.get('event_type', 'unknown')
-                        backend = activity_data.get('backend', 'unknown')
-                        details = activity_data.get('details', {})
+                        event_type = activity_data.get("event_type", "unknown")
+                        backend = activity_data.get("backend", "unknown")
+                        details = activity_data.get("details", {})
 
                         # Create display message
-                        if event_type == 'ollama_request':
+                        if event_type == "ollama_request":
                             display_msg = f"→ REQUEST to {backend}: {details.get('model', 'unknown')} ({details.get('operation', 'chat')})"
-                        elif event_type == 'ollama_response':
-                            latency = details.get('latency_ms', 0)
+                        elif event_type == "ollama_response":
+                            latency = details.get("latency_ms", 0)
                             # Add seconds conversion for readability
                             latency_str = f"{latency:.0f}ms"
                             if latency >= 1000:
                                 latency_str += f" / {latency/1000:.2f}s"
                             display_msg = f"← RESPONSE from {backend}: {details.get('model', 'unknown')} ({latency_str})"
-                        elif event_type == 'ollama_error':
+                        elif event_type == "ollama_error":
                             display_msg = f"✗ ERROR on {backend}: {details.get('error', 'unknown')}"
                         else:
                             display_msg = f"{event_type} on {backend}"
 
-                        ws.send(json.dumps({
-                            "type": event_type,
-                            "timestamp": activity_data.get('timestamp', time.time()),
-                            "backend": backend,
-                            "details": details,
-                            "message": display_msg
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": event_type,
+                                    "timestamp": activity_data.get("timestamp", time.time()),
+                                    "backend": backend,
+                                    "details": details,
+                                    "message": display_msg,
+                                }
+                            )
+                        )
 
             except Exception as e:
                 logger.error(f"Ollama activity WebSocket error: {e}")
@@ -1470,37 +1581,49 @@ class DashboardService:
                     # Detect new applications
                     new_apps = current_apps - previous_apps
                     for app_id in new_apps:
-                        ws.send(json.dumps({
-                            "type": "app_registered",
-                            "timestamp": time.time(),
-                            "app_id": app_id,
-                            "name": app_id,
-                            "message": f"📱 Application started: {app_id}"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "app_registered",
+                                    "timestamp": time.time(),
+                                    "app_id": app_id,
+                                    "name": app_id,
+                                    "message": f"📱 Application started: {app_id}",
+                                }
+                            )
+                        )
 
                     # Detect removed applications
                     removed_apps = previous_apps - current_apps
                     for app_id in removed_apps:
-                        ws.send(json.dumps({
-                            "type": "app_unregistered",
-                            "timestamp": time.time(),
-                            "app_id": app_id,
-                            "message": f"📱 Application stopped: {app_id}"
-                        }))
+                        ws.send(
+                            json.dumps(
+                                {
+                                    "type": "app_unregistered",
+                                    "timestamp": time.time(),
+                                    "app_id": app_id,
+                                    "message": f"📱 Application stopped: {app_id}",
+                                }
+                            )
+                        )
 
                     previous_apps = current_apps
 
                     # Heartbeat if no changes
                     if len(new_apps) == 0 and len(removed_apps) == 0:
-                        if not hasattr(ws, '_last_heartbeat'):
+                        if not hasattr(ws, "_last_heartbeat"):
                             ws._last_heartbeat = 0
                         if time.time() - ws._last_heartbeat >= 10:
-                            ws.send(json.dumps({
-                                "type": "heartbeat",
-                                "timestamp": time.time(),
-                                "apps_count": len(apps),
-                                "message": f"✓ Monitoring {len(apps)} applications"
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": "heartbeat",
+                                        "timestamp": time.time(),
+                                        "apps_count": len(apps),
+                                        "message": f"✓ Monitoring {len(apps)} applications",
+                                    }
+                                )
+                            )
                             ws._last_heartbeat = time.time()
 
                     time.sleep(30)
@@ -1554,9 +1677,7 @@ class DashboardService:
                     logger.error(f"Error processing pub/sub message: {e}")
 
         self.pubsub_thread = threading.Thread(
-            target=pubsub_loop,
-            daemon=True,
-            name="RedisPubSubListener"
+            target=pubsub_loop, daemon=True, name="RedisPubSubListener"
         )
         self.pubsub_thread.start()
 
@@ -1564,8 +1685,10 @@ class DashboardService:
         """Remove applications that haven't sent heartbeat recently."""
         now = time.time()
         stale_apps = [
-            app_id for app_id, app_info in self.applications.items()
-            if now - app_info["last_heartbeat"] > self.application_timeout * 2  # 2x timeout = remove
+            app_id
+            for app_id, app_info in self.applications.items()
+            if now - app_info["last_heartbeat"]
+            > self.application_timeout * 2  # 2x timeout = remove
         ]
         for app_id in stale_apps:
             app_name = self.applications[app_id].get("name", app_id)
@@ -1595,6 +1718,7 @@ class DashboardService:
         # Import the existing template from unified_dashboard
         try:
             from .unified_dashboard import UNIFIED_DASHBOARD_HTML
+
             return UNIFIED_DASHBOARD_HTML
         except ImportError:
             return "<html><body><h1>Dashboard HTML not found</h1></body></html>"
@@ -1613,7 +1737,7 @@ def install_redis_log_publisher(redis_url: str = "redis://localhost:6379"):
     try:
         redis_client = redis.from_url(redis_url, decode_responses=True)
         handler = RedisLogPublisher(redis_client)
-        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
         handler.setFormatter(formatter)
 
         # Add to root logger
@@ -1642,7 +1766,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(
         level=logging.DEBUG if args.debug else logging.INFO,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 
     service = DashboardService(

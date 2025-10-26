@@ -22,52 +22,59 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 # Force unbuffered stderr for real-time progress display
-if hasattr(sys.stderr, 'reconfigure'):
+if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(line_buffering=True)
-elif hasattr(sys.stderr, 'buffer'):
+elif hasattr(sys.stderr, "buffer"):
     # Python 3.6 compatibility
     class Unbuffered:
         def __init__(self, stream):
             self.stream = stream
+
         def write(self, data):
             self.stream.write(data)
             self.stream.flush()
+
         def __getattr__(self, attr):
             return getattr(self.stream, attr)
+
     sys.stderr = Unbuffered(sys.stderr)
 
 try:
     import httpx
+
     HTTPX_AVAILABLE = True
 except ImportError:
     import requests
+
     HTTPX_AVAILABLE = False
 
 try:
     from distributed import Client as DaskClient
+
     DASK_AVAILABLE = True
 except ImportError:
     DASK_AVAILABLE = False
 
 from .intelligence import IntelligentRouter, get_router
-from .node_health import NodeHealthMonitor, normalize_model_name
-from .vram_monitor import VRAMMonitor
 from .metrics_logger import log_node_health, log_request
 from .network_observer import (
-    log_ollama_request,
-    log_ollama_response,
-    log_ollama_error,
     log_node_health_check,
     log_node_status_change,
+    log_ollama_error,
+    log_ollama_request,
+    log_ollama_response,
 )
+from .node_health import NodeHealthMonitor, normalize_model_name
 from .routing_logger import get_routing_logger
 from .routing_strategy import RoutingStrategy
+from .vram_monitor import VRAMMonitor
 
 logger = logging.getLogger(__name__)
 
 
 # Worker-local pool cache (reused across Dask tasks on same worker)
 _worker_pool_cache = {}
+
 
 # Module-level helper for Dask (must be picklable)
 def _dask_embed_task(pool_nodes, model, text_data, priority, **kwargs):
@@ -81,16 +88,18 @@ def _dask_embed_task(pool_nodes, model, text_data, priority, **kwargs):
     try:
         # Get or create worker-local pool (cached per worker process)
         import os
+
         worker_id = os.getpid()
 
         if worker_id not in _worker_pool_cache:
             # Create a lightweight pool instance for this worker
             from .pool import OllamaPool
+
             _worker_pool_cache[worker_id] = OllamaPool(
                 nodes=pool_nodes,
                 enable_cache=False,
                 enable_dask=False,
-                register_with_dashboard=False
+                register_with_dashboard=False,
             )
 
         pool = _worker_pool_cache[worker_id]
@@ -170,21 +179,17 @@ class OllamaPool:
             limits = httpx.Limits(
                 max_keepalive_connections=max(20, len(self.nodes or []) * 20),
                 max_connections=max(50, len(self.nodes or []) * 50),
-                keepalive_expiry=30.0
+                keepalive_expiry=30.0,
             )
 
             # Configure retry transport
-            transport = httpx.HTTPTransport(
-                retries=3,
-                limits=limits,
-                http2=True  # Enable HTTP/2
-            )
+            transport = httpx.HTTPTransport(retries=3, limits=limits, http2=True)  # Enable HTTP/2
 
             self.session = httpx.Client(
                 transport=transport,
                 timeout=httpx.Timeout(300.0, connect=10.0),
                 follow_redirects=True,
-                headers={"Connection": "keep-alive"}
+                headers={"Connection": "keep-alive"},
             )
             logger.info("🚀 HTTP/2 multiplexing enabled via httpx")
         else:
@@ -199,13 +204,13 @@ class OllamaPool:
                 total=3,
                 backoff_factor=0.1,
                 status_forcelist=[429, 500, 502, 503, 504],
-                allowed_methods=["POST", "GET"]
+                allowed_methods=["POST", "GET"],
             )
 
             adapter = HTTPAdapter(
                 pool_connections=max(10, len(self.nodes or []) * 10),
                 pool_maxsize=max(20, len(self.nodes or []) * 20),
-                max_retries=retry_strategy
+                max_retries=retry_strategy,
             )
 
             self.session.mount("http://", adapter)
@@ -218,20 +223,16 @@ class OllamaPool:
             limits = httpx.Limits(
                 max_keepalive_connections=max(20, len(self.nodes or []) * 20),
                 max_connections=max(50, len(self.nodes or []) * 50),
-                keepalive_expiry=30.0
+                keepalive_expiry=30.0,
             )
 
-            transport = httpx.AsyncHTTPTransport(
-                retries=3,
-                limits=limits,
-                http2=True
-            )
+            transport = httpx.AsyncHTTPTransport(retries=3, limits=limits, http2=True)
 
             self.async_session = httpx.AsyncClient(
                 transport=transport,
                 timeout=httpx.Timeout(300.0, connect=10.0),
                 follow_redirects=True,
-                headers={"Connection": "keep-alive"}
+                headers={"Connection": "keep-alive"},
             )
             logger.info("⚡ Async I/O support enabled with httpx AsyncClient")
 
@@ -241,11 +242,8 @@ class OllamaPool:
 
         # Initialize response cache
         from .response_cache import ResponseCache
-        self.cache = ResponseCache(
-            max_size=cache_max_size,
-            ttl=cache_ttl,
-            enabled=enable_cache
-        )
+
+        self.cache = ResponseCache(max_size=cache_max_size, ttl=cache_ttl, enabled=enable_cache)
 
         # Initialize routing strategy
         # Handle backwards compatibility: enable_intelligent_routing overrides routing_strategy
@@ -256,7 +254,7 @@ class OllamaPool:
             self.routing_strategy = routing_strategy
 
         # Keep enable_intelligent_routing for backwards compatibility
-        self.enable_intelligent_routing = (self.routing_strategy == RoutingStrategy.INTELLIGENT)
+        self.enable_intelligent_routing = self.routing_strategy == RoutingStrategy.INTELLIGENT
         self.router = get_router() if self.enable_intelligent_routing else None
 
         # Initialize routing event logger (separate channel from regular logs)
@@ -292,12 +290,13 @@ class OllamaPool:
         if enable_gpu_redis:  # Reuse Redis connection settings
             try:
                 import redis
+
                 self._metrics_redis_client = redis.Redis(
                     host=redis_host,
                     port=redis_port,
                     decode_responses=False,  # We'll handle JSON encoding
                     socket_connect_timeout=2,
-                    socket_timeout=2
+                    socket_timeout=2,
                 )
                 # Test connection
                 self._metrics_redis_client.ping()
@@ -323,17 +322,13 @@ class OllamaPool:
 
         # Start background VRAM monitoring thread
         self._vram_refresh_thread = threading.Thread(
-            target=self._refresh_vram_loop,
-            daemon=True,
-            name="OllamaPool-VRAM-Monitor"
+            target=self._refresh_vram_loop, daemon=True, name="OllamaPool-VRAM-Monitor"
         )
         self._vram_refresh_thread.start()
 
         # Start background health check thread for live dashboard updates
         self._health_check_thread = threading.Thread(
-            target=self._health_check_loop,
-            daemon=True,
-            name="OllamaPool-Health-Monitor"
+            target=self._health_check_loop, daemon=True, name="OllamaPool-Health-Monitor"
         )
         self._health_check_thread.start()
 
@@ -342,10 +337,9 @@ class OllamaPool:
         if enable_gpu_redis:
             try:
                 from .gpu_redis_subscriber import GPURedisSubscriber
+
                 self.gpu_subscriber = GPURedisSubscriber(
-                    pool=self,
-                    redis_host=redis_host,
-                    redis_port=redis_port
+                    pool=self, redis_host=redis_host, redis_port=redis_port
                 )
                 self.gpu_subscriber.start(interval=5)  # Poll every 5 seconds
                 logger.info(f"✅ GPU Redis subscriber enabled (Redis: {redis_host}:{redis_port})")
@@ -355,9 +349,7 @@ class OllamaPool:
         # Start metrics publishing thread (publishes p50/p95/p99 latency to Redis)
         if self._metrics_redis_client:
             self._metrics_thread = threading.Thread(
-                target=self._publish_metrics_loop,
-                daemon=True,
-                name="OllamaPool-Metrics-Publisher"
+                target=self._publish_metrics_loop, daemon=True, name="OllamaPool-Metrics-Publisher"
             )
             self._metrics_thread.start()
             logger.debug("📊 Metrics publisher thread started")
@@ -376,10 +368,7 @@ class OllamaPool:
 
     @classmethod
     def auto_configure(
-        cls,
-        discover_all_nodes: bool = False,
-        setup_local_gpu_monitoring: bool = False,
-        **kwargs
+        cls, discover_all_nodes: bool = False, setup_local_gpu_monitoring: bool = False, **kwargs
     ) -> "OllamaPool":
         """
         Create pool with automatic discovery.
@@ -400,6 +389,7 @@ class OllamaPool:
         if setup_local_gpu_monitoring:
             try:
                 from .gpu_auto_setup import auto_setup_gpu_monitoring
+
                 logger.info("🔧 Setting up local GPU monitoring...")
 
                 redis_host = kwargs.get("redis_host", "localhost")
@@ -463,8 +453,9 @@ class OllamaPool:
 
     def _auto_discover(self):
         """Discover Ollama nodes automatically."""
-        from .discovery import discover_ollama_nodes
         import socket
+
+        from .discovery import discover_ollama_nodes
 
         if self.discover_all_nodes:
             logger.info("Auto-discovering ALL Ollama nodes on network (full subnet scan)...")
@@ -476,7 +467,7 @@ class OllamaPool:
         nodes = discover_ollama_nodes(
             timeout=2.0,  # Increased for high-latency nodes (was 0.5s)
             exclude_localhost=self.exclude_localhost,
-            discover_all_nodes=self.discover_all_nodes
+            discover_all_nodes=self.discover_all_nodes,
         )
 
         with self._lock:
@@ -514,17 +505,18 @@ class OllamaPool:
                 node["host"] in ("localhost", "127.0.0.1") or node["host"].startswith("127.")
                 for node in self.nodes
             )
-            has_real_ip = any(
-                node["host"] == local_ip
-                for node in self.nodes
-            )
+            has_real_ip = any(node["host"] == local_ip for node in self.nodes)
 
             # If we have both, filter out ALL localhost entries (entire 127.0.0.0/8 subnet)
             if has_localhost and has_real_ip:
                 original_count = len(self.nodes)
                 self.nodes = [
-                    node for node in self.nodes
-                    if not (node["host"] in ("localhost", "127.0.0.1") or node["host"].startswith("127."))
+                    node
+                    for node in self.nodes
+                    if not (
+                        node["host"] in ("localhost", "127.0.0.1")
+                        or node["host"].startswith("127.")
+                    )
                 ]
                 logger.info(f"🔍 Deduplicated nodes: removed localhost aliases (same as {local_ip})")
                 logger.debug(f"   Reduced from {original_count} to {len(self.nodes)} nodes")
@@ -548,6 +540,7 @@ class OllamaPool:
             return 0
 
         import socket
+
         unique_hosts = set()
 
         for node in self.nodes:
@@ -640,28 +633,27 @@ class OllamaPool:
                         "priority": 999,  # Default priority
                     }
 
-                    logger.debug(
-                        f"Initialized {node_key}: gpu_free_mem={gpu_free_mem}MB"
-                    )
+                    logger.debug(f"Initialized {node_key}: gpu_free_mem={gpu_free_mem}MB")
 
     def _init_ray_cluster(self):
         """Initialize Ray cluster for multi-app coordination."""
         try:
-            import ray
             import json
             import os
+
+            import ray
 
             if ray.is_initialized():
                 logger.info("✅ Ray already initialized (shared cluster)")
                 return
 
             # Disable Ray memory monitor
-            os.environ['RAY_memory_monitor_refresh_ms'] = '0'
+            os.environ["RAY_memory_monitor_refresh_ms"] = "0"
 
             # Try to connect to existing Ray cluster first (multi-app coordination)
             try:
                 logger.info("🔍 Attempting to connect to existing Ray cluster...")
-                ray.init(address='auto', ignore_reinit_error=True)
+                ray.init(address="auto", ignore_reinit_error=True)
                 logger.info("✅ Connected to existing Ray cluster")
             except (ConnectionError, Exception) as e:
                 # No existing cluster, start a new one
@@ -677,11 +669,10 @@ class OllamaPool:
                     object_store_memory=256 * 1024 * 1024,  # 256MB for object store
                     _system_config={
                         "automatic_object_spilling_enabled": True,
-                        "object_spilling_config": json.dumps({
-                            "type": "filesystem",
-                            "params": {"directory_path": "/tmp/ray_spill"}
-                        })
-                    }
+                        "object_spilling_config": json.dumps(
+                            {"type": "filesystem", "params": {"directory_path": "/tmp/ray_spill"}}
+                        ),
+                    },
                 )
                 logger.info("📊 Ray dashboard available at http://localhost:8265")
         except Exception as e:
@@ -706,9 +697,11 @@ class OllamaPool:
                 # Try to connect to running scheduler
                 try:
                     logger.info("🔍 Looking for existing Dask scheduler...")
-                    self.dask_client = DaskClient(timeout='2s')
+                    self.dask_client = DaskClient(timeout="2s")
                     logger.info(f"✅ Connected to existing Dask scheduler")
-                    logger.info(f"   Dask workers: {len(self.dask_client.scheduler_info()['workers'])}")
+                    logger.info(
+                        f"   Dask workers: {len(self.dask_client.scheduler_info()['workers'])}"
+                    )
                 except (OSError, Exception):
                     # No existing scheduler, start local cluster
                     logger.info("🚀 Starting local Dask cluster for distributed batch processing")
@@ -719,11 +712,13 @@ class OllamaPool:
                         n_workers=len(self.nodes) if self.nodes else 2,
                         threads_per_worker=2,
                         processes=True,
-                        memory_limit='auto',
-                        silence_logs=logging.WARNING
+                        memory_limit="auto",
+                        silence_logs=logging.WARNING,
                     )
                     self.dask_client = DaskClient(cluster)
-                    logger.info(f"✅ Dask cluster started with {len(self.nodes) if self.nodes else 2} workers")
+                    logger.info(
+                        f"✅ Dask cluster started with {len(self.nodes) if self.nodes else 2} workers"
+                    )
                     logger.info(f"   Dashboard: {self.dask_client.dashboard_link}")
 
         except Exception as e:
@@ -766,7 +761,9 @@ class OllamaPool:
 
             else:
                 # Unknown strategy - fallback to round-robin
-                logger.warning(f"Unknown routing strategy: {self.routing_strategy}, using round-robin")
+                logger.warning(
+                    f"Unknown routing strategy: {self.routing_strategy}, using round-robin"
+                )
                 return self._select_round_robin(), None
 
     def _select_round_robin(self) -> Dict[str, str]:
@@ -801,10 +798,7 @@ class OllamaPool:
         ]
 
         # Filter out unavailable nodes
-        available_nodes = [
-            (node, perf) for node, perf in perf_nodes
-            if perf.get("available", True)
-        ]
+        available_nodes = [(node, perf) for node, perf in perf_nodes if perf.get("available", True)]
 
         if not available_nodes:
             # All nodes unavailable - fallback to first node
@@ -813,12 +807,13 @@ class OllamaPool:
 
         # Select node with minimum average latency
         best_node, best_perf = min(
-            available_nodes,
-            key=lambda x: x[1].get('latency_ms', float('inf'))
+            available_nodes, key=lambda x: x[1].get("latency_ms", float("inf"))
         )
 
-        latency = best_perf.get('latency_ms', 0)
-        logger.debug(f"Latency-first selected: {best_node['host']}:{best_node['port']} ({latency:.1f}ms avg)")
+        latency = best_perf.get("latency_ms", 0)
+        logger.debug(
+            f"Latency-first selected: {best_node['host']}:{best_node['port']} ({latency:.1f}ms avg)"
+        )
         return best_node
 
     def _select_least_loaded(self) -> Dict[str, str]:
@@ -838,10 +833,7 @@ class OllamaPool:
         ]
 
         # Filter out unavailable nodes
-        available_nodes = [
-            (node, perf) for node, perf in perf_nodes
-            if perf.get("available", True)
-        ]
+        available_nodes = [(node, perf) for node, perf in perf_nodes if perf.get("available", True)]
 
         if not available_nodes:
             # All nodes unavailable - fallback to first node
@@ -849,13 +841,12 @@ class OllamaPool:
             return self.nodes[0]
 
         # Select node with minimum active requests
-        best_node, best_perf = min(
-            available_nodes,
-            key=lambda x: x[1].get('active_requests', 0)
-        )
+        best_node, best_perf = min(available_nodes, key=lambda x: x[1].get("active_requests", 0))
 
-        active = best_perf.get('active_requests', 0)
-        logger.debug(f"Least-loaded selected: {best_node['host']}:{best_node['port']} ({active} active requests)")
+        active = best_perf.get("active_requests", 0)
+        logger.debug(
+            f"Least-loaded selected: {best_node['host']}:{best_node['port']} ({active} active requests)"
+        )
         return best_node
 
     def _select_fairness(self) -> Dict[str, str]:
@@ -875,10 +866,7 @@ class OllamaPool:
         ]
 
         # Filter out unavailable nodes
-        available_nodes = [
-            (node, perf) for node, perf in perf_nodes
-            if perf.get("available", True)
-        ]
+        available_nodes = [(node, perf) for node, perf in perf_nodes if perf.get("available", True)]
 
         if not available_nodes:
             # All nodes unavailable - fallback to first node
@@ -886,13 +874,12 @@ class OllamaPool:
             return self.nodes[0]
 
         # Select node with minimum total requests
-        best_node, best_perf = min(
-            available_nodes,
-            key=lambda x: x[1].get('total_requests', 0)
-        )
+        best_node, best_perf = min(available_nodes, key=lambda x: x[1].get("total_requests", 0))
 
-        total = best_perf.get('total_requests', 0)
-        logger.debug(f"Fairness selected: {best_node['host']}:{best_node['port']} ({total} total requests)")
+        total = best_perf.get("total_requests", 0)
+        logger.debug(
+            f"Fairness selected: {best_node['host']}:{best_node['port']} ({total} total requests)"
+        )
         return best_node
 
     def _select_intelligent(
@@ -937,19 +924,21 @@ class OllamaPool:
                     logger.info(f"🎯 Intelligent routing: {decision['reasoning']}")
 
                     # Log to SOLLOL routing stream (separate from regular logs)
-                    model = payload.get('model', 'unknown') if payload else 'unknown'
+                    model = payload.get("model", "unknown") if payload else "unknown"
                     node_url = f"{node['host']}:{node['port']}"
                     self.routing_logger.log_ollama_node_selected(
                         node_url=node_url,
                         model=model,
-                        reason=decision['reasoning'],
-                        confidence=decision.get('confidence', 0),
-                        priority=priority
+                        reason=decision["reasoning"],
+                        confidence=decision.get("confidence", 0),
+                        priority=priority,
                     )
                     return node, decision
 
             # Fallback if not found
-            logger.warning(f"Selected host {selected_host} not in nodes, using round-robin fallback")
+            logger.warning(
+                f"Selected host {selected_host} not in nodes, using round-robin fallback"
+            )
             return self._select_round_robin(), None
 
         except Exception as e:
@@ -1014,10 +1003,7 @@ class OllamaPool:
             model = data.get("model", "unknown")
             operation = endpoint.split("/")[-1]  # "chat", "generate", etc.
             log_ollama_request(
-                backend=node_key,
-                model=model,
-                operation=operation,
-                priority=priority
+                backend=node_key, model=model, operation=operation, priority=priority
             )
 
             try:
@@ -1080,7 +1066,7 @@ class OllamaPool:
                         backend=node_key,
                         model=model,
                         latency_ms=latency_ms,
-                        status_code=response.status_code
+                        status_code=response.status_code,
                     )
 
                     # Record performance for router learning
@@ -1109,7 +1095,7 @@ class OllamaPool:
                         backend=node_key,
                         model=model,
                         error=f"HTTP {response.status_code}",
-                        latency_ms=latency_ms
+                        latency_ms=latency_ms,
                     )
 
             except Exception as e:
@@ -1119,12 +1105,7 @@ class OllamaPool:
                 self._record_failure(node_key, latency_ms)
 
                 # Log error to observer
-                log_ollama_error(
-                    backend=node_key,
-                    model=model,
-                    error=str(e),
-                    latency_ms=latency_ms
-                )
+                log_ollama_error(backend=node_key, model=model, error=str(e), latency_ms=latency_ms)
 
             finally:
                 # Decrement active request counter (always runs)
@@ -1132,7 +1113,7 @@ class OllamaPool:
                     if node_key in self.stats["node_performance"]:
                         self.stats["node_performance"][node_key]["active_requests"] = max(
                             0,
-                            self.stats["node_performance"][node_key].get("active_requests", 1) - 1
+                            self.stats["node_performance"][node_key].get("active_requests", 1) - 1,
                         )
 
         # All nodes failed
@@ -1142,7 +1123,12 @@ class OllamaPool:
         raise RuntimeError(f"All Ollama nodes failed. Errors: {'; '.join(errors)}")
 
     def _make_streaming_request(
-        self, endpoint: str, data: Dict[str, Any], priority: int = 5, timeout: float = 300.0, node: Optional[Dict[str, Any]] = None
+        self,
+        endpoint: str,
+        data: Dict[str, Any],
+        priority: int = 5,
+        timeout: float = 300.0,
+        node: Optional[Dict[str, Any]] = None,
     ):
         """
         Make streaming HTTP request that yields response chunks.
@@ -1190,11 +1176,7 @@ class OllamaPool:
         model = data.get("model", "unknown")
         operation = endpoint.split("/")[-1]
         log_ollama_request(
-            backend=node_key,
-            model=model,
-            operation=operation,
-            priority=priority,
-            streaming=True
+            backend=node_key, model=model, operation=operation, priority=priority, streaming=True
         )
 
         try:
@@ -1203,7 +1185,7 @@ class OllamaPool:
             # Handle streaming for httpx vs requests
             if HTTPX_AVAILABLE and isinstance(self.session, httpx.Client):
                 # httpx streaming
-                with self.session.stream('POST', url, json=data, timeout=timeout) as response:
+                with self.session.stream("POST", url, json=data, timeout=timeout) as response:
                     if response.status_code == 200:
                         # Track success
                         with self._lock:
@@ -1254,7 +1236,7 @@ class OllamaPool:
                             model=model,
                             latency_ms=latency_ms,
                             status_code=response.status_code,
-                            streaming=True
+                            streaming=True,
                         )
 
                         logger.info(f"✅ Stream complete from {node_key} ({latency_ms:.1f}ms)")
@@ -1268,7 +1250,7 @@ class OllamaPool:
                             backend=node_key,
                             model=model,
                             error=f"HTTP {response.status_code}",
-                            latency_ms=latency_ms
+                            latency_ms=latency_ms,
                         )
 
                         raise RuntimeError(f"Streaming failed: HTTP {response.status_code}")
@@ -1325,7 +1307,7 @@ class OllamaPool:
                             model=model,
                             latency_ms=latency_ms,
                             status_code=response.status_code,
-                            streaming=True
+                            streaming=True,
                         )
 
                         logger.info(f"✅ Stream complete from {node_key} ({latency_ms:.1f}ms)")
@@ -1339,7 +1321,7 @@ class OllamaPool:
                             backend=node_key,
                             model=model,
                             error=f"HTTP {response.status_code}",
-                            latency_ms=latency_ms
+                            latency_ms=latency_ms,
                         )
 
                         raise RuntimeError(f"Streaming failed: HTTP {response.status_code}")
@@ -1349,12 +1331,7 @@ class OllamaPool:
             self._record_failure(node_key, latency_ms)
 
             # Log error
-            log_ollama_error(
-                backend=node_key,
-                model=model,
-                error=str(e),
-                latency_ms=latency_ms
-            )
+            log_ollama_error(backend=node_key, model=model, error=str(e), latency_ms=latency_ms)
 
             raise RuntimeError(f"Streaming request failed: {e}")
 
@@ -1363,8 +1340,7 @@ class OllamaPool:
             with self._lock:
                 if node_key in self.stats["node_performance"]:
                     self.stats["node_performance"][node_key]["active_requests"] = max(
-                        0,
-                        self.stats["node_performance"][node_key].get("active_requests", 1) - 1
+                        0, self.stats["node_performance"][node_key].get("active_requests", 1) - 1
                     )
 
     def _query_node_vram(self, node: Dict[str, str]) -> int:
@@ -1391,7 +1367,9 @@ class OllamaPool:
                 free_mb = local_vram.get("free_vram_mb", 0)
                 # Apply VRAM buffer for safety margin
                 free_mb_with_buffer = max(0, free_mb - self.VRAM_BUFFER_MB)
-                logger.debug(f"Local VRAM: {free_mb}MB free, {free_mb_with_buffer}MB after {self.VRAM_BUFFER_MB}MB buffer ({local_vram['vendor']})")
+                logger.debug(
+                    f"Local VRAM: {free_mb}MB free, {free_mb_with_buffer}MB after {self.VRAM_BUFFER_MB}MB buffer ({local_vram['vendor']})"
+                )
                 return free_mb_with_buffer
             else:
                 # nvidia-smi failed or not installed (old GPUs, incompatible drivers)
@@ -1431,41 +1409,36 @@ class OllamaPool:
         # GPU Model → VRAM (MB) lookup table for common GPUs without nvidia-smi support
         GPU_VRAM_TABLE = {
             # NVIDIA GTX 10 series (mostly have nvidia-smi, but some old drivers don't)
-            "GTX 1050": 2048,      # 2GB
-            "GTX 1050 Ti": 4096,   # 4GB
-            "GTX 1060": 6144,      # 6GB (also 3GB variant exists)
-            "GTX 1070": 8192,      # 8GB
-            "GTX 1080": 8192,      # 8GB
+            "GTX 1050": 2048,  # 2GB
+            "GTX 1050 Ti": 4096,  # 4GB
+            "GTX 1060": 6144,  # 6GB (also 3GB variant exists)
+            "GTX 1070": 8192,  # 8GB
+            "GTX 1080": 8192,  # 8GB
             "GTX 1080 Ti": 11264,  # 11GB
-
             # NVIDIA GTX 900 series
-            "GTX 950": 2048,       # 2GB
-            "GTX 960": 2048,       # 2GB (also 4GB variant)
-            "GTX 970": 4096,       # 4GB
-            "GTX 980": 4096,       # 4GB
-            "GTX 980 Ti": 6144,    # 6GB
-
+            "GTX 950": 2048,  # 2GB
+            "GTX 960": 2048,  # 2GB (also 4GB variant)
+            "GTX 970": 4096,  # 4GB
+            "GTX 980": 4096,  # 4GB
+            "GTX 980 Ti": 6144,  # 6GB
             # NVIDIA GTX 700 series
-            "GTX 750": 1024,       # 1GB (also 2GB variant)
-            "GTX 750 Ti": 2048,    # 2GB
-            "GTX 760": 2048,       # 2GB
-            "GTX 770": 2048,       # 2GB
-            "GTX 780": 3072,       # 3GB
-            "GTX 780 Ti": 3072,    # 3GB
-
+            "GTX 750": 1024,  # 1GB (also 2GB variant)
+            "GTX 750 Ti": 2048,  # 2GB
+            "GTX 760": 2048,  # 2GB
+            "GTX 770": 2048,  # 2GB
+            "GTX 780": 3072,  # 3GB
+            "GTX 780 Ti": 3072,  # 3GB
             # NVIDIA GTX 600 series
-            "GTX 650": 1024,       # 1GB
-            "GTX 660": 2048,       # 2GB
-            "GTX 670": 2048,       # 2GB
-            "GTX 680": 2048,       # 2GB
-            "GTX 690": 4096,       # 4GB (2GB per GPU, dual GPU)
-
+            "GTX 650": 1024,  # 1GB
+            "GTX 660": 2048,  # 2GB
+            "GTX 670": 2048,  # 2GB
+            "GTX 680": 2048,  # 2GB
+            "GTX 690": 4096,  # 4GB (2GB per GPU, dual GPU)
             # NVIDIA GTX 500 series and older (nvidia-smi often unavailable)
-            "GTX 580": 1536,       # 1.5GB
-            "GTX 570": 1280,       # 1.25GB
-            "GTX 560": 1024,       # 1GB
-            "GTX 550 Ti": 1024,    # 1GB
-
+            "GTX 580": 1536,  # 1.5GB
+            "GTX 570": 1280,  # 1.25GB
+            "GTX 560": 1024,  # 1GB
+            "GTX 550 Ti": 1024,  # 1GB
             # Quadro cards (older ones)
             "Quadro K620": 2048,
             "Quadro K1200": 4096,
@@ -1486,7 +1459,9 @@ class OllamaPool:
                     # Try to match GPU model in lookup table
                     for model_key, vram_mb in GPU_VRAM_TABLE.items():
                         if model_key.upper() in gpu_name.upper():
-                            logger.info(f"Estimated VRAM for {gpu_name}: {vram_mb}MB (from model lookup)")
+                            logger.info(
+                                f"Estimated VRAM for {gpu_name}: {vram_mb}MB (from model lookup)"
+                            )
                             return vram_mb
 
         # Unknown GPU model, return 0 (will use conservative fallback)
@@ -1552,7 +1527,9 @@ class OllamaPool:
                     min_reasonable_vram = 8192  # 8GB minimum
                     total_vram_mb = max(min_reasonable_vram, total_vram_used_mb + 2048)
                     has_actual_gpu = True
-                    logger.debug(f"Unknown GPU capacity, assuming {total_vram_mb:.0f}MB (used: {total_vram_used_mb:.0f}MB)")
+                    logger.debug(
+                        f"Unknown GPU capacity, assuming {total_vram_mb:.0f}MB (used: {total_vram_used_mb:.0f}MB)"
+                    )
                 else:
                     # Nothing loaded and unknown GPU
                     has_actual_gpu = False
@@ -1570,9 +1547,13 @@ class OllamaPool:
                 if total_vram_mb == 0:
                     # GPU exists but capacity unknown - assume 6GB (common for entry-level GPUs)
                     total_vram_mb = 6144
-                    logger.debug(f"GPU detected with no loaded models, assuming {total_vram_mb}MB capacity")
+                    logger.debug(
+                        f"GPU detected with no loaded models, assuming {total_vram_mb}MB capacity"
+                    )
                 free_vram_mb_with_buffer = total_vram_mb - self.VRAM_BUFFER_MB
-                logger.debug(f"GPU hardware present, {free_vram_mb_with_buffer}MB available (no generation models loaded)")
+                logger.debug(
+                    f"GPU hardware present, {free_vram_mb_with_buffer}MB available (no generation models loaded)"
+                )
                 return int(max(0, free_vram_mb_with_buffer))
 
             # Calculate free VRAM with safety buffer
@@ -1632,6 +1613,7 @@ class OllamaPool:
         """
         try:
             import socket
+
             from .dashboard_client import DashboardClient
 
             # Check if dashboard is running (quick timeout to avoid blocking startup)
@@ -1647,6 +1629,7 @@ class OllamaPool:
                 # Auto-discover RPC backends for metadata
                 try:
                     from .rpc_discovery import auto_discover_rpc_backends
+
                     rpc_backends = auto_discover_rpc_backends()
                     self._rpc_backends = rpc_backends
                 except Exception:
@@ -1666,7 +1649,7 @@ class OllamaPool:
                         "model_sharding": len(self._rpc_backends) > 0,  # Simple boolean indicator
                         "rpc_backends": len(self._rpc_backends) if self._rpc_backends else None,
                     },
-                    auto_register=True
+                    auto_register=True,
                 )
                 logger.info(f"✅ Auto-registered with SOLLOL dashboard at {dashboard_url}")
         except (ImportError, Exception) as e:
@@ -1696,9 +1679,13 @@ class OllamaPool:
                             loaded_models = self._query_loaded_models(node)
 
                             # Update metadata
-                            old_vram = self.stats["node_performance"][node_key].get("gpu_free_mem", 0)
+                            old_vram = self.stats["node_performance"][node_key].get(
+                                "gpu_free_mem", 0
+                            )
                             self.stats["node_performance"][node_key]["gpu_free_mem"] = gpu_free_mem
-                            self.stats["node_performance"][node_key]["loaded_models"] = loaded_models
+                            self.stats["node_performance"][node_key][
+                                "loaded_models"
+                            ] = loaded_models
 
                             # Log significant changes
                             if abs(gpu_free_mem - old_vram) > 1000:  # >1GB change
@@ -1766,7 +1753,9 @@ class OllamaPool:
                             continue
 
                         # Get current request count for this node
-                        current_requests = self.stats["node_performance"][node_key].get("total_requests", 0)
+                        current_requests = self.stats["node_performance"][node_key].get(
+                            "total_requests", 0
+                        )
                         last_check_requests = last_check_request_counts.get(node_key, 0)
 
                         # Skip if not enough requests have happened (check every 100 requests)
@@ -1787,7 +1776,9 @@ class OllamaPool:
 
                             if response.status_code == 200:
                                 # Check for status change
-                                old_status = "offline" if not perf_data.get("available", True) else "healthy"
+                                old_status = (
+                                    "offline" if not perf_data.get("available", True) else "healthy"
+                                )
                                 new_status = "healthy"
 
                                 # Update health status
@@ -1801,9 +1792,7 @@ class OllamaPool:
 
                                 # Log health check to observer
                                 log_node_health_check(
-                                    backend=node_key,
-                                    status=new_status,
-                                    latency_ms=latency_ms
+                                    backend=node_key, status=new_status, latency_ms=latency_ms
                                 )
 
                                 # Log to InfluxDB time-series metrics
@@ -1811,10 +1800,10 @@ class OllamaPool:
                                     node_url=f"http://{node['host']}:{node['port']}",
                                     healthy=True,
                                     latency_ms=latency_ms,
-                                    models_loaded=len(node.get('models', [])),
-                                    vram_free_mb=perf_data.get('gpu_free_mem', 0),
-                                    vram_total_mb=perf_data.get('gpu_total_mem', 0),
-                                    failure_count=0
+                                    models_loaded=len(node.get("models", [])),
+                                    vram_free_mb=perf_data.get("gpu_free_mem", 0),
+                                    vram_total_mb=perf_data.get("gpu_total_mem", 0),
+                                    failure_count=0,
                                 )
 
                                 # Log status change if needed
@@ -1822,7 +1811,7 @@ class OllamaPool:
                                     log_node_status_change(
                                         backend=node_key,
                                         old_status=old_status,
-                                        new_status=new_status
+                                        new_status=new_status,
                                     )
 
                                 logger.debug(
@@ -1830,7 +1819,9 @@ class OllamaPool:
                                 )
                             else:
                                 # Check for status change
-                                old_status = "healthy" if perf_data.get("available", True) else "offline"
+                                old_status = (
+                                    "healthy" if perf_data.get("available", True) else "offline"
+                                )
                                 new_status = "offline"
 
                                 # Node returned error
@@ -1841,7 +1832,7 @@ class OllamaPool:
                                     backend=node_key,
                                     status=new_status,
                                     latency_ms=latency_ms,
-                                    error=f"HTTP {response.status_code}"
+                                    error=f"HTTP {response.status_code}",
                                 )
 
                                 # Log to InfluxDB time-series metrics
@@ -1849,7 +1840,7 @@ class OllamaPool:
                                     node_url=f"http://{node['host']}:{node['port']}",
                                     healthy=False,
                                     latency_ms=latency_ms,
-                                    failure_count=perf_data.get('failure_count', 0)
+                                    failure_count=perf_data.get("failure_count", 0),
                                 )
 
                                 # Log status change if needed
@@ -1857,7 +1848,7 @@ class OllamaPool:
                                     log_node_status_change(
                                         backend=node_key,
                                         old_status=old_status,
-                                        new_status=new_status
+                                        new_status=new_status,
                                     )
 
                                 logger.warning(
@@ -1867,7 +1858,11 @@ class OllamaPool:
                         except (TimeoutError, Exception) as e:
                             # Node timed out or unreachable
                             self.stats["node_performance"][node_key]["available"] = False
-                            error_msg = "timeout" if isinstance(e, TimeoutError) or "timeout" in str(e).lower() else f"unreachable ({e})"
+                            error_msg = (
+                                "timeout"
+                                if isinstance(e, TimeoutError) or "timeout" in str(e).lower()
+                                else f"unreachable ({e})"
+                            )
                             logger.warning(f"⚠️  Health check {node_key}: {error_msg}")
 
             except Exception as e:
@@ -1894,9 +1889,8 @@ class OllamaPool:
 
                     # Calculate success rate
                     with self._lock:
-                        success_rate = (
-                            self.stats["successful_requests"] /
-                            max(1, self.stats["total_requests"])
+                        success_rate = self.stats["successful_requests"] / max(
+                            1, self.stats["total_requests"]
                         )
 
                     # Build metrics payload (wrapped in "metrics" key for dashboard compatibility)
@@ -1906,17 +1900,15 @@ class OllamaPool:
                                 "p50_latency_ms": p50,
                                 "p95_latency_ms": p95,
                                 "p99_latency_ms": p99,
-                                "success_rate": success_rate
+                                "success_rate": success_rate,
                             },
-                            "total_pools": len(self.nodes)
+                            "total_pools": len(self.nodes),
                         }
                     }
 
                     # Publish to Redis (30s TTL)
                     self._metrics_redis_client.setex(
-                        "sollol:router:metadata",
-                        30,
-                        json.dumps(payload)
+                        "sollol:router:metadata", 30, json.dumps(payload)
                     )
 
                     logger.debug(
@@ -1983,9 +1975,7 @@ class OllamaPool:
         else:
             return self._make_request("/api/chat", data, priority=priority)
 
-    def generate(
-        self, model: str, prompt: str, stream: bool = False, priority: int = 5, **kwargs
-    ):
+    def generate(self, model: str, prompt: str, stream: bool = False, priority: int = 5, **kwargs):
         """
         Generate text with intelligent routing and observability.
 
@@ -2029,12 +2019,7 @@ class OllamaPool:
         return self._make_request("/api/embed", data, priority=priority)
 
     def _embed_batch_sequential(
-        self,
-        model: str,
-        inputs: List[str],
-        node_key: str,
-        priority: int = 5,
-        **kwargs
+        self, model: str, inputs: List[str], node_key: str, priority: int = 5, **kwargs
     ) -> List[Dict[str, Any]]:
         """
         FlockParser Legacy's high-performance sequential batch embedding with connection reuse.
@@ -2063,15 +2048,17 @@ class OllamaPool:
             return []
 
         # Parse node_key
-        if ':' in node_key:
-            host, port = node_key.rsplit(':', 1)
+        if ":" in node_key:
+            host, port = node_key.rsplit(":", 1)
         else:
             logger.error(f"Invalid node_key format: {node_key}, expected 'host:port'")
             return [None] * batch_size
 
         node_url = f"http://{host}:{port}"
 
-        logger.info(f"➡️  Sequential mode: Processing {batch_size} embeddings on {node_key} with connection reuse")
+        logger.info(
+            f"➡️  Sequential mode: Processing {batch_size} embeddings on {node_key} with connection reuse"
+        )
 
         # Create Ollama client ONCE for connection reuse (FlockParser Legacy pattern!)
         client = ollama.Client(host=node_url)
@@ -2101,15 +2088,17 @@ class OllamaPool:
         # Update stats ONCE at end (minimal lock usage - FlockParser Legacy pattern)
         total_time = time.time() - start_time
         with self._lock:
-            self.stats['successful_requests'] += completed
-            self.stats['failed_requests'] += errors
-            self.stats['nodes_used'][node_key] = self.stats['nodes_used'].get(node_key, 0) + batch_size
+            self.stats["successful_requests"] += completed
+            self.stats["failed_requests"] += errors
+            self.stats["nodes_used"][node_key] = (
+                self.stats["nodes_used"].get(node_key, 0) + batch_size
+            )
 
             # Update node performance
-            if node_key in self.stats['node_performance']:
-                perf = self.stats['node_performance'][node_key]
-                perf['total_requests'] += batch_size
-                perf['failed_requests'] += errors
+            if node_key in self.stats["node_performance"]:
+                perf = self.stats["node_performance"][node_key]
+                perf["total_requests"] += batch_size
+                perf["failed_requests"] += errors
 
         avg_time_per_embedding = (total_time / batch_size * 1000) if batch_size > 0 else 0
         logger.info(
@@ -2126,7 +2115,7 @@ class OllamaPool:
         max_workers: Optional[int] = None,
         priority: int = 5,
         use_adaptive: bool = True,
-        **kwargs
+        **kwargs,
     ) -> List[Dict[str, Any]]:
         """
         Generate embeddings for multiple texts in parallel across nodes.
@@ -2152,6 +2141,7 @@ class OllamaPool:
             embeddings = pool.embed_batch("mxbai-embed-large", texts)
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
         from .adaptive_parallelism import AdaptiveParallelismStrategy
 
         batch_size = len(inputs)
@@ -2169,14 +2159,18 @@ class OllamaPool:
 
             # If sequential mode recommended, use FlockParser Legacy's connection reuse pattern
             if not should_parallel:
-                recommended_node = reasoning.get('recommended_node')
+                recommended_node = reasoning.get("recommended_node")
                 if recommended_node:
-                    return self._embed_batch_sequential(model, inputs, recommended_node, priority, **kwargs)
+                    return self._embed_batch_sequential(
+                        model, inputs, recommended_node, priority, **kwargs
+                    )
 
             # Auto-calculate optimal workers if not specified (parallel mode)
             if max_workers is None:
                 max_workers = strategy.get_optimal_workers(batch_size)
-                logger.info(f"🔧 Adaptive parallelism chose {max_workers} workers for batch_size={batch_size}, nodes={len(self.nodes)}")
+                logger.info(
+                    f"🔧 Adaptive parallelism chose {max_workers} workers for batch_size={batch_size}, nodes={len(self.nodes)}"
+                )
         else:
             # Default behavior without adaptive strategy
             if max_workers is None:
@@ -2204,9 +2198,13 @@ class OllamaPool:
         use_dask = self.dask_client and batch_size > 10000
 
         if use_dask:
-            logger.info(f"🚀 Batch embedding {batch_size} texts with Dask (distributed) across cluster")
+            logger.info(
+                f"🚀 Batch embedding {batch_size} texts with Dask (distributed) across cluster"
+            )
         else:
-            logger.info(f"🚀 Batch embedding {batch_size} texts with {max_workers} workers (local threads) across {len(self.nodes)} nodes")
+            logger.info(
+                f"🚀 Batch embedding {batch_size} texts with {max_workers} workers (local threads) across {len(self.nodes)} nodes"
+            )
 
         results = [None] * batch_size
         completed = 0
@@ -2228,6 +2226,7 @@ class OllamaPool:
 
             # Use functools.partial to bind parameters for the module-level function
             from functools import partial
+
             task_func = partial(_dask_embed_task, self.nodes, model, priority=priority, **kwargs)
 
             # Use client.map for better performance
@@ -2245,7 +2244,9 @@ class OllamaPool:
                     progress_interval = 5 if batch_size < 50 else 50
                     if completed % progress_interval == 0 or completed == batch_size:
                         progress_pct = (completed * 100) // batch_size
-                        logger.info(f"   Progress: {completed}/{batch_size} embeddings ({progress_pct}%)")
+                        logger.info(
+                            f"   Progress: {completed}/{batch_size} embeddings ({progress_pct}%)"
+                        )
 
                     if error:
                         logger.error(f"⚠️  Error embedding text {index}: {error}")
@@ -2257,13 +2258,16 @@ class OllamaPool:
 
             # Count successful embeddings
             success_count = sum(1 for r in results if r is not None)
-            logger.info(f"✅ Dask batch complete: {success_count}/{batch_size} embeddings successful")
+            logger.info(
+                f"✅ Dask batch complete: {success_count}/{batch_size} embeddings successful"
+            )
 
             return results
 
         # Use optimized batching: split chunks across nodes, use connection reuse per node
         # This provides ~10-12x speedup over individual requests by eliminating per-request overhead
         import sys
+
         num_nodes = len(self.nodes)
 
         # Calculate performance-weighted distribution (not simple 50/50!)
@@ -2272,18 +2276,23 @@ class OllamaPool:
         node_throughputs = []
         for node in self.nodes:
             node_key = f"{node['host']}:{node['port']}"
-            perf = self.stats.get('node_performance', {}).get(node_key, {})
+            perf = self.stats.get("node_performance", {}).get(node_key, {})
 
             # Use actual measured batch throughput as weight (chunks/sec)
-            throughput = perf.get('batch_throughput', 0.5)  # Default 0.5 chunks/sec
+            throughput = perf.get("batch_throughput", 0.5)  # Default 0.5 chunks/sec
             weight = max(throughput, 0.1)  # Ensure minimum weight
             node_weights.append(weight)
             node_throughputs.append(throughput)
 
         # DEBUG: Show current performance stats
         node_keys = [f"{n['host']}:{n['port']}" for n in self.nodes]
-        print(f"   📊 DEBUG: Current stats: {self.stats.get('node_performance', {})}", file=sys.stderr)
-        print(f"   📊 DEBUG: Node throughputs: {list(zip(node_keys, node_throughputs))}", file=sys.stderr)
+        print(
+            f"   📊 DEBUG: Current stats: {self.stats.get('node_performance', {})}", file=sys.stderr
+        )
+        print(
+            f"   📊 DEBUG: Node throughputs: {list(zip(node_keys, node_throughputs))}",
+            file=sys.stderr,
+        )
 
         # ADAPTIVE PARALLELISM DECISION (from FlockParser-legacy)
         # If one node is 5x+ faster, route ALL work to it (sequential mode)
@@ -2297,9 +2306,19 @@ class OllamaPool:
         # At 5-10x difference, weighted distribution is often better (both nodes finish together)
         if speed_ratio >= 10.0 and num_nodes > 1:
             fastest_idx = node_throughputs.index(fastest_throughput)
-            fastest_node_key = f"{self.nodes[fastest_idx]['host']}:{self.nodes[fastest_idx]['port']}"
-            print(f"   🎯 ADAPTIVE MODE: Sequential (speed ratio {speed_ratio:.1f}x)", file=sys.stderr, flush=True)
-            print(f"   🚀 Routing ALL {batch_size} chunks to fastest node: {fastest_node_key}", file=sys.stderr, flush=True)
+            fastest_node_key = (
+                f"{self.nodes[fastest_idx]['host']}:{self.nodes[fastest_idx]['port']}"
+            )
+            print(
+                f"   🎯 ADAPTIVE MODE: Sequential (speed ratio {speed_ratio:.1f}x)",
+                file=sys.stderr,
+                flush=True,
+            )
+            print(
+                f"   🚀 Routing ALL {batch_size} chunks to fastest node: {fastest_node_key}",
+                file=sys.stderr,
+                flush=True,
+            )
 
             # Route everything to fastest node
             node_weights = [0.0] * num_nodes
@@ -2307,16 +2326,30 @@ class OllamaPool:
         # CASE 2: Small batch (<20 items) - Sequential on fastest
         elif batch_size < 20 and num_nodes > 1:
             fastest_idx = node_throughputs.index(fastest_throughput)
-            fastest_node_key = f"{self.nodes[fastest_idx]['host']}:{self.nodes[fastest_idx]['port']}"
-            print(f"   🎯 ADAPTIVE MODE: Sequential (batch too small: {batch_size} < 20)", file=sys.stderr, flush=True)
-            print(f"   🚀 Routing ALL {batch_size} chunks to fastest node: {fastest_node_key}", file=sys.stderr, flush=True)
+            fastest_node_key = (
+                f"{self.nodes[fastest_idx]['host']}:{self.nodes[fastest_idx]['port']}"
+            )
+            print(
+                f"   🎯 ADAPTIVE MODE: Sequential (batch too small: {batch_size} < 20)",
+                file=sys.stderr,
+                flush=True,
+            )
+            print(
+                f"   🚀 Routing ALL {batch_size} chunks to fastest node: {fastest_node_key}",
+                file=sys.stderr,
+                flush=True,
+            )
 
             # Route everything to fastest node
             node_weights = [0.0] * num_nodes
             node_weights[fastest_idx] = 1.0
         else:
             # CASE 3: Balanced cluster or medium difference - Use parallel
-            print(f"   🔀 ADAPTIVE MODE: Parallel (speed ratio {speed_ratio:.1f}x, batch {batch_size})", file=sys.stderr, flush=True)
+            print(
+                f"   🔀 ADAPTIVE MODE: Parallel (speed ratio {speed_ratio:.1f}x, batch {batch_size})",
+                file=sys.stderr,
+                flush=True,
+            )
 
         # Normalize weights to percentages
         total_weight = sum(node_weights)
@@ -2332,7 +2365,11 @@ class OllamaPool:
         import queue as queue_module
         import threading
 
-        print(f"   ⚡ Per-node queues with cross-node stealing: {batch_size} chunks", file=sys.stderr, flush=True)
+        print(
+            f"   ⚡ Per-node queues with cross-node stealing: {batch_size} chunks",
+            file=sys.stderr,
+            flush=True,
+        )
 
         # Distribute chunks to per-node queues based on weights
         chunks_per_node = [[] for _ in range(num_nodes)]
@@ -2360,13 +2397,18 @@ class OllamaPool:
 
         # Log ESTIMATED distribution
         import sys
+
         for i, node in enumerate(self.nodes):
             node_key = f"{node['host']}:{node['port']}"
-            node_perf = self.stats.get('node_performance', {}).get(node_key, {})
-            throughput = node_perf.get('batch_throughput', 0.5)
-            avg_time = node_perf.get('avg_response_time', 1.0)
+            node_perf = self.stats.get("node_performance", {}).get(node_key, {})
+            throughput = node_perf.get("batch_throughput", 0.5)
+            avg_time = node_perf.get("avg_response_time", 1.0)
             workers_for_node = 2 if avg_time < 2.5 else 1
-            print(f"   ⚖️  {node_key}: ~{len(chunks_per_node[i])} chunks target ({len(chunks_per_node[i])*100//batch_size}% - {throughput:.2f} chunks/s, {workers_for_node} workers)", file=sys.stderr, flush=True)
+            print(
+                f"   ⚖️  {node_key}: ~{len(chunks_per_node[i])} chunks target ({len(chunks_per_node[i])*100//batch_size}% - {throughput:.2f} chunks/s, {workers_for_node} workers)",
+                file=sys.stderr,
+                flush=True,
+            )
         sys.stderr.flush()
 
         # Shared results array and progress tracking
@@ -2380,9 +2422,9 @@ class OllamaPool:
 
         for node in self.nodes:
             node_key = f"{node['host']}:{node['port']}"
-            node_perf = self.stats.get('node_performance', {}).get(node_key, {})
-            avg_time = node_perf.get('avg_response_time', None)
-            throughput = node_perf.get('batch_throughput', 0.5)
+            node_perf = self.stats.get("node_performance", {}).get(node_key, {})
+            avg_time = node_perf.get("avg_response_time", None)
+            throughput = node_perf.get("batch_throughput", 0.5)
 
             # Determine workers for this node
             if avg_time is None or avg_time < 2.5:
@@ -2397,9 +2439,10 @@ class OllamaPool:
 
         def async_batch_submit_worker(node_idx: int):
             """Submit ALL chunks for this node async, collect responses as they complete"""
-            import httpx
             import asyncio
             import time as time_module
+
+            import httpx
 
             node = self.nodes[node_idx]
             node_key = f"{node['host']}:{node['port']}"
@@ -2409,7 +2452,11 @@ class OllamaPool:
             if not my_chunks:
                 return
 
-            print(f"      🚀 {node_key} submitting {len(my_chunks)} chunks async", file=sys.stderr, flush=True)
+            print(
+                f"      🚀 {node_key} submitting {len(my_chunks)} chunks async",
+                file=sys.stderr,
+                flush=True,
+            )
 
             async def submit_all_async():
                 """Fire off ALL requests immediately, collect as they complete"""
@@ -2420,7 +2467,7 @@ class OllamaPool:
                         try:
                             response = await client.post(
                                 f"{node_url}/api/embed",
-                                json={"model": model, "input": text, **kwargs}
+                                json={"model": model, "input": text, **kwargs},
                             )
                             response.raise_for_status()
                             return idx, response.json(), None
@@ -2437,7 +2484,11 @@ class OllamaPool:
 
                         with results_lock:
                             if error:
-                                print(f"      ❌ {node_key} chunk {idx} error: {error}", file=sys.stderr, flush=True)
+                                print(
+                                    f"      ❌ {node_key} chunk {idx} error: {error}",
+                                    file=sys.stderr,
+                                    flush=True,
+                                )
                             else:
                                 results[idx] = result
 
@@ -2448,18 +2499,31 @@ class OllamaPool:
                         # Progress every 50 chunks
                         if current_progress % 50 == 0 or current_progress == batch_size:
                             progress_pct = (current_progress * 100) // batch_size
-                            print(f"      📊 Progress: {current_progress}/{batch_size} ({progress_pct}%) - {node_key}", file=sys.stderr, flush=True)
+                            print(
+                                f"      📊 Progress: {current_progress}/{batch_size} ({progress_pct}%) - {node_key}",
+                                file=sys.stderr,
+                                flush=True,
+                            )
 
-                print(f"      ✅ {node_key} completed {len(my_chunks)} chunks", file=sys.stderr, flush=True)
+                print(
+                    f"      ✅ {node_key} completed {len(my_chunks)} chunks",
+                    file=sys.stderr,
+                    flush=True,
+                )
 
             # Run the async function
             asyncio.run(submit_all_async())
 
         # Spawn one thread per node to submit all chunks async
         import concurrent.futures
+
         worker_futures = []
 
-        print(f"   🔥 Firing {batch_size} async requests across {num_nodes} nodes...", file=sys.stderr, flush=True)
+        print(
+            f"   🔥 Firing {batch_size} async requests across {num_nodes} nodes...",
+            file=sys.stderr,
+            flush=True,
+        )
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=num_nodes) as executor:
             for node_idx in range(num_nodes):
@@ -2469,7 +2533,11 @@ class OllamaPool:
 
             concurrent.futures.wait(worker_futures)
 
-        print(f"   ✅ Async batch complete: {completed_count[0]}/{batch_size} chunks", file=sys.stderr, flush=True)
+        print(
+            f"   ✅ Async batch complete: {completed_count[0]}/{batch_size} chunks",
+            file=sys.stderr,
+            flush=True,
+        )
 
         return results
 
@@ -2484,30 +2552,44 @@ class OllamaPool:
 
             # Track batch start time for throughput measurement
             import time as time_mod
+
             batch_start_time = time_mod.time()
 
             # Adaptive workers: fewer workers on slower nodes to reduce CPU contention
             # Fast nodes (< 2.5s/embed) → 2 workers for saturation
             # Slow nodes (≥ 2.5s/embed) → 1 worker to avoid overwhelming CPU
             # Unknown nodes (no data) → 1 worker to start conservatively
-            node_perf = self.stats.get('node_performance', {}).get(node_key, {})
-            avg_time = node_perf.get('avg_response_time', None)
+            node_perf = self.stats.get("node_performance", {}).get(node_key, {})
+            avg_time = node_perf.get("avg_response_time", None)
 
             if avg_time is None:
                 # No performance data - start conservatively with 1 worker
                 workers_per_node = 1
-                print(f"      ⚙️  {node_key} using 1 worker (unknown performance - probing)", file=sys.stderr, flush=True)
+                print(
+                    f"      ⚙️  {node_key} using 1 worker (unknown performance - probing)",
+                    file=sys.stderr,
+                    flush=True,
+                )
             elif avg_time < 2.5:
                 # Fast node - use 2 workers for saturation
                 workers_per_node = 2
-                print(f"      ⚙️  {node_key} using 2 workers (fast node: {avg_time:.1f}s avg)", file=sys.stderr, flush=True)
+                print(
+                    f"      ⚙️  {node_key} using 2 workers (fast node: {avg_time:.1f}s avg)",
+                    file=sys.stderr,
+                    flush=True,
+                )
             else:
                 # Slow node - single worker to avoid CPU contention
                 workers_per_node = 1
-                print(f"      ⚙️  {node_key} using 1 worker (slow node: {avg_time:.1f}s avg)", file=sys.stderr, flush=True)
-            import ollama
+                print(
+                    f"      ⚙️  {node_key} using 1 worker (slow node: {avg_time:.1f}s avg)",
+                    file=sys.stderr,
+                    flush=True,
+                )
             import queue as queue_module
             import threading
+
+            import ollama
 
             node_url = f"http://{node['host']}:{node['port']}"
             results_node = [None] * batch_size_node
@@ -2522,15 +2604,24 @@ class OllamaPool:
             def worker(worker_id):
                 """Worker: process chunks from queue with direct Ollama client"""
                 import sys
+
                 print(f"      🔧 {node_key} worker {worker_id} STARTED", file=sys.stderr, flush=True)
                 sys.stderr.flush()
                 try:
                     # Each worker creates its own client for connection reuse
                     client = ollama.Client(host=node_url)
-                    print(f"      ✅ {node_key} worker {worker_id} client created", file=sys.stderr, flush=True)
+                    print(
+                        f"      ✅ {node_key} worker {worker_id} client created",
+                        file=sys.stderr,
+                        flush=True,
+                    )
                     sys.stderr.flush()
                 except Exception as e:
-                    print(f"      ❌ {node_key} worker {worker_id} failed to create client: {e}", file=sys.stderr, flush=True)
+                    print(
+                        f"      ❌ {node_key} worker {worker_id} failed to create client: {e}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
                     sys.stderr.flush()
                     return
 
@@ -2542,6 +2633,7 @@ class OllamaPool:
                         break
 
                     import time as time_module
+
                     start_embed = time_module.time()
                     try:
                         # Embed with timeout detection (warn if >10s)
@@ -2549,7 +2641,11 @@ class OllamaPool:
                         embed_time = time_module.time() - start_embed
 
                         if embed_time > 10:
-                            print(f"      ⚠️  {node_key} worker {worker_id} chunk {idx} took {embed_time:.1f}s (slow!)", file=sys.stderr, flush=True)
+                            print(
+                                f"      ⚠️  {node_key} worker {worker_id} chunk {idx} took {embed_time:.1f}s (slow!)",
+                                file=sys.stderr,
+                                flush=True,
+                            )
 
                         results_node[idx] = result
                         chunks_done += 1
@@ -2562,16 +2658,28 @@ class OllamaPool:
                         # Show progress every 50 chunks OR every 10s if slow
                         if current % 50 == 0 or current == batch_size_node or embed_time > 5:
                             pct = (current * 100) // batch_size_node
-                            print(f"      {node_key}: {current}/{batch_size_node} ({pct}%) - last chunk: {embed_time:.1f}s", file=sys.stderr, flush=True)
+                            print(
+                                f"      {node_key}: {current}/{batch_size_node} ({pct}%) - last chunk: {embed_time:.1f}s",
+                                file=sys.stderr,
+                                flush=True,
+                            )
                             sys.stderr.flush()  # Force flush the stream itself
 
                         work_queue.task_done()
                     except Exception as e:
                         embed_time = time_module.time() - start_embed
-                        print(f"      ❌ {node_key} worker {worker_id} chunk {idx} FAILED after {embed_time:.1f}s: {e}", file=sys.stderr, flush=True)
+                        print(
+                            f"      ❌ {node_key} worker {worker_id} chunk {idx} FAILED after {embed_time:.1f}s: {e}",
+                            file=sys.stderr,
+                            flush=True,
+                        )
                         work_queue.task_done()
 
-                print(f"      ✅ {node_key} worker {worker_id} FINISHED - processed {chunks_done} chunks", file=sys.stderr, flush=True)
+                print(
+                    f"      ✅ {node_key} worker {worker_id} FINISHED - processed {chunks_done} chunks",
+                    file=sys.stderr,
+                    flush=True,
+                )
                 sys.stderr.flush()
 
             # Launch workers for this node
@@ -2592,13 +2700,13 @@ class OllamaPool:
             # Update node performance with REAL batch throughput
             with self._lock:
                 # Ensure node_performance dict exists
-                if 'node_performance' not in self.stats:
-                    self.stats['node_performance'] = {}
+                if "node_performance" not in self.stats:
+                    self.stats["node_performance"] = {}
 
                 # Get or create the perf dict (should already exist from __init__)
-                if node_key not in self.stats['node_performance']:
+                if node_key not in self.stats["node_performance"]:
                     # Node doesn't exist - initialize with basic structure
-                    self.stats['node_performance'][node_key] = {
+                    self.stats["node_performance"][node_key] = {
                         "host": node_key,
                         "latency_ms": 0.0,
                         "success_rate": 1.0,
@@ -2611,25 +2719,36 @@ class OllamaPool:
                         "priority": 999,
                     }
 
-                perf = self.stats['node_performance'][node_key]
+                perf = self.stats["node_performance"][node_key]
 
                 # Update batch throughput (running average)
-                old_throughput = perf.get('batch_throughput', throughput)
-                perf['batch_throughput'] = old_throughput * 0.7 + throughput * 0.3  # Weighted average
+                old_throughput = perf.get("batch_throughput", throughput)
+                perf["batch_throughput"] = (
+                    old_throughput * 0.7 + throughput * 0.3
+                )  # Weighted average
 
                 # Update average response time based on throughput
-                perf['avg_response_time'] = 1.0 / throughput if throughput > 0 else 5.0
+                perf["avg_response_time"] = 1.0 / throughput if throughput > 0 else 5.0
 
                 # DEBUG: Confirm stats were saved
-                print(f"   💾 Saved {node_key} stats: batch_throughput={perf['batch_throughput']:.2f}, avg_response_time={perf['avg_response_time']:.2f}s", file=sys.stderr, flush=True)
+                print(
+                    f"   💾 Saved {node_key} stats: batch_throughput={perf['batch_throughput']:.2f}, avg_response_time={perf['avg_response_time']:.2f}s",
+                    file=sys.stderr,
+                    flush=True,
+                )
 
-            print(f"   ✅ {node_key}: {batch_size_node} chunks in {batch_elapsed:.1f}s ({throughput:.2f} chunks/sec)", file=sys.stderr, flush=True)
+            print(
+                f"   ✅ {node_key}: {batch_size_node} chunks in {batch_elapsed:.1f}s ({throughput:.2f} chunks/sec)",
+                file=sys.stderr,
+                flush=True,
+            )
 
             # Return results with original indices
             return list(zip(node_indices, results_node))
 
         # Process all nodes in parallel with timeout
         import sys
+
         with ThreadPoolExecutor(max_workers=num_nodes) as executor:
             # Submit one task per node
             futures = []
@@ -2637,14 +2756,18 @@ class OllamaPool:
                 if chunks_per_node[node_idx]:  # Only submit if node has work
                     node = self.nodes[node_idx]
                     node_key = f"{node['host']}:{node['port']}"
-                    print(f"   🚀 Submitting {len(chunks_per_node[node_idx])} chunks to {node_key}", file=sys.stderr, flush=True)
+                    print(
+                        f"   🚀 Submitting {len(chunks_per_node[node_idx])} chunks to {node_key}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
                     sys.stderr.flush()
 
                     future = executor.submit(
                         process_node_batch,
                         node_idx,
                         chunks_per_node[node_idx],
-                        indices_per_node[node_idx]
+                        indices_per_node[node_idx],
                     )
                     futures.append((node_key, future))
 
@@ -2663,7 +2786,11 @@ class OllamaPool:
 
                     # Show progress after each node completes
                     progress_pct = (completed * 100) // batch_size
-                    print(f"   ✅ {node_key} completed: {len(node_results)} chunks ({progress_pct}% total)", file=sys.stderr, flush=True)
+                    print(
+                        f"   ✅ {node_key} completed: {len(node_results)} chunks ({progress_pct}% total)",
+                        file=sys.stderr,
+                        flush=True,
+                    )
                 except Exception as e:
                     print(f"   ❌ {node_key} error: {e}", file=sys.stderr, flush=True)
 
@@ -2698,10 +2825,7 @@ class OllamaPool:
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all tasks
-            futures = {
-                executor.submit(embed_single, i, text): i
-                for i, text in enumerate(inputs)
-            }
+            futures = {executor.submit(embed_single, i, text): i for i, text in enumerate(inputs)}
 
             # Collect results as they complete
             for future in as_completed(futures):
@@ -2712,7 +2836,9 @@ class OllamaPool:
                 progress_interval = 5 if batch_size < 50 else 50
                 if completed % progress_interval == 0 or completed == batch_size:
                     progress_pct = (completed * 100) // batch_size
-                    logger.info(f"   Progress: {completed}/{batch_size} embeddings ({progress_pct}%)")
+                    logger.info(
+                        f"   Progress: {completed}/{batch_size} embeddings ({progress_pct}%)"
+                    )
 
                 if error:
                     logger.error(f"⚠️  Error embedding text {index}: {error}")
@@ -2756,11 +2882,7 @@ class OllamaPool:
         return await self._make_request_async("/api/chat", data, priority=priority)
 
     async def generate_async(
-        self,
-        model: str,
-        prompt: str,
-        priority: int = 5,
-        **kwargs
+        self, model: str, prompt: str, priority: int = 5, **kwargs
     ) -> Dict[str, Any]:
         """
         Async text generation with non-blocking I/O.
@@ -2784,11 +2906,7 @@ class OllamaPool:
         return await self._make_request_async("/api/generate", data, priority=priority)
 
     async def embed_async(
-        self,
-        model: str,
-        input: str,
-        priority: int = 5,
-        **kwargs
+        self, model: str, input: str, priority: int = 5, **kwargs
     ) -> Dict[str, Any]:
         """
         Async embedding generation with non-blocking I/O.
@@ -2812,11 +2930,7 @@ class OllamaPool:
         return await self._make_request_async("/api/embed", data, priority=priority)
 
     async def _make_request_async(
-        self,
-        endpoint: str,
-        data: Dict[str, Any],
-        priority: int = 5,
-        timeout: float = 300.0
+        self, endpoint: str, data: Dict[str, Any], priority: int = 5, timeout: float = 300.0
     ) -> Dict[str, Any]:
         """
         Make async HTTP request with intelligent routing (simplified version).
@@ -2861,11 +2975,7 @@ class OllamaPool:
         model = data.get("model", "unknown")
         operation = endpoint.split("/")[-1]
         log_ollama_request(
-            backend=node_key,
-            model=model,
-            operation=operation,
-            priority=priority,
-            async_io=True
+            backend=node_key, model=model, operation=operation, priority=priority, async_io=True
         )
 
         try:
@@ -2903,7 +3013,7 @@ class OllamaPool:
                     model=model,
                     latency_ms=latency_ms,
                     status_code=response.status_code,
-                    async_io=True
+                    async_io=True,
                 )
 
                 # Cache and return
@@ -2918,19 +3028,14 @@ class OllamaPool:
                     backend=node_key,
                     model=model,
                     error=f"HTTP {response.status_code}",
-                    latency_ms=latency_ms
+                    latency_ms=latency_ms,
                 )
                 raise RuntimeError(f"Request failed: HTTP {response.status_code}")
 
         except Exception as e:
             latency_ms = (time.time() - start_time) * 1000
             self._record_failure(node_key, latency_ms)
-            log_ollama_error(
-                backend=node_key,
-                model=model,
-                error=str(e),
-                latency_ms=latency_ms
-            )
+            log_ollama_error(backend=node_key, model=model, error=str(e), latency_ms=latency_ms)
             raise RuntimeError(f"Async request failed: {e}")
 
         finally:
@@ -2938,8 +3043,7 @@ class OllamaPool:
             with self._lock:
                 if node_key in self.stats["node_performance"]:
                     self.stats["node_performance"][node_key]["active_requests"] = max(
-                        0,
-                        self.stats["node_performance"][node_key].get("active_requests", 1) - 1
+                        0, self.stats["node_performance"][node_key].get("active_requests", 1) - 1
                     )
 
     def warm_model(self, model: str, node: Optional[Dict[str, Any]] = None) -> bool:
@@ -3026,10 +3130,7 @@ class OllamaPool:
         if parallel:
             # Warm models in parallel
             with ThreadPoolExecutor(max_workers=min(len(models), 5)) as executor:
-                futures = {
-                    executor.submit(self.warm_model, model): model
-                    for model in models
-                }
+                futures = {executor.submit(self.warm_model, model): model for model in models}
 
                 for future in as_completed(futures):
                     model = futures[future]
@@ -3062,7 +3163,7 @@ class OllamaPool:
                     scheduler_info = self.dask_client.scheduler_info()
                     dask_info = {
                         "enabled": True,
-                        "workers": len(scheduler_info.get('workers', {})),
+                        "workers": len(scheduler_info.get("workers", {})),
                         "dashboard": self.dask_client.dashboard_link,
                     }
                 except Exception:
@@ -3196,17 +3297,18 @@ class OllamaPool:
                 logger.warning(f"Error stopping GPU subscriber: {e}")
 
         # Close persistent HTTP sessions
-        if hasattr(self, 'session'):
+        if hasattr(self, "session"):
             try:
                 self.session.close()
                 logger.info("HTTP session closed successfully")
             except Exception as e:
                 logger.warning(f"Error closing HTTP session: {e}")
 
-        if hasattr(self, 'async_session') and self.async_session:
+        if hasattr(self, "async_session") and self.async_session:
             try:
                 # Close async session (httpx AsyncClient)
                 import asyncio
+
                 loop = None
                 try:
                     loop = asyncio.get_running_loop()
@@ -3231,7 +3333,7 @@ class OllamaPool:
         """Cleanup when object is destroyed."""
         try:
             # Close session if it exists
-            if hasattr(self, 'session'):
+            if hasattr(self, "session"):
                 self.session.close()
         except Exception:
             pass  # Suppress errors during cleanup

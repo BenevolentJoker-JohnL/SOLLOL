@@ -85,11 +85,11 @@ import os
 import struct
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import ray
-from gguf import GGUFReader, GGUFWriter, GGMLQuantizationType
+from gguf import GGMLQuantizationType, GGUFReader, GGUFWriter
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +97,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class LayerAssignment:
     """Layer assignment for a worker node."""
+
     worker_id: int
     layer_start: int
     layer_end: int
@@ -261,11 +262,13 @@ class GGUFSplitter:
                 layer_start=assignment.layer_start,
                 layer_end=assignment.layer_end,
                 is_first_worker=(assignment.worker_id == 0),
-                is_last_worker=(assignment.worker_id == len(assignments) - 1)
+                is_last_worker=(assignment.worker_id == len(assignments) - 1),
             )
 
             mini_gguf_paths.append(str(output_path))
-            logger.info(f"Created {output_path} ({os.path.getsize(output_path) / (1024**3):.2f} GB)")
+            logger.info(
+                f"Created {output_path} ({os.path.getsize(output_path) / (1024**3):.2f} GB)"
+            )
 
         return mini_gguf_paths
 
@@ -275,7 +278,7 @@ class GGUFSplitter:
         layer_start: int,
         layer_end: int,
         is_first_worker: bool,
-        is_last_worker: bool
+        is_last_worker: bool,
     ):
         """
         Create a mini-GGUF file containing specific layers.
@@ -289,9 +292,9 @@ class GGUFSplitter:
         """
         # Get architecture as string (may be numpy array)
         arch = self.metadata.get("general.architecture", "llama")
-        if hasattr(arch, 'tobytes'):
+        if hasattr(arch, "tobytes"):
             # It's a numpy array, decode it
-            arch = arch.tobytes().decode('utf-8').strip('\x00')
+            arch = arch.tobytes().decode("utf-8").strip("\x00")
 
         writer = GGUFWriter(output_path, arch=arch)
 
@@ -340,7 +343,9 @@ class GGUFSplitter:
                 should_include = True
 
             # Include output layers for last worker
-            elif is_last_worker and ("output" in tensor_name or "lm_head" in tensor_name or "norm" in tensor_name):
+            elif is_last_worker and (
+                "output" in tensor_name or "lm_head" in tensor_name or "norm" in tensor_name
+            ):
                 should_include = True
 
             # Write tensor if it belongs to this worker
@@ -353,7 +358,7 @@ class GGUFSplitter:
                     name=tensor.name,
                     tensor=tensor_data,
                     raw_shape=tensor.shape,
-                    raw_dtype=tensor.tensor_type
+                    raw_dtype=tensor.tensor_type,
                 )
 
                 tensors_written += 1
@@ -390,10 +395,7 @@ class LayerScheduler:
         self.total_size_mb = analysis["total_size_mb"]
 
     def schedule(
-        self,
-        worker_memory_mb: List[int],
-        embedding_worker: int = 0,
-        output_worker: int = -1
+        self, worker_memory_mb: List[int], embedding_worker: int = 0, output_worker: int = -1
     ) -> List[LayerAssignment]:
         """
         Assign layers to workers based on available memory.
@@ -440,7 +442,7 @@ class LayerScheduler:
                 layer_start=current_layer,
                 layer_end=layer_end,
                 node_address=f"worker-{worker_id}",
-                memory_mb=int(memory_required)
+                memory_mb=int(memory_required),
             )
             assignments.append(assignment)
 
@@ -470,13 +472,7 @@ class LlamaLayerWorker:
     4. Returns hidden states to next worker
     """
 
-    def __init__(
-        self,
-        worker_id: int,
-        gguf_path: str,
-        layer_start: int,
-        layer_end: int
-    ):
+    def __init__(self, worker_id: int, gguf_path: str, layer_start: int, layer_end: int):
         """
         Initialize worker with layer assignment.
 
@@ -492,9 +488,7 @@ class LlamaLayerWorker:
         self.layer_end = layer_end
         self.loaded = False
 
-        logger.info(
-            f"Worker {worker_id} initialized: layers {layer_start}-{layer_end-1}"
-        )
+        logger.info(f"Worker {worker_id} initialized: layers {layer_start}-{layer_end-1}")
 
     def load_layers(self):
         """
@@ -505,7 +499,9 @@ class LlamaLayerWorker:
         2. Load tensors into llama.cpp context
         3. Initialize layer processing
         """
-        logger.info(f"Worker {self.worker_id}: Loading layers {self.layer_start}-{self.layer_end-1}")
+        logger.info(
+            f"Worker {self.worker_id}: Loading layers {self.layer_start}-{self.layer_end-1}"
+        )
 
         # TODO: Implement actual GGUF layer extraction and llama.cpp integration
         # For now, just mark as loaded
@@ -528,8 +524,7 @@ class LlamaLayerWorker:
             raise RuntimeError(f"Worker {self.worker_id}: Layers not loaded")
 
         logger.debug(
-            f"Worker {self.worker_id}: Processing hidden states "
-            f"shape {hidden_states.shape}"
+            f"Worker {self.worker_id}: Processing hidden states " f"shape {hidden_states.shape}"
         )
 
         # TODO: Implement actual layer forward pass using llama.cpp
@@ -554,10 +549,7 @@ class DistributedPipelineInference:
     """
 
     def __init__(
-        self,
-        gguf_path: str,
-        worker_memory_mb: List[int],
-        ray_address: Optional[str] = None
+        self, gguf_path: str, worker_memory_mb: List[int], ray_address: Optional[str] = None
     ):
         """
         Initialize distributed pipeline.
@@ -595,7 +587,7 @@ class DistributedPipelineInference:
                 worker_id=assignment.worker_id,
                 gguf_path=gguf_path,
                 layer_start=assignment.layer_start,
-                layer_end=assignment.layer_end
+                layer_end=assignment.layer_end,
             )
             self.workers.append(worker)
 
@@ -642,8 +634,8 @@ class DistributedPipelineInference:
                 {
                     "worker_id": a.worker_id,
                     "layers": f"{a.layer_start}-{a.layer_end-1}",
-                    "memory_mb": a.memory_mb
+                    "memory_mb": a.memory_mb,
                 }
                 for a in self.assignments
-            ]
+            ],
         }

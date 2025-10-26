@@ -114,7 +114,7 @@ class RoutingEventLogger:
         event_type: str,
         model: Optional[str] = None,
         backend: Optional[str] = None,
-        **metadata
+        **metadata,
     ) -> Dict[str, Any]:
         """Create structured event dictionary."""
         event = {
@@ -151,9 +151,7 @@ class RoutingEventLogger:
 
                 # Stream for persistent history (with maxlen for memory management)
                 self.redis_client.xadd(
-                    self.stream_key,
-                    {"event": event_json},
-                    maxlen=10000  # Keep last 10k events
+                    self.stream_key, {"event": event_json}, maxlen=10000  # Keep last 10k events
                 )
             except Exception as e:
                 logger.debug(f"Failed to publish routing event: {e}")
@@ -198,12 +196,7 @@ class RoutingEventLogger:
             print(f"  └─ duration={event['duration']:.2f}s")
 
     def log_route_decision(
-        self,
-        model: str,
-        backend: str,
-        reason: str,
-        cached: bool = False,
-        **metadata
+        self, model: str, backend: str, reason: str, cached: bool = False, **metadata
     ):
         """
         Log routing decision.
@@ -221,18 +214,14 @@ class RoutingEventLogger:
             backend=backend,
             reason=reason,
             cached=cached,
-            **metadata
+            **metadata,
         )
         self._publish_event(event)
 
     def log_task_queued(self, task_id: str, model: str, worker: str = None, **metadata):
         """Log task added to queue."""
         event = self._create_event(
-            self.TASK_QUEUED,
-            model=model,
-            task_id=task_id,
-            worker=worker,
-            **metadata
+            self.TASK_QUEUED, model=model, task_id=task_id, worker=worker, **metadata
         )
         self._publish_event(event)
 
@@ -244,7 +233,7 @@ class RoutingEventLogger:
             task_id=task_id,
             worker=worker,
             start_time=time.perf_counter(),
-            **metadata
+            **metadata,
         )
         self._publish_event(event)
 
@@ -255,7 +244,7 @@ class RoutingEventLogger:
         worker: str,
         duration: float,
         success: bool = True,
-        **metadata
+        **metadata,
     ):
         """Log task completion with timing."""
         event = self._create_event(
@@ -265,7 +254,7 @@ class RoutingEventLogger:
             worker=worker,
             duration=duration,
             success=success,
-            **metadata
+            **metadata,
         )
         self._publish_event(event)
 
@@ -275,7 +264,7 @@ class RoutingEventLogger:
         active_tasks: int,
         cpu_percent: float = None,
         memory_mb: float = None,
-        **metadata
+        **metadata,
     ):
         """Log current worker load."""
         event = self._create_event(
@@ -284,18 +273,11 @@ class RoutingEventLogger:
             active_tasks=active_tasks,
             cpu_percent=cpu_percent,
             memory_mb=memory_mb,
-            **metadata
+            **metadata,
         )
         self._publish_event(event)
 
-    def log_fallback(
-        self,
-        model: str,
-        from_backend: str,
-        to_backend: str,
-        reason: str,
-        **metadata
-    ):
+    def log_fallback(self, model: str, from_backend: str, to_backend: str, reason: str, **metadata):
         """Log automatic fallback between backends."""
         event = self._create_event(
             self.FALLBACK_TRIGGERED,
@@ -303,24 +285,14 @@ class RoutingEventLogger:
             backend=to_backend,
             from_backend=from_backend,
             reason=reason,
-            **metadata
+            **metadata,
         )
         self._publish_event(event)
 
-    def log_model_switch(
-        self,
-        from_model: str,
-        to_model: str,
-        backend: str,
-        **metadata
-    ):
+    def log_model_switch(self, from_model: str, to_model: str, backend: str, **metadata):
         """Log coordinator switching models."""
         event = self._create_event(
-            self.MODEL_SWITCH,
-            model=to_model,
-            backend=backend,
-            from_model=from_model,
-            **metadata
+            self.MODEL_SWITCH, model=to_model, backend=backend, from_model=from_model, **metadata
         )
         self._publish_event(event)
 
@@ -331,21 +303,20 @@ class RoutingEventLogger:
             model=model,
             backend="llamacpp",
             rpc_backends=rpc_backends,
-            **metadata
+            **metadata,
         )
         self._publish_event(event)
 
     def log_coordinator_stop(self, model: str, **metadata):
         """Log llama.cpp coordinator shutdown."""
         event = self._create_event(
-            self.COORDINATOR_STOP,
-            model=model,
-            backend="llamacpp",
-            **metadata
+            self.COORDINATOR_STOP, model=model, backend="llamacpp", **metadata
         )
         self._publish_event(event)
 
-    def log_rpc_backend_selected(self, backend_host: str, backend_port: int, reason: str, **metadata):
+    def log_rpc_backend_selected(
+        self, backend_host: str, backend_port: int, reason: str, **metadata
+    ):
         """Log RPC backend selection."""
         event = self._create_event(
             self.RPC_BACKEND_SELECTED,
@@ -353,7 +324,7 @@ class RoutingEventLogger:
             backend_host=backend_host,
             backend_port=backend_port,
             reason=reason,
-            **metadata
+            **metadata,
         )
         self._publish_event(event)
 
@@ -365,7 +336,7 @@ class RoutingEventLogger:
             node_url=node_url,
             model=model,
             reason=reason,
-            **metadata
+            **metadata,
         )
         self._publish_event(event)
 
@@ -395,12 +366,17 @@ def get_routing_logger(
         enabled = os.getenv("SOLLOL_ROUTING_LOG", "true").lower() in ("true", "1", "yes")
 
         if console_output is None:
-            console_output = os.getenv("SOLLOL_ROUTING_LOG_CONSOLE", "false").lower() in ("true", "1", "yes")
+            console_output = os.getenv("SOLLOL_ROUTING_LOG_CONSOLE", "false").lower() in (
+                "true",
+                "1",
+                "yes",
+            )
 
         # Create Redis client if not provided
         if redis_client is None and enabled:
             try:
                 import redis
+
                 redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
                 redis_client = redis.from_url(redis_url, decode_responses=True)
             except Exception as e:

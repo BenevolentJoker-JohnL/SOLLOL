@@ -2463,20 +2463,25 @@ class OllamaPool:
             async def submit_all_async():
                 """Fire off ALL requests immediately, collect as they complete"""
                 async with httpx.AsyncClient(timeout=300.0) as client:
+                    # Limit concurrent requests per node to prevent overwhelming slow nodes
+                    # Each Ollama instance can handle ~20-30 concurrent requests efficiently
+                    max_concurrent = min(30, len(my_chunks))
+                    semaphore = asyncio.Semaphore(max_concurrent)
 
                     async def embed_one(idx, text):
-                        """Single async embed request"""
-                        try:
-                            response = await client.post(
-                                f"{node_url}/api/embed",
-                                json={"model": model, "input": text, **kwargs},
-                            )
-                            response.raise_for_status()
-                            return idx, response.json(), None
-                        except Exception as e:
-                            return idx, None, e
+                        """Single async embed request with concurrency limiting"""
+                        async with semaphore:
+                            try:
+                                response = await client.post(
+                                    f"{node_url}/api/embed",
+                                    json={"model": model, "input": text, **kwargs},
+                                )
+                                response.raise_for_status()
+                                return idx, response.json(), None
+                            except Exception as e:
+                                return idx, None, e
 
-                    # Fire off ALL requests at once!
+                    # Fire off ALL requests (but semaphore limits concurrency)!
                     tasks = [embed_one(idx, text) for idx, text in my_chunks]
 
                     # Collect responses as they complete (any order)

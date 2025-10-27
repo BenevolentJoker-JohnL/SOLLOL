@@ -103,6 +103,16 @@ class UnifiedDashboard:
         self.request_history = deque(maxlen=1000)
         self.trace_history = deque(maxlen=100)
 
+        # Initialize Redis client for reading routing streams
+        self.redis_client = None
+        try:
+            import redis
+            redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
+            self.redis_client = redis.from_url(redis_url, decode_responses=True)
+            logger.info(f"✅ Connected to Redis at {redis_url}")
+        except Exception as e:
+            logger.warning(f"⚠️  Redis connection failed (routing streams unavailable): {e}")
+
         # Application registry (track which applications are using SOLLOL)
         self.applications: Dict[str, Dict[str, Any]] = {}
         self.application_timeout = 30  # seconds - consider app inactive if no heartbeat
@@ -697,14 +707,43 @@ class UnifiedDashboard:
 
         @self.sock.route("/ws/logs")
         def ws_logs(ws):
-            """WebSocket endpoint for streaming logs."""
+            """WebSocket endpoint for streaming logs from queue and Redis."""
             logger.info("🔌 Log streaming WebSocket connected")
+            last_log_id = "$"  # Start from latest entries
+
             while True:
                 try:
-                    log_entry = log_queue.get(timeout=1)
-                    ws.send(log_entry)
-                except queue.Empty:
-                    continue
+                    # Try in-memory log queue first (real-time logs from this dashboard)
+                    try:
+                        log_entry = log_queue.get(timeout=0.5)
+                        ws.send(log_entry)
+                        continue
+                    except queue.Empty:
+                        pass
+
+                    # Fallback to Redis stream for distributed logs
+                    if self.redis_client:
+                        try:
+                            streams = self.redis_client.xread(
+                                {"sollol:dashboard:log_stream": last_log_id},
+                                count=5,
+                                block=1000
+                            )
+
+                            if streams:
+                                for stream_name, messages in streams:
+                                    for message_id, data in messages:
+                                        last_log_id = message_id
+                                        if "log" in data:
+                                            ws.send(data["log"])
+                            else:
+                                time.sleep(0.5)
+                        except Exception as redis_err:
+                            logger.debug(f"Redis log stream error: {redis_err}")
+                            time.sleep(0.5)
+                    else:
+                        time.sleep(0.5)
+
                 except Exception as e:
                     logger.warning(f"Log streaming disconnected: {e}")
                     break
@@ -1322,6 +1361,58 @@ class UnifiedDashboard:
 
                 except Exception as e:
                     logger.error(f"Applications WebSocket error: {e}")
+                    break
+
+        @self.sock.route("/ws/routing_events")
+        def ws_routing_events(ws):
+            """WebSocket endpoint for streaming routing decisions from Redis."""
+            logger.info("🔌 Routing events WebSocket connected")
+
+            if not self.redis_client:
+                logger.error("Redis client not available - routing events unavailable")
+                ws.send(json.dumps({
+                    "type": "error",
+                    "message": "Redis not configured - routing events unavailable"
+                }))
+                return
+
+            # Track last seen ID for streaming new events
+            last_id = "0-0"
+
+            while True:
+                try:
+                    # Read new entries from Redis stream (blocking with timeout)
+                    streams = self.redis_client.xread(
+                        {"sollol:routing_stream": last_id},
+                        count=10,
+                        block=2000  # Block for 2 seconds
+                    )
+
+                    if streams:
+                        for stream_name, messages in streams:
+                            for message_id, data in messages:
+                                # Update last ID
+                                last_id = message_id
+
+                                # Parse event data
+                                if "event" in data:
+                                    event_data = json.loads(data["event"])
+
+                                    # Send to WebSocket client
+                                    ws.send(json.dumps({
+                                        "type": "routing_decision",
+                                        "timestamp": event_data.get("timestamp"),
+                                        "event": event_data
+                                    }))
+                    else:
+                        # No new events - send heartbeat
+                        ws.send(json.dumps({
+                            "type": "heartbeat",
+                            "timestamp": time.time()
+                        }))
+
+                except Exception as e:
+                    logger.error(f"Routing events WebSocket error: {e}")
                     break
 
     def _cleanup_stale_applications(self):

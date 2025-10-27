@@ -2463,9 +2463,20 @@ class OllamaPool:
             async def submit_all_async():
                 """Fire off ALL requests immediately, collect as they complete"""
                 async with httpx.AsyncClient(timeout=300.0) as client:
-                    # Limit concurrent requests per node to prevent overwhelming slow nodes
-                    # Conservative limit for slow nodes - they can handle 5-10 concurrent requests
-                    max_concurrent = min(10, len(my_chunks))
+                    # Adaptive concurrency based on node performance
+                    # Fast nodes (throughput > 0.8): 30 concurrent requests
+                    # Medium nodes (0.3-0.8): 15 concurrent requests
+                    # Slow nodes (< 0.3): 8 concurrent requests
+                    node_perf = self.stats.get("node_performance", {}).get(node_key, {})
+                    throughput = node_perf.get("batch_throughput", 0.5)
+
+                    if throughput > 0.8:
+                        max_concurrent = min(30, len(my_chunks))  # Fast node
+                    elif throughput > 0.3:
+                        max_concurrent = min(15, len(my_chunks))  # Medium node
+                    else:
+                        max_concurrent = min(8, len(my_chunks))   # Slow node
+
                     semaphore = asyncio.Semaphore(max_concurrent)
 
                     async def embed_one(idx, text):

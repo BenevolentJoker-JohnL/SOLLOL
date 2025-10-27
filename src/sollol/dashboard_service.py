@@ -197,6 +197,7 @@ class DashboardService:
         ray_dashboard_port: int = 8265,
         dask_dashboard_port: int = 8787,
         enable_dask: bool = True,
+        enable_ray: bool = True,
     ):
         self.redis_url = redis_url
         self.port = port
@@ -204,7 +205,9 @@ class DashboardService:
         self.ray_dashboard_port = ray_dashboard_port
         self.dask_dashboard_port = dask_dashboard_port
         self.enable_dask = enable_dask
+        self.enable_ray = enable_ray
         self.dask_client = None
+        self.ray_initialized = False
 
         # Initialize Dask if requested
         if enable_dask:
@@ -295,6 +298,39 @@ class DashboardService:
                 logger.error(f"❌ Failed to initialize Dask: {e}")
                 self.enable_dask = False
                 self.dask_client = None
+
+        # Initialize Ray if requested
+        if enable_ray:
+            try:
+                import ray
+
+                # Try to connect to existing Ray cluster first
+                try:
+                    logger.info("🔍 Attempting to connect to existing Ray cluster...")
+                    ray.init(address="auto", ignore_reinit_error=True, logging_level=logging.ERROR)
+                    logger.info(f"✅ Connected to existing Ray cluster at {ray.get_address_info()['address']}")
+                    self.ray_initialized = True
+                except Exception as e:
+                    # No existing cluster, start new one
+                    logger.info("🚀 Starting new Ray cluster (no existing cluster found)")
+                    ray.init(
+                        num_cpus=2,
+                        ignore_reinit_error=True,
+                        logging_level=logging.ERROR,
+                        dashboard_host="0.0.0.0",
+                        dashboard_port=ray_dashboard_port,
+                        include_dashboard=True,
+                    )
+                    logger.info(f"✅ Ray initialized with dashboard at http://127.0.0.1:{ray_dashboard_port}")
+                    self.ray_initialized = True
+            except ImportError:
+                logger.warning("⚠️  Ray not installed, dashboard will not show Ray metrics")
+                self.enable_ray = False
+                self.ray_initialized = False
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize Ray: {e}")
+                self.enable_ray = False
+                self.ray_initialized = False
 
         # Redis clients (one for pub/sub, one for regular ops)
         self.redis_client = redis.from_url(redis_url, decode_responses=True)
@@ -1764,6 +1800,7 @@ if __name__ == "__main__":
     parser.add_argument("--ray-dashboard-port", type=int, default=8265)
     parser.add_argument("--dask-dashboard-port", type=int, default=8787)
     parser.add_argument("--no-dask", action="store_true", help="Disable Dask dashboard")
+    parser.add_argument("--no-ray", action="store_true", help="Disable Ray cluster auto-start")
     parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 
     args = parser.parse_args()
@@ -1779,6 +1816,7 @@ if __name__ == "__main__":
         ray_dashboard_port=args.ray_dashboard_port,
         dask_dashboard_port=args.dask_dashboard_port,
         enable_dask=not args.no_dask,
+        enable_ray=not args.no_ray,
     )
 
     service.run(debug=args.debug)

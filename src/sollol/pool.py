@@ -14,6 +14,7 @@ Features full SynapticLlamas observability:
 import asyncio
 import json
 import logging
+import os
 import sys
 import threading
 import time
@@ -21,7 +22,9 @@ from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
-# Force unbuffered stderr for real-time progress display
+# Force unbuffered stdout/stderr for real-time progress display
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(line_buffering=True)
 elif hasattr(sys.stderr, "buffer"):
@@ -709,17 +712,54 @@ class OllamaPool:
                     logger.info("🚀 Starting local Dask cluster for distributed batch processing")
                     from distributed import LocalCluster
 
+                    # Check if running from stdin/interactive shell (causes pickle errors)
+                    # Detection: __main__ has no __file__, or __file__ points to stdin/pipe
+                    import __main__
+                    use_processes = True
+
+                    if not hasattr(__main__, '__file__'):
+                        use_processes = False
+                        logger.warning("⚠️  No __main__.__file__ detected - using threads for Dask")
+                    elif __main__.__file__ in ('<stdin>', '<string>', ''):
+                        use_processes = False
+                        logger.warning("⚠️  Running from stdin/string - using threads for Dask")
+
+                    if not use_processes:
+                        logger.warning("   For best performance with process workers, run as a .py file")
+
+                    # Propagate SOLLOL environment variables to Dask workers
+                    # CRITICAL: Must use dask.config.set with 'distributed.nanny.pre-spawn-environ'
+                    # to ensure variables are set BEFORE worker subprocess spawns
+                    worker_env = {}
+                    for key in ["SOLLOL_OBSERVER_SAMPLING", "SOLLOL_REDIS_URL", "SOLLOL_APP_NAME"]:
+                        if key in os.environ:
+                            worker_env[key] = os.environ[key]
+                            logger.info(f"🔧 Propagating {key}={os.environ[key]} to Dask workers")
+
+                    if worker_env:
+                        logger.info(f"✅ Dask worker environment: {list(worker_env.keys())}")
+                        # Set Dask config to propagate env vars before worker spawn
+                        import dask
+                        dask.config.set({"distributed.nanny.pre-spawn-environ": worker_env})
+                        logger.info("✅ Dask configuration set: distributed.nanny.pre-spawn-environ")
+                    else:
+                        logger.warning("⚠️  No SOLLOL environment variables found to propagate!")
+
                     # Start with conservative settings
+                    # CRITICAL FIX: Use thread workers instead of process workers
+                    # Process workers have reliability issues (nanny startup failures)
+                    # Thread workers work reliably and don't need env var propagation
                     cluster = LocalCluster(
                         n_workers=len(self.nodes) if self.nodes else 2,
                         threads_per_worker=2,
-                        processes=True,
+                        processes=False,  # Always use thread workers for reliability
                         memory_limit="auto",
                         silence_logs=logging.WARNING,
                     )
                     self.dask_client = DaskClient(cluster)
+                    worker_type = "process workers" if use_processes else "thread workers"
                     logger.info(
-                        f"✅ Dask cluster started with {len(self.nodes) if self.nodes else 2} workers"
+                        f"✅ Dask cluster started with {len(self.nodes) if self.nodes else 2} {worker_type}"
                     )
                     logger.info(f"   Dashboard: {self.dask_client.dashboard_link}")
 
@@ -747,26 +787,37 @@ class OllamaPool:
 
             # Route based on configured strategy
             if self.routing_strategy == RoutingStrategy.ROUND_ROBIN:
-                return self._select_round_robin(), None
-
+                node, decision = self._select_round_robin(), None
             elif self.routing_strategy == RoutingStrategy.LATENCY_FIRST:
-                return self._select_latency_first(), None
-
+                node, decision = self._select_latency_first(), None
             elif self.routing_strategy == RoutingStrategy.LEAST_LOADED:
-                return self._select_least_loaded(), None
-
+                node, decision = self._select_least_loaded(), None
             elif self.routing_strategy == RoutingStrategy.FAIRNESS:
-                return self._select_fairness(), None
-
+                node, decision = self._select_fairness(), None
             elif self.routing_strategy == RoutingStrategy.INTELLIGENT:
                 return self._select_intelligent(payload, priority)
-
             else:
                 # Unknown strategy - fallback to round-robin
                 logger.warning(
                     f"Unknown routing strategy: {self.routing_strategy}, using round-robin"
                 )
-                return self._select_round_robin(), None
+                node, decision = self._select_round_robin(), None
+
+            # Log routing event for all non-intelligent strategies
+            # (intelligent strategy logs inside _select_intelligent)
+            model = payload.get("model", "unknown") if payload else "unknown"
+            node_url = f"{node['host']}:{node['port']}"
+            reason = f"Strategy: {self.routing_strategy.value}"
+
+            self.routing_logger.log_ollama_node_selected(
+                node_url=node_url,
+                model=model,
+                reason=reason,
+                confidence=0,
+                priority=priority,
+            )
+
+            return node, decision
 
     def _select_round_robin(self) -> Dict[str, str]:
         """
@@ -1033,61 +1084,63 @@ class OllamaPool:
 
                 if response.status_code == 200:
                     # Success! Update metrics
-                    with self._lock:
-                        self.stats["successful_requests"] += 1
-                        self.stats["nodes_used"][node_key] = (
-                            self.stats["nodes_used"].get(node_key, 0) + 1
-                        )
+                        with self._lock:
+                            self.stats["successful_requests"] += 1
+                            self.stats["nodes_used"][node_key] = (
+                                self.stats["nodes_used"].get(node_key, 0) + 1
+                            )
 
-                        # Update node performance metrics
-                        perf = self.stats["node_performance"][node_key]
-                        perf["total_requests"] += 1
+                            # Update node performance metrics
+                            perf = self.stats["node_performance"][node_key]
+                            perf["total_requests"] += 1
+                            perf["last_model"] = data.get("model", "unknown")
+                            perf["last_operation"] = operation
 
-                        # Update running average latency
-                        if perf["total_requests"] == 1:
-                            perf["latency_ms"] = latency_ms
-                        else:
-                            perf["latency_ms"] = (
-                                perf["latency_ms"] * (perf["total_requests"] - 1) + latency_ms
+                            # Update running average latency
+                            if perf["total_requests"] == 1:
+                                perf["latency_ms"] = latency_ms
+                            else:
+                                perf["latency_ms"] = (
+                                    perf["latency_ms"] * (perf["total_requests"] - 1) + latency_ms
+                                ) / perf["total_requests"]
+
+                            # Update success rate
+                            perf["success_rate"] = (
+                                perf["total_requests"] - perf["failed_requests"]
                             ) / perf["total_requests"]
 
-                        # Update success rate
-                        perf["success_rate"] = (
-                            perf["total_requests"] - perf["failed_requests"]
-                        ) / perf["total_requests"]
-
-                    # Log performance
-                    logger.info(
-                        f"✅ Request succeeded: {node_key} "
-                        f"(latency: {latency_ms:.1f}ms, "
-                        f"avg: {self.stats['node_performance'][node_key]['latency_ms']:.1f}ms)"
-                    )
-
-                    # Log response to observer
-                    log_ollama_response(
-                        backend=node_key,
-                        model=model,
-                        latency_ms=latency_ms,
-                        status_code=response.status_code,
-                    )
-
-                    # Record performance for router learning
-                    if self.router and "model" in data:
-                        task_type = (
-                            routing_decision.get("task_type", "generation")
-                            if routing_decision
-                            else "generation"
-                        )
-                        self.router.record_performance(
-                            task_type=task_type, model=data["model"], actual_duration_ms=latency_ms
+                        # Log performance
+                        logger.info(
+                            f"✅ Request succeeded: {node_key} "
+                            f"(latency: {latency_ms:.1f}ms, "
+                            f"avg: {self.stats['node_performance'][node_key]['latency_ms']:.1f}ms)"
                         )
 
-                    # Cache successful response
-                    response_data = response.json()
-                    if cache_key is not None:
-                        self.cache.set(cache_key, response_data)
+                        # Log response to observer
+                        log_ollama_response(
+                            backend=node_key,
+                            model=model,
+                            latency_ms=latency_ms,
+                            status_code=response.status_code,
+                        )
 
-                    return response_data
+                        # Record performance for router learning
+                        if self.router and "model" in data:
+                            task_type = (
+                                routing_decision.get("task_type", "generation")
+                                if routing_decision
+                                else "generation"
+                            )
+                            self.router.record_performance(
+                                task_type=task_type, model=data["model"], actual_duration_ms=latency_ms
+                            )
+
+                        # Cache successful response
+                        response_data = response.json()
+                        if cache_key is not None:
+                            self.cache.set(cache_key, response_data)
+
+                        return response_data
                 else:
                     errors.append(f"{url}: HTTP {response.status_code}")
                     self._record_failure(node_key, latency_ms)
@@ -1895,17 +1948,74 @@ class OllamaPool:
                             1, self.stats["total_requests"]
                         )
 
-                    # Build metrics payload (wrapped in "metrics" key for dashboard compatibility)
+                    # Build richer metrics payload for unified dashboard
+                    app_name = self.app_name or os.getenv("SOLLOL_APP_NAME", "OllamaPool")
+                    app_id = app_name.replace(" ", "_").lower()
+
+                    with self._lock:
+                        node_snapshot = list(self.nodes)
+                        node_performance = dict(self.stats.get("node_performance", {}))
+                        total_requests = self.stats.get("total_requests", 0)
+                        successful_requests = self.stats.get("successful_requests", 0)
+
+                    nodes_payload = []
+                    for node in node_snapshot:
+                        host = node.get("host")
+                        port = node.get("port")
+                        if not host:
+                            continue
+                        node_key = f"{host}:{port}"
+                        perf = node_performance.get(node_key, {})
+                        nodes_payload.append(
+                            {
+                                "url": f"http://{node_key}",
+                                "host": node_key,
+                                "available": perf.get("available", True),
+                                "latency_ms": perf.get("latency_ms", 0.0),
+                                "success_rate": perf.get("success_rate", 1.0),
+                                "total_requests": perf.get("total_requests", 0),
+                                "failed_requests": perf.get("failed_requests", 0),
+                                "gpu_free_mem": perf.get("gpu_free_mem", 0),
+                                "active_requests": perf.get("active_requests", 0),
+                                "priority": perf.get("priority", 0),
+                            }
+                        )
+
+                    analytics = {
+                        "p50_latency_ms": p50,
+                        "p95_latency_ms": p95,
+                        "p99_latency_ms": p99,
+                        "success_rate": success_rate,
+                        "avg_duration_ms": float(np.mean(latencies)) if latencies else 0.0,
+                        "total_requests": total_requests,
+                        "successful_requests": successful_requests,
+                    }
+
+                    metrics_payload = {
+                        "analytics": analytics,
+                        "ollama_pool": {
+                            "nodes_configured": len(node_snapshot),
+                            "http2_enabled": HTTPX_AVAILABLE,
+                            "dask_enabled": bool(self.dask_client),
+                            "cache": self.cache.get_stats(),
+                        },
+                        "total_pools": len(node_snapshot),
+                    }
+
                     payload = {
-                        "metrics": {
-                            "analytics": {
-                                "p50_latency_ms": p50,
-                                "p95_latency_ms": p95,
-                                "p99_latency_ms": p99,
-                                "success_rate": success_rate,
-                            },
-                            "total_pools": len(self.nodes),
-                        }
+                        "source": app_id,
+                        "app_name": app_name,
+                        "metrics": metrics_payload,
+                        "nodes": nodes_payload,
+                        "applications": [
+                            {
+                                "app_id": app_id,
+                                "name": app_name,
+                                "version": getattr(self, "version", "unknown"),
+                                "last_heartbeat": time.time(),
+                            }
+                        ],
+                        "timestamp": time.time(),
                     }
 
                     # Publish to Redis (30s TTL)
@@ -2071,36 +2181,84 @@ class OllamaPool:
         completed = 0
         errors = 0
 
+        latency_samples: List[float] = []
+
         for i, text in enumerate(inputs):
             try:
+                # Log request to observer
+                log_ollama_request(
+                    backend=node_key, model=model, operation="embed", priority=priority
+                )
+
                 # Use pre-created client for efficiency - connection is reused!
+                embed_start = time.time()
                 result = client.embed(model=model, input=text, **kwargs)
+                embed_latency_ms = (time.time() - embed_start) * 1000
+
                 results.append(result)
+                latency_samples.append(embed_latency_ms)
                 completed += 1
+
+                # Log response to observer
+                log_ollama_response(
+                    backend=node_key,
+                    model=model,
+                    latency_ms=embed_latency_ms,
+                    status_code=200,
+                )
 
                 # Progress logging every 50 items
                 if (i + 1) % 50 == 0 or (i + 1) == batch_size:
                     progress_pct = ((i + 1) * 100) // batch_size
                     logger.info(f"   Progress: {i + 1}/{batch_size} embeddings ({progress_pct}%)")
             except Exception as e:
+                embed_latency_ms = (time.time() - embed_start) * 1000 if 'embed_start' in locals() else 0
+
                 logger.error(f"Error embedding text {i}: {e}")
+
+                latency_samples.append(embed_latency_ms)
+                # Log error to observer
+                log_ollama_error(
+                    backend=node_key, model=model, error=str(e), latency_ms=embed_latency_ms
+                )
+
                 results.append(None)
                 errors += 1
 
         # Update stats ONCE at end (minimal lock usage - FlockParser Legacy pattern)
         total_time = time.time() - start_time
         with self._lock:
+            # Update global request counters
+            self.stats["total_requests"] += batch_size
             self.stats["successful_requests"] += completed
             self.stats["failed_requests"] += errors
             self.stats["nodes_used"][node_key] = (
                 self.stats["nodes_used"].get(node_key, 0) + batch_size
             )
 
+            # Record latency samples for percentile metrics
+            self._latency_buffer.extend(latency_samples)
+
             # Update node performance
             if node_key in self.stats["node_performance"]:
                 perf = self.stats["node_performance"][node_key]
-                perf["total_requests"] += batch_size
+                previous_total = perf["total_requests"]
+                perf["total_requests"] = previous_total + batch_size
                 perf["failed_requests"] += errors
+                perf["last_model"] = model
+                perf["last_operation"] = "embed_batch"
+
+                successful_requests = perf["total_requests"] - perf["failed_requests"]
+                perf["success_rate"] = (
+                    successful_requests / perf["total_requests"]
+                    if perf["total_requests"] > 0 else 1.0
+                )
+
+                if latency_samples:
+                    total_latency = sum(latency_samples)
+                    if previous_total > 0:
+                        total_latency += perf.get("latency_ms", 0.0) * previous_total
+                    perf["latency_ms"] = total_latency / max(1, perf["total_requests"])
 
         avg_time_per_embedding = (total_time / batch_size * 1000) if batch_size > 0 else 0
         logger.info(
@@ -2142,6 +2300,9 @@ class OllamaPool:
             texts = ["chunk 1", "chunk 2", "chunk 3"]
             embeddings = pool.embed_batch("mxbai-embed-large", texts)
         """
+        import sys
+        print(f"[POOL] embed_batch called with {len(inputs)} inputs, model={model}", file=sys.stderr, flush=True)
+
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
         from .adaptive_parallelism import AdaptiveParallelismStrategy
@@ -2161,6 +2322,7 @@ class OllamaPool:
 
             # If sequential mode recommended, use FlockParser Legacy's connection reuse pattern
             if not should_parallel:
+                print(f"[POOL] Taking SEQUENTIAL path", file=sys.stderr, flush=True)
                 recommended_node = reasoning.get("recommended_node")
                 if recommended_node:
                     return self._embed_batch_sequential(
@@ -2286,15 +2448,22 @@ class OllamaPool:
             node_weights.append(weight)
             node_throughputs.append(throughput)
 
-        # DEBUG: Show current performance stats
+        # DEBUG: Show current performance stats AND raw node data
         node_keys = [f"{n['host']}:{n['port']}" for n in self.nodes]
-        print(
-            f"   📊 DEBUG: Current stats: {self.stats.get('node_performance', {})}", file=sys.stderr
-        )
-        print(
-            f"   📊 DEBUG: Node throughputs: {list(zip(node_keys, node_throughputs))}",
-            file=sys.stderr,
-        )
+
+        # DEBUG: Write node data to file for troubleshooting (silent)
+        try:
+            with open('/tmp/sollol_nodes_debug.txt', 'w') as f:
+                f.write(f"=== NODES DEBUG ===\n")
+                f.write(f"Number of nodes: {len(self.nodes)}\n\n")
+                for i, n in enumerate(self.nodes, 1):
+                    f.write(f"Node {i}:\n")
+                    f.write(f"  Raw dict: {n}\n")
+                    f.write(f"  host: {repr(n['host'])} (len={len(n['host'])})\n")
+                    f.write(f"  port: {repr(n['port'])}\n")
+                    f.write(f"  Combined: {n['host']}:{n['port']}\n\n")
+        except:
+            pass  # Silently fail if can't write debug file
 
         # ADAPTIVE PARALLELISM DECISION (from FlockParser-legacy)
         # If one node is 5x+ faster, route ALL work to it (sequential mode)
@@ -2402,12 +2571,13 @@ class OllamaPool:
 
         for i, node in enumerate(self.nodes):
             node_key = f"{node['host']}:{node['port']}"
+            full_node_display = f"http://{node['host']}:{node['port']}"
             node_perf = self.stats.get("node_performance", {}).get(node_key, {})
             throughput = node_perf.get("batch_throughput", 0.5)
             avg_time = node_perf.get("avg_response_time", 1.0)
             workers_for_node = 2 if avg_time < 2.5 else 1
             print(
-                f"   ⚖️  {node_key}: ~{len(chunks_per_node[i])} chunks target ({len(chunks_per_node[i])*100//batch_size}% - {throughput:.2f} chunks/s, {workers_for_node} workers)",
+                f"   ⚖️  Node {full_node_display}: ~{len(chunks_per_node[i])} chunks target ({len(chunks_per_node[i])*100//batch_size}% - {throughput:.2f} chunks/s, {workers_for_node} workers)",
                 file=sys.stderr,
                 flush=True,
             )
@@ -2439,60 +2609,80 @@ class OllamaPool:
 
         # (No longer spawning workers - using async instead)
 
-        def async_batch_submit_worker(node_idx: int):
-            """Submit ALL chunks for this node async, collect responses as they complete"""
+        async def submit_all_nodes_async():
+            """Submit ALL chunks for ALL nodes async in a single event loop"""
             import asyncio
             import time as time_module
 
             import httpx
 
-            node = self.nodes[node_idx]
-            node_key = f"{node['host']}:{node['port']}"
-            node_url = f"http://{node['host']}:{node['port']}"
+            async def process_node(node_idx: int):
+                """Process all chunks for a single node"""
+                node = self.nodes[node_idx]
+                node_key = f"{node['host']}:{node['port']}"
+                node_url = f"http://{node['host']}:{node['port']}"
 
-            my_chunks = chunks_per_node[node_idx]
-            if not my_chunks:
-                return
+                my_chunks = chunks_per_node[node_idx]
+                if not my_chunks:
+                    return
 
-            print(
-                f"      🚀 {node_key} submitting {len(my_chunks)} chunks async",
-                file=sys.stderr,
-                flush=True,
-            )
+                # Log routing decision for this batch to dashboard
+                self.routing_logger.log_ollama_node_selected(
+                    node_url=node_url,
+                    model=model,
+                    reason=f"Async batch: {len(my_chunks)} embeddings ({len(my_chunks)*100//batch_size}% of batch)",
+                    priority=priority
+                )
 
-            async def submit_all_async():
-                """Fire off ALL requests immediately, collect as they complete"""
+                full_node_display = f"http://{node['host']}:{node['port']}"
+                print(
+                    f"      🚀 Node {full_node_display} submitting {len(my_chunks)} chunks async",
+                    file=sys.stderr,
+                    flush=True,
+                )
+
+                # Create client for this node
                 async with httpx.AsyncClient(timeout=300.0) as client:
-                    # Adaptive concurrency based on node performance
-                    # Fast nodes (throughput > 0.8): 30 concurrent requests
-                    # Medium nodes (0.3-0.8): 15 concurrent requests
-                    # Slow nodes (< 0.3): 8 concurrent requests
-                    node_perf = self.stats.get("node_performance", {}).get(node_key, {})
-                    throughput = node_perf.get("batch_throughput", 0.5)
-
-                    if throughput > 0.8:
-                        max_concurrent = min(30, len(my_chunks))  # Fast node
-                    elif throughput > 0.3:
-                        max_concurrent = min(15, len(my_chunks))  # Medium node
-                    else:
-                        max_concurrent = min(8, len(my_chunks))   # Slow node
-
-                    semaphore = asyncio.Semaphore(max_concurrent)
 
                     async def embed_one(idx, text):
-                        """Single async embed request with concurrency limiting"""
-                        async with semaphore:
-                            try:
-                                response = await client.post(
-                                    f"{node_url}/api/embed",
-                                    json={"model": model, "input": text, **kwargs},
-                                )
-                                response.raise_for_status()
-                                return idx, response.json(), None
-                            except Exception as e:
-                                return idx, None, e
+                        """Single async embed request - NO concurrency limiting for maximum speed"""
+                        import time as time_module
 
-                    # Fire off ALL requests (but semaphore limits concurrency)!
+                        # Log request to observer for dashboard
+                        log_ollama_request(backend=node_key, model=model, operation="embed", priority=priority)
+
+                        start_time = time_module.time()
+                        try:
+                            response = await client.post(
+                                f"{node_url}/api/embed",
+                                json={"model": model, "input": text, **kwargs},
+                            )
+                            response.raise_for_status()
+                            latency_ms = (time_module.time() - start_time) * 1000
+
+                            # Log successful response
+                            log_ollama_response(
+                                backend=node_key,
+                                model=model,
+                                latency_ms=latency_ms,
+                                status_code=response.status_code
+                            )
+
+                            return idx, response.json(), None
+                        except Exception as e:
+                            latency_ms = (time_module.time() - start_time) * 1000
+
+                            # Log error
+                            log_ollama_error(
+                                backend=node_key,
+                                model=model,
+                                error=str(e),
+                                latency_ms=latency_ms
+                            )
+
+                            return idx, None, e
+
+                    # Fire off ALL requests at once! (dcb46ae behavior - FAST!)
                     tasks = [embed_one(idx, text) for idx, text in my_chunks]
 
                     # Collect responses as they complete (any order)
@@ -2500,56 +2690,46 @@ class OllamaPool:
                     for coro in asyncio.as_completed(tasks):
                         idx, result, error = await coro
 
+                        # Update results - keep lock scope minimal, NO I/O while holding lock
                         with results_lock:
-                            if error:
-                                print(
-                                    f"      ❌ {node_key} chunk {idx} error: {error}",
-                                    file=sys.stderr,
-                                    flush=True,
-                                )
-                            else:
+                            if not error:
                                 results[idx] = result
-
                             completed_count[0] += 1
                             completed += 1
                             current_progress = completed_count[0]
 
-                        # Progress every 50 chunks
-                        if current_progress % 50 == 0 or current_progress == batch_size:
+                        # Progress every 10 chunks - frequent updates without flooding logs
+                        if current_progress % 10 == 0 or current_progress == batch_size:
                             progress_pct = (current_progress * 100) // batch_size
+                            # Force full IP display with explicit formatting
+                            full_node_display = f"http://{node['host']}:{node['port']}"
                             print(
-                                f"      📊 Progress: {current_progress}/{batch_size} ({progress_pct}%) - {node_key}",
+                                f"      📊 Progress: {current_progress}/{batch_size} ({progress_pct}%) - Node: {full_node_display}",
                                 file=sys.stderr,
-                                flush=True,
+                                flush=True
                             )
 
-                print(
-                    f"      ✅ {node_key} completed {len(my_chunks)} chunks",
-                    file=sys.stderr,
-                    flush=True,
-                )
+                # Log completion for dashboard and terminal visibility
+                full_node_display = f"http://{node['host']}:{node['port']}"
+                print(f"      ✅ Node {full_node_display} completed {len(my_chunks)} chunks", file=sys.stderr, flush=True)
 
-            # Run the async function
-            asyncio.run(submit_all_async())
+            # Create tasks for all nodes with work
+            node_tasks = []
+            for node_idx in range(num_nodes):
+                if chunks_per_node[node_idx]:  # Only if node has work
+                    node_tasks.append(process_node(node_idx))
 
-        # Spawn one thread per node to submit all chunks async
-        import concurrent.futures
+            # Run all node tasks concurrently in the same event loop
+            await asyncio.gather(*node_tasks)
 
-        worker_futures = []
-
+        # Run all nodes in a single event loop (fixes deadlock from multiple asyncio.run() calls)
         print(
             f"   🔥 Firing {batch_size} async requests across {num_nodes} nodes...",
             file=sys.stderr,
             flush=True,
         )
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=num_nodes) as executor:
-            for node_idx in range(num_nodes):
-                if chunks_per_node[node_idx]:  # Only if node has work
-                    future = executor.submit(async_batch_submit_worker, node_idx)
-                    worker_futures.append(future)
-
-            concurrent.futures.wait(worker_futures)
+        asyncio.run(submit_all_nodes_async())
 
         print(
             f"   ✅ Async batch complete: {completed_count[0]}/{batch_size} chunks",

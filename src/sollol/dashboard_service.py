@@ -21,6 +21,10 @@ Usage:
     service.run()
 """
 
+# NOTE: Flask-Sock works with simple-websocket library which auto-detects environment
+# No need for gevent monkey patching - causes issues with threaded Redis pub/sub
+# simple-websocket will use native threads or greenlets as appropriate
+
 import json
 import logging
 import os
@@ -357,12 +361,159 @@ class DashboardService:
         self._setup_routes()
         self._setup_websockets()
 
+    def _calculate_latency_metrics(self) -> Dict[str, float]:
+        """
+        Calculate latency percentiles (P50, P95, P99) from recent RESPONSE events.
+
+        Returns:
+            Dict with p50_latency_ms, p95_latency_ms, p99_latency_ms, success_rate
+        """
+        import statistics
+
+        # Extract latency values from RESPONSE events in activity buffer
+        latencies = []
+        total_responses = 0
+        successful_responses = 0
+
+        for event in self.ollama_activity_buffer:
+            if isinstance(event, dict):
+                event_type = event.get("event_type", "")
+
+                if event_type == "ollama_response":
+                    total_responses += 1
+                    details = event.get("details", {})
+                    latency_ms = details.get("latency_ms")
+
+                    if latency_ms is not None:
+                        latencies.append(float(latency_ms))
+
+                        # Check if response was successful (status_code 200 or no error)
+                        status_code = details.get("status_code", 200)
+                        if status_code == 200:
+                            successful_responses += 1
+
+        # Calculate percentiles if we have data
+        if latencies:
+            sorted_latencies = sorted(latencies)
+            p50 = statistics.median(sorted_latencies)
+            p95 = statistics.quantiles(sorted_latencies, n=20)[18] if len(sorted_latencies) >= 20 else sorted_latencies[-1]
+            p99 = statistics.quantiles(sorted_latencies, n=100)[98] if len(sorted_latencies) >= 100 else sorted_latencies[-1]
+            success_rate = successful_responses / total_responses if total_responses > 0 else 1.0
+        else:
+            p50 = p95 = p99 = 0
+            success_rate = 1.0
+
+        return {
+            "p50_latency_ms": round(p50, 2),
+            "p95_latency_ms": round(p95, 2),
+            "p99_latency_ms": round(p99, 2),
+            "success_rate": round(success_rate, 3),
+        }
+
+    def _create_distributed_traces(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Create distributed traces by correlating REQUEST and RESPONSE events.
+
+        A trace consists of:
+        - request_id: Unique identifier (generated from timestamp + backend + model)
+        - backend: Ollama backend that handled the request
+        - model: Model used
+        - operation: Type of operation (embed, chat, etc.)
+        - request_time: Timestamp of request
+        - response_time: Timestamp of response
+        - latency_ms: End-to-end latency
+        - status: success/error
+
+        Args:
+            limit: Maximum number of traces to return
+
+        Returns:
+            List of trace dictionaries
+        """
+        # Group events by (backend, model, approximate timestamp) to match REQUEST->RESPONSE pairs
+        traces = []
+        request_map = {}  # Key: (backend, model, operation), Value: list of request events
+
+        # First pass: collect all REQUEST events
+        for event in self.ollama_activity_buffer:
+            if isinstance(event, dict):
+                event_type = event.get("event_type", "")
+
+                if event_type == "ollama_request":
+                    backend = event.get("backend", "unknown")
+                    details = event.get("details", {})
+                    model = details.get("model", "unknown")
+                    operation = details.get("operation", "unknown")
+                    timestamp = event.get("timestamp")
+
+                    key = (backend, model, operation)
+                    if key not in request_map:
+                        request_map[key] = []
+                    request_map[key].append({
+                        "timestamp": timestamp,
+                        "event": event,
+                    })
+
+        # Second pass: match RESPONSE events to REQUEST events
+        for event in self.ollama_activity_buffer:
+            if isinstance(event, dict):
+                event_type = event.get("event_type", "")
+
+                if event_type == "ollama_response":
+                    backend = event.get("backend", "unknown")
+                    details = event.get("details", {})
+                    model = details.get("model", "unknown")
+                    operation = details.get("operation", "unknown")
+                    response_timestamp = event.get("timestamp")
+                    latency_ms = details.get("latency_ms", 0)
+                    status_code = details.get("status_code", 200)
+
+                    # Try to find matching request (within reasonable time window)
+                    key = (backend, model, operation)
+                    if key in request_map and request_map[key]:
+                        # Find closest request that happened before this response
+                        matching_request = None
+                        for req in request_map[key]:
+                            req_time = req["timestamp"]
+                            # Response should be after request, within reasonable latency window (< 60 seconds)
+                            if req_time < response_timestamp and (response_timestamp - req_time) < 60:
+                                matching_request = req
+                                break
+
+                        if matching_request:
+                            # Remove matched request from map
+                            request_map[key].remove(matching_request)
+
+                            # Create trace
+                            trace_id = f"{backend}_{model}_{int(response_timestamp * 1000)}"
+                            traces.append({
+                                "trace_id": trace_id,
+                                "backend": backend,
+                                "model": model,
+                                "operation": operation,
+                                "request_time": matching_request["timestamp"],
+                                "response_time": response_timestamp,
+                                "latency_ms": round(latency_ms, 2),
+                                "status": "success" if status_code == 200 else "error",
+                                "status_code": status_code,
+                            })
+
+        # Sort by response_time descending (most recent first) and limit
+        traces.sort(key=lambda t: t["response_time"], reverse=True)
+        return traces[:limit]
+
     def _setup_routes(self):
         """Setup Flask routes."""
 
         @self.app.route("/")
         def index():
-            return render_template_string(self._get_dashboard_html())
+            from flask import make_response
+            response = make_response(render_template_string(self._get_dashboard_html()))
+            # Prevent browser caching to ensure users always get the latest code
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response
 
         @self.app.route("/api/metrics")
         def metrics():
@@ -389,14 +540,9 @@ class DashboardService:
                             ),
                         }
 
-                # Add analytics if not present (for HTML compatibility)
+                # Calculate real-time analytics from activity buffer
                 if "analytics" not in raw_metrics:
-                    raw_metrics["analytics"] = {
-                        "p50_latency_ms": 0,
-                        "p95_latency_ms": 0,
-                        "p99_latency_ms": 0,
-                        "success_rate": 1.0,
-                    }
+                    raw_metrics["analytics"] = self._calculate_latency_metrics()
 
                 # Add total_pools if not present
                 if "total_pools" not in raw_metrics:
@@ -773,38 +919,18 @@ class DashboardService:
 
         @self.app.route("/api/traces")
         def traces():
-            """Get distributed traces from Redis."""
+            """
+            Get distributed traces (correlated REQUEST->RESPONSE events).
+
+            Query params:
+                limit: Maximum number of traces to return (default: 100)
+            """
             try:
-                # Scan for all trace keys
-                trace_keys = []
-                cursor = 0
-                while True:
-                    cursor, keys = self.redis_client.scan(cursor, match="sollol:trace:*", count=100)
-                    trace_keys.extend(keys)
-                    if cursor == 0:
-                        break
-
-                # Fetch all traces
-                traces_list = []
-                for key in trace_keys:
-                    trace_json = self.redis_client.get(key)
-                    if trace_json:
-                        try:
-                            trace_data = json.loads(trace_json)
-                            traces_list.append(trace_data)
-                        except json.JSONDecodeError:
-                            logger.warning(f"Invalid trace JSON for key {key}")
-                            continue
-
-                # Sort by start_time (most recent first)
-                traces_list.sort(key=lambda t: t.get("start_time", 0), reverse=True)
-
-                # Limit to most recent 100 traces
-                traces_list = traces_list[:100]
-
+                limit = int(request.args.get("limit", 100))
+                traces_list = self._create_distributed_traces(limit=limit)
                 return jsonify({"traces": traces_list, "total": len(traces_list)})
             except Exception as e:
-                logger.error(f"Error getting traces: {e}")
+                logger.error(f"Error generating traces: {e}", exc_info=True)
                 return jsonify({"error": str(e), "traces": [], "total": 0}), 500
 
         @self.app.route("/api/routing_logs")
@@ -828,6 +954,72 @@ class DashboardService:
             except Exception as e:
                 logger.error(f"Error getting routing logs: {e}")
                 return jsonify({"error": str(e), "logs": [], "total": 0}), 500
+
+        @self.app.route("/api/activity")
+        def activity():
+            """
+            Get Ollama activity history from persistent storage.
+
+            Query params:
+                limit: Maximum number of events to return (default: 100, max: 1000)
+                offset: Offset for pagination (default: 0)
+                app_name: Filter by application name (optional)
+                backend: Filter by backend (optional)
+                event_type: Filter by event type (ollama_request, ollama_response, ollama_error) (optional)
+            """
+            try:
+                limit = min(int(request.args.get("limit", 100)), 1000)
+                offset = int(request.args.get("offset", 0))
+                app_name = request.args.get("app_name")
+                backend = request.args.get("backend")
+                event_type = request.args.get("event_type")
+
+                # Get activity from Redis list (stored newest first)
+                raw_events = self.redis_client.lrange(
+                    "sollol:dashboard:ollama:activity:history",
+                    offset,
+                    offset + limit - 1
+                )
+
+                events = []
+                for raw_event in raw_events:
+                    try:
+                        if isinstance(raw_event, bytes):
+                            raw_event = raw_event.decode("utf-8")
+                        event = json.loads(raw_event)
+
+                        # Apply filters
+                        if app_name and event.get("app_name") != app_name:
+                            continue
+                        if backend and event.get("backend") != backend:
+                            continue
+                        if event_type and event.get("event_type") != event_type:
+                            continue
+
+                        # Format for API response
+                        events.append({
+                            "timestamp": event.get("timestamp", 0),
+                            "backend": event.get("backend", "unknown"),
+                            "event_type": event.get("event_type", "unknown"),
+                            "severity": event.get("severity", "info"),
+                            "details": event.get("details", {}),
+                        })
+                    except Exception as e:
+                        logger.debug(f"Failed to parse activity event: {e}")
+                        continue
+
+                # Get total count from Redis
+                total = self.redis_client.llen("sollol:dashboard:ollama:activity:history")
+
+                return jsonify({
+                    "activity": events,
+                    "total": total,
+                    "limit": limit,
+                    "offset": offset,
+                })
+            except Exception as e:
+                logger.error(f"Error getting activity: {e}")
+                return jsonify({"error": str(e), "activity": [], "total": 0}), 500
 
         @self.app.route("/api/applications")
         def applications():
@@ -1043,14 +1235,23 @@ class DashboardService:
                 )
                 logger.info("✅ Sent Ollama activity WebSocket connected message")
 
-                # Non-blocking message polling loop
-                logger.info("🔄 Starting Ollama activity message polling loop")
-                while True:
-                    message = pubsub.get_message(timeout=0.1)
-                    if message and message["type"] == "message":
+                # Blocking message iterator loop (ensures no messages are missed)
+                logger.info("🔄 Starting Ollama activity message listener")
+                for message in pubsub.listen():
+                    if message["type"] == "message":
                         # Forward Redis message to WebSocket
                         activity_data = json.loads(message["data"])
                         logger.debug(f"Received Ollama activity message: {activity_data}")
+
+                        # Store to persistent history (max 1000 items)
+                        try:
+                            self.redis_client.lpush(
+                                "sollol:dashboard:ollama:activity:history",
+                                json.dumps(activity_data)
+                            )
+                            self.redis_client.ltrim("sollol:dashboard:ollama:activity:history", 0, 999)
+                        except Exception as e:
+                            logger.debug(f"Failed to persist activity: {e}")
 
                         # Format for display
                         event_type = activity_data.get("event_type", "unknown")
@@ -1083,8 +1284,6 @@ class DashboardService:
                         )
                         logger.info(f"📤 Sending Ollama activity WebSocket message: {display_msg}")
                         ws.send(payload)
-
-                    time.sleep(0.1)  # Small delay to prevent busy-waiting
 
             except Exception as e:
                 logger.error(f"Ollama activity WebSocket error: {e}")
@@ -1122,10 +1321,9 @@ class DashboardService:
                     )
                 )
 
-                # Non-blocking message polling loop
-                while True:
-                    message = pubsub.get_message(timeout=0.1)
-                    if message and message["type"] == "message":
+                # Blocking message iterator loop (ensures no messages are missed)
+                for message in pubsub.listen():
+                    if message["type"] == "message":
                         # Check which channel the message came from
                         channel = message["channel"]
 
@@ -1190,8 +1388,6 @@ class DashboardService:
                             )
                         )
 
-                    time.sleep(0.1)  # Small delay to prevent busy-waiting
-
             except Exception as e:
                 logger.error(f"RPC activity WebSocket error: {e}")
             finally:
@@ -1225,10 +1421,9 @@ class DashboardService:
                     )
                 )
 
-                # Non-blocking message polling loop
-                while True:
-                    message = pubsub.get_message(timeout=0.1)
-                    if message and message["type"] == "message":
+                # Blocking message iterator loop (ensures no messages are missed)
+                for message in pubsub.listen():
+                    if message["type"] == "message":
                         # Parse trace event
                         trace_event = json.loads(message["data"])
                         event = trace_event.get("event", "unknown")
@@ -1238,8 +1433,6 @@ class DashboardService:
                         ws.send(
                             json.dumps({"type": event, "timestamp": time.time(), "trace": trace})
                         )
-
-                    time.sleep(0.1)  # Small delay to prevent busy-waiting
 
             except Exception as e:
                 logger.error(f"Distributed traces WebSocket error: {e}")
@@ -1274,11 +1467,10 @@ class DashboardService:
                 )
                 logger.info("✅ Sent routing events WebSocket connected message")
 
-                # Non-blocking message polling loop
-                logger.info("🔄 Starting routing events message polling loop")
-                while True:
-                    message = pubsub.get_message(timeout=0.1)
-                    if message and message["type"] == "message":
+                # Blocking message iterator loop (ensures no messages are missed)
+                logger.info("🔄 Starting routing events message listener")
+                for message in pubsub.listen():
+                    if message["type"] == "message":
                         # Forward Redis message to WebSocket
                         routing_event = json.loads(message["data"])
                         logger.debug(f"Received routing event: {routing_event}")
@@ -1331,8 +1523,6 @@ class DashboardService:
                         )
                         logger.debug(f"📤 Sending routing event WebSocket message: {display_msg}")
                         ws.send(payload)
-
-                    time.sleep(0.1)  # Small delay to prevent busy-waiting
 
             except Exception as e:
                 logger.error(f"Routing events WebSocket error: {e}")
@@ -1557,6 +1747,16 @@ class DashboardService:
                         # Forward Redis message to WebSocket
                         activity_data = json.loads(message["data"])
 
+                        # Store to persistent history (max 1000 items)
+                        try:
+                            self.redis_client.lpush(
+                                "sollol:dashboard:ollama:activity:history",
+                                json.dumps(activity_data)
+                            )
+                            self.redis_client.ltrim("sollol:dashboard:ollama:activity:history", 0, 999)
+                        except Exception as e:
+                            logger.debug(f"Failed to persist activity: {e}")
+
                         # Format for display
                         event_type = activity_data.get("event_type", "unknown")
                         backend = activity_data.get("backend", "unknown")
@@ -1749,9 +1949,9 @@ class DashboardService:
         print(f"📊 Features: Real-time logs, Activity monitoring, Ray/Dask dashboards")
         print(f"📡 Using Redis at {self.redis_url}")
 
-        # Flask-Sock handles WebSockets automatically with simple_websocket
-        # No need for WebSocketHandler
-        self.app.run(host=host, port=self.port, debug=debug)
+        # Use Flask's built-in server with threaded mode for WebSocket support
+        # Flask-Sock with simple-websocket handles WebSockets via threads (no gevent needed)
+        self.app.run(host=host, port=self.port, debug=debug, threaded=True)
 
     def _get_dashboard_html(self) -> str:
         """Return the dashboard HTML template."""

@@ -13,6 +13,7 @@ Features:
 - Configurable sampling to reduce overhead
 """
 
+import atexit
 import json
 import logging
 import os
@@ -105,6 +106,8 @@ class NetworkObserver:
         redis_url: str = None,
         enable_sampling: bool = None,
         sample_rate: float = None,
+        batch_size: int = None,
+        batch_timeout: float = None,
     ):
         """
         Initialize network observer.
@@ -114,6 +117,8 @@ class NetworkObserver:
             redis_url: Redis connection URL for dashboard pub/sub (default: redis://localhost:6379, env: SOLLOL_REDIS_URL)
             enable_sampling: Enable sampling to reduce overhead (default: True, env: SOLLOL_OBSERVER_SAMPLING)
             sample_rate: Fraction of info events to log (0.0-1.0, default: 0.1 = 10%, env: SOLLOL_OBSERVER_SAMPLE_RATE)
+            batch_size: Number of events to accumulate before flushing (default: 100, env: SOLLOL_OBSERVER_BATCH_SIZE)
+            batch_timeout: Seconds to wait before flushing batch (default: 1.0, env: SOLLOL_OBSERVER_BATCH_TIMEOUT)
         """
         # Load from environment variables if not provided
         if max_events is None:
@@ -128,6 +133,10 @@ class NetworkObserver:
             )
         if sample_rate is None:
             sample_rate = float(os.getenv("SOLLOL_OBSERVER_SAMPLE_RATE", "0.1"))
+        if batch_size is None:
+            batch_size = int(os.getenv("SOLLOL_OBSERVER_BATCH_SIZE", "100"))
+        if batch_timeout is None:
+            batch_timeout = float(os.getenv("SOLLOL_OBSERVER_BATCH_TIMEOUT", "1.0"))
 
         self.max_events = max_events
         self.events: deque[NetworkEvent] = deque(maxlen=max_events)
@@ -136,6 +145,13 @@ class NetworkObserver:
         # Sampling configuration
         self.enable_sampling = enable_sampling
         self.sample_rate = max(0.0, min(1.0, sample_rate))  # Clamp to [0, 1]
+
+        # Batch publishing configuration
+        # CRITICAL: Use very small timeout for real-time dashboard updates
+        self.batch_size = batch_size
+        self.batch_timeout = 0.05  # 50ms for real-time updates (was 1.0s)
+        self.dashboard_batch: List[NetworkEvent] = []
+        self.last_flush_time = time.time()
 
         # Statistics tracking
         self.stats = {
@@ -174,10 +190,15 @@ class NetworkObserver:
         )
         self._event_thread.start()
 
+        # Register atexit handler to flush events on program exit
+        # This is CRITICAL to prevent event loss when programs exit before batch timeout
+        atexit.register(self._flush_on_exit)
+
         sampling_status = (
             f"sampling={self.sample_rate:.0%}" if self.enable_sampling else "sampling=disabled"
         )
-        logger.info(f"🔍 Network Observer initialized (event-driven monitoring, {sampling_status})")
+        batch_status = f"batch={self.batch_size} events/{self.batch_timeout}s"
+        logger.info(f"🔍 Network Observer initialized (event-driven monitoring, {sampling_status}, {batch_status})")
 
     def log_event(
         self,
@@ -203,8 +224,13 @@ class NetworkObserver:
             severity=severity,
         )
 
-        # Add to queue for async processing
-        self.event_queue.put(event)
+        # Add to queue for async processing (non-blocking to prevent deadlock)
+        try:
+            self.event_queue.put_nowait(event)
+        except queue.Full:
+            # Queue is full, drop the event to prevent blocking async code
+            logger.debug("Network observer event queue full, dropping event")
+            pass
 
     def _process_events_loop(self):
         """Background thread to process events asynchronously."""
@@ -212,17 +238,23 @@ class NetworkObserver:
 
         while self._running:
             try:
-                # Get event from queue (blocking with timeout)
-                event = self.event_queue.get(timeout=1)
+                # Get event from queue with timeout matching batch_timeout for real-time flushing
+                # This ensures batch timeout is checked at the appropriate frequency
+                event = self.event_queue.get(timeout=self.batch_timeout)
 
                 # Process event
                 self._process_event(event)
 
             except queue.Empty:
+                # Check if we should flush batch due to timeout
+                if time.time() - self.last_flush_time >= self.batch_timeout:
+                    self._flush_dashboard_batch()
                 continue
             except Exception as e:
                 logger.error(f"Error processing network event: {e}")
 
+        # Final flush on shutdown
+        self._flush_dashboard_batch()
         logger.debug("Network Observer event processing thread stopped")
 
     def _process_event(self, event: NetworkEvent):
@@ -329,63 +361,112 @@ class NetworkObserver:
                 metrics["avg_latency_ms"] = metrics["total_latency_ms"] / metrics["total_requests"]
 
     def _publish_to_dashboard(self, event: NetworkEvent):
-        """Publish event to Redis for dashboard activity logs."""
+        """Add event to batch buffer for dashboard activity logs."""
         if not self.redis_client:
+            logger.debug("No Redis client, not adding event to dashboard batch")
             return
 
+        # Add event to batch buffer
+        self.dashboard_batch.append(event)
+        logger.debug(f"📝 Added {event.event_type.value} to dashboard batch (size: {len(self.dashboard_batch)})")
+
+        # Flush if batch size reached
+        if len(self.dashboard_batch) >= self.batch_size:
+            logger.debug(f"Batch size reached ({self.batch_size}), flushing...")
+            self._flush_dashboard_batch()
+
+    def _flush_dashboard_batch(self):
+        """Flush all buffered events to Redis in a single batch."""
+        if not self.redis_client:
+            logger.debug("No Redis client, skipping flush")
+            return
+
+        if not self.dashboard_batch:
+            logger.debug("Empty dashboard batch, skipping flush")
+            return
+
+        logger.debug(f"🔥 Flushing {len(self.dashboard_batch)} events to Redis")
+
         try:
-            # Determine the Redis channel based on event type
-            channel = None
-            if event.event_type in [
-                EventType.OLLAMA_REQUEST,
-                EventType.OLLAMA_RESPONSE,
-                EventType.OLLAMA_ERROR,
-            ]:
-                channel = "sollol:dashboard:ollama:activity"
-            elif event.event_type in [
-                EventType.RPC_REQUEST,
-                EventType.RPC_RESPONSE,
-                EventType.RPC_ERROR,
-                EventType.RPC_BACKEND_CONNECT,
-                EventType.RPC_BACKEND_DISCONNECT,
-                EventType.COORDINATOR_START,
-                EventType.COORDINATOR_STOP,
-                EventType.COORDINATOR_MODEL_LOAD,
-            ]:
-                channel = "sollol:dashboard:rpc:activity"
+            # Group events by channel for efficient publishing
+            channels: Dict[str, List[Dict]] = {}
 
-            if not channel:
-                return
+            for event in self.dashboard_batch:
+                # Determine channel
+                channel = None
+                if event.event_type in [
+                    EventType.OLLAMA_REQUEST,
+                    EventType.OLLAMA_RESPONSE,
+                    EventType.OLLAMA_ERROR,
+                ]:
+                    channel = "sollol:dashboard:ollama:activity"
+                elif event.event_type in [
+                    EventType.RPC_REQUEST,
+                    EventType.RPC_RESPONSE,
+                    EventType.RPC_ERROR,
+                    EventType.RPC_BACKEND_CONNECT,
+                    EventType.RPC_BACKEND_DISCONNECT,
+                    EventType.COORDINATOR_START,
+                    EventType.COORDINATOR_STOP,
+                    EventType.COORDINATOR_MODEL_LOAD,
+                ]:
+                    channel = "sollol:dashboard:rpc:activity"
 
-            # Format event for dashboard
-            message = {
-                "timestamp": event.timestamp,
-                "backend": event.backend,
-                "event_type": event.event_type.value,
-                "severity": event.severity,
-                "details": event.details,
-            }
+                if not channel:
+                    continue
 
-            # Publish to Redis channel
-            self.redis_client.publish(channel, json.dumps(message))
-
-            # Also publish coordinator events to routing_events channel for dashboard routing decisions
-            if event.event_type in [
-                EventType.COORDINATOR_START,
-                EventType.COORDINATOR_STOP,
-                EventType.COORDINATOR_MODEL_LOAD,
-            ]:
-                routing_message = {
+                # Format message
+                message = {
                     "timestamp": event.timestamp,
-                    "event": event.event_type.value,
                     "backend": event.backend,
-                    "details": event.details,
+                    "event_type": event.event_type.value,
                     "severity": event.severity,
+                    "details": event.details,
                 }
-                self.redis_client.publish("sollol:routing_events", json.dumps(routing_message))
+
+                if channel not in channels:
+                    channels[channel] = []
+                channels[channel].append(message)
+
+                # Handle routing events
+                if event.event_type in [
+                    EventType.COORDINATOR_START,
+                    EventType.COORDINATOR_STOP,
+                    EventType.COORDINATOR_MODEL_LOAD,
+                ]:
+                    routing_message = {
+                        "timestamp": event.timestamp,
+                        "event": event.event_type.value,
+                        "backend": event.backend,
+                        "details": event.details,
+                        "severity": event.severity,
+                    }
+                    if "sollol:routing_events" not in channels:
+                        channels["sollol:routing_events"] = []
+                    channels["sollol:routing_events"].append(routing_message)
+
+            # Publish all events in batch
+            total_published = 0
+            for channel, messages in channels.items():
+                logger.debug(f"📡 Publishing {len(messages)} messages to channel: {channel}")
+                for message in messages:
+                    try:
+                        subscribers = self.redis_client.publish(channel, json.dumps(message))
+                        total_published += 1
+                        logger.debug(f"  Published message (subscribers: {subscribers})")
+                    except Exception as e:
+                        logger.error(f"Failed to publish message: {e}")
+
+            logger.debug(f"✅ Flushed {total_published} events to Redis")
+
+            # Clear batch
+            self.dashboard_batch.clear()
+            self.last_flush_time = time.time()
 
         except Exception as e:
-            logger.debug(f"Failed to publish event to Redis: {e}")
+            logger.error(f"Failed to flush batch to Redis: {e}")
+            # Clear batch even on error to prevent memory buildup
+            self.dashboard_batch.clear()
 
     def get_recent_events(
         self,
@@ -474,6 +555,33 @@ class NetworkObserver:
         self._running = False
         if self._event_thread.is_alive():
             self._event_thread.join(timeout=2)
+
+    def _flush_on_exit(self):
+        """
+        Flush any pending events on program exit. Called by atexit handler.
+
+        CRITICAL: This fixes the issue where daemon thread is killed on program exit
+        before batched events can be published to Redis. Programs like FlockParser
+        exit quickly after requests complete, losing events if batch timeout hasn't fired.
+        """
+        try:
+            # CRITICAL: Wait for event queue to be processed before flushing!
+            # The background thread processes events asynchronously, so we need to wait
+            # for all queued events to be processed before we can flush them to Redis
+            max_wait = 2.0  # Maximum 2 seconds to wait for queue processing
+            wait_interval = 0.05  # Check every 50ms
+            waited = 0.0
+
+            while not self.event_queue.empty() and waited < max_wait:
+                time.sleep(wait_interval)
+                waited += wait_interval
+
+            # Force immediate flush of any batched dashboard events
+            if self.dashboard_batch:
+                self._flush_dashboard_batch()
+        except Exception:
+            # Silently ignore errors during exit to avoid breaking program shutdown
+            pass
 
 
 # Global observer instance

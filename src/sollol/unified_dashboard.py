@@ -35,7 +35,7 @@ import requests
 from flask import Flask, jsonify, render_template_string, request
 from flask_cors import CORS
 from flask_sock import Sock
-from prometheus_client import Counter, Gauge, Histogram, generate_latest
+from prometheus_client import REGISTRY, Counter, Gauge, Histogram, generate_latest
 
 logger = logging.getLogger(__name__)
 
@@ -55,21 +55,38 @@ class QueueLogHandler(Handler):
         self.log_queue.put(log_entry)
 
 
-# Prometheus metrics
-request_counter = Counter(
-    "sollol_requests_total", "Total requests processed", ["model", "status", "backend"]
-)
+# Prometheus metrics - use try/except to handle duplicate registration gracefully
+try:
+    request_counter = Counter(
+        "sollol_requests_total", "Total requests processed", ["model", "status", "backend"]
+    )
+except ValueError:
+    # Metric already registered with different labels from metrics.py - use a different name
+    request_counter = REGISTRY._names_to_collectors.get("sollol_dashboard_requests_total")
+    if request_counter is None:
+        request_counter = Counter(
+            "sollol_dashboard_requests_total", "Total dashboard requests processed", ["model", "status", "backend"]
+        )
 
-request_duration = Histogram(
-    "sollol_request_duration_seconds",
-    "Request duration in seconds",
-    ["model", "backend"],
-    buckets=[0.1, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
-)
+try:
+    request_duration = Histogram(
+        "sollol_request_duration_seconds",
+        "Request duration in seconds",
+        ["model", "backend"],
+        buckets=[0.1, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0],
+    )
+except ValueError:
+    request_duration = REGISTRY._names_to_collectors.get("sollol_request_duration_seconds")
 
-active_pools = Gauge("sollol_active_pools", "Number of active Ray pools")
+try:
+    active_pools = Gauge("sollol_active_pools", "Number of active Ray pools")
+except ValueError:
+    active_pools = REGISTRY._names_to_collectors.get("sollol_active_pools")
 
-gpu_utilization = Gauge("sollol_gpu_utilization", "GPU utilization per node", ["node", "gpu_id"])
+try:
+    gpu_utilization = Gauge("sollol_gpu_utilization", "GPU utilization per node", ["node", "gpu_id"])
+except ValueError:
+    gpu_utilization = REGISTRY._names_to_collectors.get("sollol_gpu_utilization")
 
 
 class UnifiedDashboard:
@@ -944,169 +961,73 @@ class UnifiedDashboard:
 
         @self.sock.route("/ws/network/ollama_activity")
         def ws_ollama_activity(ws):
-            """WebSocket endpoint for Ollama model lifecycle events (load/unload/processing)."""
-            logger.info("🔌 Ollama activity WebSocket connected")
+            """WebSocket endpoint for Observer events from Redis pub/sub channel."""
+            logger.info("🔌 Ollama activity WebSocket connected - subscribing to Redis")
+
+            if not self.redis_client:
+                logger.error("Redis client not available - observer events unavailable")
+                ws.send(json.dumps({
+                    "type": "error",
+                    "message": "Redis not configured - observer events unavailable"
+                }))
+                return
 
             # Send immediate connection confirmation
-            ws.send(
-                json.dumps(
-                    {
-                        "type": "connected",
-                        "timestamp": time.time(),
-                        "message": "🔌 Connected to Ollama activity stream",
-                    }
-                )
-            )
+            ws.send(json.dumps({
+                "type": "connected",
+                "timestamp": time.time(),
+                "message": "🔌 Connected to Ollama activity stream",
+            }))
 
-            previous_state = {}
-            last_heartbeat = 0
+            # Subscribe to the observer events channel
+            pubsub = self.redis_client.pubsub()
+            pubsub.subscribe("sollol:dashboard:ollama:activity")
 
-            while True:
-                try:
-                    # Get nodes to monitor
-                    nodes_to_monitor = []
-                    pool = None
+            logger.info("✅ Subscribed to sollol:dashboard:ollama:activity")
 
-                    # Try multiple ways to get the pool
-                    if self.router:
-                        # Direct OllamaPool
-                        if hasattr(self.router, "nodes") and isinstance(
-                            getattr(self.router, "nodes", None), list
-                        ):
-                            pool = self.router
-                        # HybridRouter with ollama_pool
-                        elif hasattr(self.router, "ollama_pool"):
-                            pool = self.router.ollama_pool
-
-                    if pool:
-                        nodes_to_monitor = [
-                            (node.url, node.url) for node in pool.nodes if node.healthy
-                        ]
-                    else:
-                        # Fallback: auto-discover
-                        from sollol.discovery import discover_ollama_nodes
-
-                        discovered = discover_ollama_nodes(
-                            discover_all_nodes=True, exclude_localhost=True
-                        )
-                        nodes_to_monitor = [
-                            (f"http://{n['host']}:{n['port']}", f"{n['host']}:{n['port']}")
-                            for n in discovered
-                        ]
-
-                    # Monitor each node for model activity
-                    for url, node_key in nodes_to_monitor:
+            try:
+                for message in pubsub.listen():
+                    if message['type'] == 'message':
                         try:
-                            response = requests.get(f"{url}/api/ps", timeout=2)
-                            if response.status_code == 200:
-                                data = response.json()
-                                models = data.get("models", [])
+                            # Parse the JSON event from observer
+                            event_data = json.loads(message['data'])
 
-                                # Current state
-                                current_models = {m["name"] for m in models}
+                            # Format message based on event type
+                            event_type = event_data.get('event_type', 'unknown')
+                            backend = event_data.get('backend', 'unknown')
+                            details = event_data.get('details', {})
+                            model = details.get('model', '')
 
-                                # Get previous state
-                                prev_models = previous_state.get(node_key, {}).get("models", set())
+                            if event_type == 'ollama_request':
+                                operation = details.get('operation', '')
+                                formatted_msg = f"→ REQUEST to {backend}: {model} ({operation})"
+                            elif event_type == 'ollama_response':
+                                latency = details.get('latency_ms', 0)
+                                status = details.get('status_code', 200)
+                                formatted_msg = f"← RESPONSE from {backend}: {model} ({int(latency)}ms, {status})"
+                            elif event_type == 'ollama_error':
+                                error = details.get('error', 'unknown error')
+                                formatted_msg = f"✗ ERROR from {backend}: {model} - {error}"
+                            else:
+                                formatted_msg = f"{event_type}: {backend}"
 
-                                # Detect new models loaded
-                                newly_loaded = current_models - prev_models
-                                for model_name in newly_loaded:
-                                    ws.send(
-                                        json.dumps(
-                                            {
-                                                "type": "model_loaded",
-                                                "timestamp": time.time(),
-                                                "node": node_key,
-                                                "model": model_name,
-                                                "message": f"✅ Model loaded on {node_key}: {model_name}",
-                                            }
-                                        )
-                                    )
-
-                                # Detect unloaded models
-                                unloaded = prev_models - current_models
-                                for model_name in unloaded:
-                                    ws.send(
-                                        json.dumps(
-                                            {
-                                                "type": "model_unloaded",
-                                                "timestamp": time.time(),
-                                                "node": node_key,
-                                                "model": model_name,
-                                                "message": f"⏹️  Model unloaded from {node_key}: {model_name}",
-                                            }
-                                        )
-                                    )
-
-                                # Detect active processing
-                                for model_info in models:
-                                    model_name = model_info["name"]
-                                    processor = model_info.get("processor", {})
-                                    if processor:  # Model actively processing
-                                        size_vram = model_info.get("size_vram", 0) / (1024**3)
-                                        # Only send if this is a new processing session
-                                        was_processing = previous_state.get(node_key, {}).get(
-                                            "processing", set()
-                                        )
-                                        if model_name not in was_processing:
-                                            ws.send(
-                                                json.dumps(
-                                                    {
-                                                        "type": "model_processing",
-                                                        "timestamp": time.time(),
-                                                        "node": node_key,
-                                                        "model": model_name,
-                                                        "vram_gb": round(size_vram, 2),
-                                                        "message": f"🔄 Processing on {node_key}: {model_name} (VRAM: {size_vram:.2f}GB)",
-                                                    }
-                                                )
-                                            )
-
-                                # Update state
-                                processing_models = {
-                                    m["name"] for m in models if m.get("processor")
-                                }
-                                previous_state[node_key] = {
-                                    "models": current_models,
-                                    "processing": processing_models,
-                                    "reachable": True,
-                                }
-
-                        except Exception as e:
-                            # Node unreachable
-                            was_reachable = previous_state.get(node_key, {}).get("reachable", True)
-                            if was_reachable:
-                                ws.send(
-                                    json.dumps(
-                                        {
-                                            "type": "node_error",
-                                            "timestamp": time.time(),
-                                            "node": node_key,
-                                            "message": f"❌ Node unreachable: {node_key}",
-                                        }
-                                    )
-                                )
-                            previous_state[node_key] = {"reachable": False}
-
-                    # Send heartbeat only every 30 seconds if no events
-                    current_time = time.time()
-                    if current_time - last_heartbeat >= 30:
-                        ws.send(
-                            json.dumps(
-                                {
-                                    "type": "heartbeat",
-                                    "timestamp": current_time,
-                                    "message": f"✓ Monitoring {len(nodes_to_monitor)} Ollama nodes",
-                                }
-                            )
-                        )
-                        last_heartbeat = current_time
-
-                    time.sleep(2)  # Poll every 2 seconds
-
-                except Exception as e:
-                    logger.error(f"Ollama activity WebSocket error: {e}")
-                    break
+                            # Forward to WebSocket client
+                            ws.send(json.dumps({
+                                "type": event_type,
+                                "timestamp": event_data.get("timestamp", time.time()),
+                                "event": event_data,
+                                "message": formatted_msg
+                            }))
+                        except json.JSONDecodeError as e:
+                            logger.error(f"Failed to parse observer event: {e}")
+                    elif message['type'] == 'subscribe':
+                        logger.debug(f"Subscribed to channel: {message['channel']}")
+            except Exception as e:
+                logger.error(f"Ollama activity WebSocket error: {e}")
+            finally:
+                pubsub.unsubscribe()
+                pubsub.close()
+                logger.info("🔌 Ollama activity WebSocket disconnected")
 
         @self.sock.route("/ws/network/rpc_activity")
         def ws_rpc_activity(ws):
@@ -1828,9 +1749,9 @@ UNIFIED_DASHBOARD_HTML = """
                 🎯 SOLLOL Routing Decisions
             </div>
             <div class="panel-content">
-                <div id="routing-events" style="padding: 1rem; overflow: auto; height: 100%; font-family: 'Courier New', monospace; font-size: 0.85rem; line-height: 1.4; background: #0f172a;">
-                    <div style="color: #94a3b8; text-align: center; padding: 2rem;">
-                        Connecting to SOLLOL routing stream...
+                <div id="routing-events" style="padding: 1rem; overflow-y: auto; min-height: 300px; max-height: 600px; font-family: 'Courier New', monospace; background: #0f172a; display: block; visibility: visible;">
+                    <div style="color: #10b981; text-align: center; padding: 2rem; font-size: 1rem;">
+                        ⟳ Connecting to SOLLOL routing stream...
                     </div>
                 </div>
             </div>
@@ -2118,6 +2039,16 @@ UNIFIED_DASHBOARD_HTML = """
         // WebSocket connections for activity logs - fixed to prevent reconnection storm
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsHost = window.location.host;
+        const WS_BASE = `${wsProtocol}//${wsHost}`;
+
+        const connectWebSocket = (url, onMessage, onOpen, onClose, onError) => {
+            const socket = new WebSocket(url);
+            if (onMessage) socket.onmessage = onMessage;
+            if (onOpen) socket.onopen = onOpen;
+            if (onClose) socket.onclose = onClose;
+            if (onError) socket.onerror = onError;
+            return socket;
+        };
 
         // Track WebSocket objects globally to prevent duplicates
         let ollamaWs = null;
@@ -2126,55 +2057,109 @@ UNIFIED_DASHBOARD_HTML = """
         let sollolLogsWs = null;
         let reconnecting = {ollama: false, rpc: false, routing: false, sollolLogs: false};
 
-        function connectOllama() {
-            if (ollamaWs && ollamaWs.readyState === WebSocket.OPEN) return;
-            if (reconnecting.ollama) return;
+        function connectOllamaLogs() {
+            console.log('[DEBUG] connectOllamaLogs() called');
+            if (ollamaWs && ollamaWs.readyState === WebSocket.OPEN) {
+                console.log('[DEBUG] Already connected, returning');
+                return;
+            }
+            if (reconnecting.ollama) {
+                console.log('[DEBUG] Already reconnecting, returning');
+                return;
+            }
 
             const ollamaActivity = document.getElementById('ollama-activity');
+            console.log('[DEBUG] ollamaActivity element:', ollamaActivity);
 
             if (ollamaWs) {
                 try { ollamaWs.close(); } catch(e) {}
             }
 
-            ollamaWs = new WebSocket(`${wsProtocol}//${wsHost}/ws/network/ollama_activity`);
-
-            ollamaWs.onmessage = (event) => {
+            const handleMessage = (event) => {
+                console.log('[DEBUG] WebSocket message received:', event.data);
                 try {
                     const data = JSON.parse(event.data);
+                    console.log('[DEBUG] Parsed data:', data);
+
                     if (ollamaActivity.querySelector('div[style*="text-align: center"]')) {
+                        console.log('[DEBUG] Clearing placeholder');
                         ollamaActivity.innerHTML = '';
                     }
+
                     const entry = document.createElement('div');
                     entry.style.padding = '0.25rem 0';
                     entry.style.borderBottom = '1px solid #1e293b';
                     entry.style.fontSize = '0.875rem';
+
+                    // Color code based on event type
                     if (data.type === 'connected') {
                         entry.style.color = '#10b981';
                         entry.style.padding = '0.5rem';
                         entry.style.borderBottom = 'none';
+                        console.log('[DEBUG] Styling as connected message');
+                    } else if (data.type === 'ollama_request') {
+                        entry.style.color = '#22d3ee';  // Cyan for requests
+                        console.log('[DEBUG] Styling as request');
+                    } else if (data.type === 'ollama_response') {
+                        entry.style.color = '#10b981';  // Green for responses
+                        console.log('[DEBUG] Styling as response');
+                    } else if (data.type === 'ollama_error') {
+                        entry.style.color = '#ef4444';  // Red for errors
+                        console.log('[DEBUG] Styling as error');
+                    } else {
+                        entry.style.color = '#e2e8f0';  // Default gray
                     }
+
                     entry.textContent = data.message || event.data;
+                    console.log('[DEBUG] Entry textContent:', entry.textContent);
+                    console.log('[DEBUG] Appending entry to ollamaActivity');
                     ollamaActivity.appendChild(entry);
+                    console.log('[DEBUG] ✅ Entry appended, total children:', ollamaActivity.children.length);
                     ollamaActivity.scrollTop = ollamaActivity.scrollHeight;
+
+                    // Keep last 100 events
+                    while (ollamaActivity.children.length > 100) {
+                        ollamaActivity.removeChild(ollamaActivity.firstChild);
+                    }
                 } catch(e) {
-                    console.error('Failed to parse WebSocket message:', e);
+                    console.error('[DEBUG] ERROR in handleMessage:', e);
                 }
             };
 
-            ollamaWs.onerror = () => {
-                ollamaActivity.innerHTML = '<div style="color: #ef4444; padding: 0.5rem;">✗ Connection error</div>';
+            const handleOpen = () => {
+                console.log('[DEBUG] ✅ WebSocket OPEN - connected to Ollama activity stream');
+                reconnecting.ollama = false;
+
+                // Clear the "Connecting..." message - show only LIVE events (no historical data)
+                const ollamaActivity = document.getElementById('ollama-activity');
+                ollamaActivity.innerHTML = '<div style="color: #10b981; padding: 0.5rem; text-align: center;">✓ Connected - waiting for live events...</div>';
             };
 
-            ollamaWs.onclose = () => {
+            const handleClose = () => {
+                console.log('[DEBUG] WebSocket CLOSED');
                 if (!reconnecting.ollama) {
                     reconnecting.ollama = true;
                     setTimeout(() => {
                         ollamaActivity.innerHTML = '<div style="color: #f59e0b; padding: 0.5rem;">⟳ Reconnecting...</div>';
                         reconnecting.ollama = false;
-                        connectOllama();
+                        connectOllamaLogs();
                     }, 5000);
                 }
             };
+
+            const handleError = (error) => {
+                console.error('[DEBUG] WebSocket ERROR:', error);
+                ollamaActivity.innerHTML = '<div style="color: #ef4444; padding: 0.5rem;">✗ Connection error</div>';
+            };
+
+            const wsUrl = `${WS_BASE}/ws/network/ollama_activity`;
+            console.log('[DEBUG] Creating WebSocket with URL:', wsUrl);
+            ollamaWs = new WebSocket(wsUrl);
+            ollamaWs.onmessage = handleMessage;
+            ollamaWs.onopen = handleOpen;
+            ollamaWs.onclose = handleClose;
+            ollamaWs.onerror = handleError;
+            console.log('[DEBUG] WebSocket object created, state:', ollamaWs.readyState);
         }
 
         function connectRPC() {
@@ -2187,7 +2172,7 @@ UNIFIED_DASHBOARD_HTML = """
                 try { rpcWs.close(); } catch(e) {}
             }
 
-            rpcWs = new WebSocket(`${wsProtocol}//${wsHost}/ws/network/rpc_activity`);
+            rpcWs = new WebSocket(`${WS_BASE}/ws/network/rpc_activity`);
 
             rpcWs.onmessage = (event) => {
                 try {
@@ -2238,52 +2223,122 @@ UNIFIED_DASHBOARD_HTML = """
                 try { routingWs.close(); } catch(e) {}
             }
 
-            routingWs = new WebSocket(`${wsProtocol}//${wsHost}/ws/routing_events`);
+            console.log('[ROUTING WS] Connecting to /ws/routing_events...');
+            routingWs = new WebSocket(`${WS_BASE}/ws/routing_events`);
+
+            routingWs.onopen = () => {
+                console.log('[ROUTING WS] Connection opened, loading historical decisions...');
+                reconnecting.routing = false;
+
+                // Load historical routing decisions from API
+                fetch('/api/routing/decisions')
+                    .then(r => r.json())
+                    .then(data => {
+                        const routingEvents = document.getElementById('routing-events');
+                        if (data.decisions && data.decisions.length > 0) {
+                            routingEvents.innerHTML = '';  // Clear "Connecting..." message
+                            console.log('[ROUTING WS] Loading', data.decisions.length, 'historical decisions');
+
+                            data.decisions.slice(0, 50).forEach(decision => {
+                                const entry = document.createElement('div');
+                                entry.style.padding = '0.5rem';
+                                entry.style.margin = '0.25rem 0';
+                                entry.style.borderLeft = '3px solid #22d3ee';
+                                entry.style.background = '#1e293b';
+                                entry.style.fontSize = '0.9rem';
+                                entry.style.lineHeight = '1.6';
+
+                                // Format based on decision type
+                                const backend = decision.selected_backend || 'unknown';
+                                const strategy = decision.strategy || 'unknown';
+                                const model = decision.model || '';
+
+                                entry.style.color = '#22d3ee';
+                                entry.textContent = `🎯 ${strategy.toUpperCase()}: ${backend} for ${model}`;
+
+                                routingEvents.appendChild(entry);
+                            });
+                            routingEvents.scrollTop = routingEvents.scrollHeight;
+                            console.log('[ROUTING WS] ✅ Loaded historical decisions');
+                        } else {
+                            routingEvents.innerHTML = '<div style="color: #10b981; padding: 0.5rem; text-align: center;">✓ Connected - waiting for routing decisions...</div>';
+                        }
+                    })
+                    .catch(e => {
+                        console.error('[ROUTING WS] Failed to load historical decisions:', e);
+                        const routingEvents = document.getElementById('routing-events');
+                        routingEvents.innerHTML = '<div style="color: #10b981; padding: 0.5rem; text-align: center;">✓ Connected - waiting for routing decisions...</div>';
+                    });
+            };
 
             routingWs.onmessage = (event) => {
+                console.log('[ROUTING WS] Message received:', event.data.substring(0, 200));
                 try {
                     const data = JSON.parse(event.data);
+                    console.log('[ROUTING WS] Parsed data:', data.type, data.event_type);
+
+                    // Clear "Connecting..." message if present
                     if (routingEvents.querySelector('div[style*="text-align: center"]')) {
                         routingEvents.innerHTML = '';
                     }
+
+                    // Create entry with normal styling
                     const entry = document.createElement('div');
-                    entry.style.padding = '0.25rem 0';
-                    entry.style.borderBottom = '1px solid #1e293b';
-                    entry.style.fontSize = '0.875rem';
+                    entry.style.padding = '0.5rem';
+                    entry.style.margin = '0.25rem 0';
+                    entry.style.borderLeft = '3px solid #22d3ee';
+                    entry.style.background = '#1e293b';
+                    entry.style.fontSize = '0.9rem';
+                    entry.style.lineHeight = '1.6';
+
                     const eventType = data.event_type;
                     if (data.type === 'connected') {
                         entry.style.color = '#10b981';
-                        entry.style.padding = '0.5rem';
-                        entry.style.borderBottom = 'none';
+                        entry.style.borderLeft = '3px solid #10b981';
                     } else if (eventType === 'ROUTE_DECISION') {
                         entry.style.color = '#22d3ee';
+                        entry.style.borderLeft = '3px solid #22d3ee';
+                    } else if (eventType === 'OLLAMA_NODE_SELECTED') {
+                        entry.style.color = '#a78bfa';
+                        entry.style.borderLeft = '3px solid #a78bfa';
                     } else if (eventType === 'FALLBACK_TRIGGERED') {
                         entry.style.color = '#f59e0b';
+                        entry.style.borderLeft = '3px solid #f59e0b';
                     } else if (eventType === 'COORDINATOR_START') {
                         entry.style.color = '#10b981';
+                        entry.style.borderLeft = '3px solid #10b981';
                     } else if (eventType === 'COORDINATOR_STOP') {
                         entry.style.color = '#ef4444';
+                        entry.style.borderLeft = '3px solid #ef4444';
                     } else if (eventType === 'CACHE_HIT') {
                         entry.style.color = '#60a5fa';
+                        entry.style.borderLeft = '3px solid #60a5fa';
                     } else {
                         entry.style.color = '#e2e8f0';
+                        entry.style.borderLeft = '3px solid #64748b';
                     }
+
                     entry.textContent = data.message || event.data;
                     routingEvents.appendChild(entry);
                     routingEvents.scrollTop = routingEvents.scrollHeight;
+                    console.log('[ROUTING WS] ✅ Entry added to DOM, total children:', routingEvents.children.length);
+
+                    // Keep last 100 events
                     while (routingEvents.children.length > 100) {
                         routingEvents.removeChild(routingEvents.firstChild);
                     }
                 } catch(e) {
-                    console.error('Failed to parse routing WebSocket message:', e);
+                    console.error('[ROUTING WS] ❌ Failed to parse message:', e, event.data);
                 }
             };
 
-            routingWs.onerror = () => {
+            routingWs.onerror = (error) => {
+                console.error('[ROUTING WS] Error:', error);
                 routingEvents.innerHTML = '<div style="color: #ef4444; padding: 0.5rem;">✗ Connection error</div>';
             };
 
-            routingWs.onclose = () => {
+            routingWs.onclose = (event) => {
+                console.log('[ROUTING WS] Connection closed, code:', event.code, 'reason:', event.reason);
                 if (!reconnecting.routing) {
                     reconnecting.routing = true;
                     setTimeout(() => {
@@ -2305,7 +2360,7 @@ UNIFIED_DASHBOARD_HTML = """
                 try { sollolLogsWs.close(); } catch(e) {}
             }
 
-            sollolLogsWs = new WebSocket(`${wsProtocol}//${wsHost}/ws/logs`);
+            sollolLogsWs = new WebSocket(`${WS_BASE}/ws/logs`);
 
             sollolLogsWs.onmessage = (event) => {
                 try {
@@ -2361,7 +2416,7 @@ UNIFIED_DASHBOARD_HTML = """
         }
 
         // Connect all WebSockets on page load
-        connectOllama();
+        connectOllamaLogs();
         connectRPC();
         connectRouting();
         connectSOLLOLLogs();

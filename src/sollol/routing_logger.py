@@ -134,27 +134,37 @@ class RoutingEventLogger:
 
     def _publish_event(self, event: Dict[str, Any]):
         """Publish event to Redis and optionally console."""
+        logger.info(f"[DEBUG] _publish_event called, enabled={self.enabled}")
         if not self.enabled:
+            logger.info(f"[DEBUG] Routing logger disabled, skipping")
             return
 
         event_json = json.dumps(event)
+        logger.info(f"[DEBUG] Event serialized to JSON")
 
         # Console output if enabled
         if self.console_output:
             self._print_event(event)
 
         # Publish to Redis if available
+        logger.info(f"[DEBUG] redis_available={self.redis_available}, redis_client={self.redis_client is not None}")
         if self.redis_available and self.redis_client:
             try:
                 # Pub/sub for real-time monitoring
-                self.redis_client.publish(self.channel, event_json)
+                logger.info(f"[DEBUG] Publishing to channel={self.channel}, event_type={event.get('event_type')}")
+                pub_result = self.redis_client.publish(self.channel, event_json)
+                logger.info(f"[DEBUG] Publish result: {pub_result} subscribers received")
 
                 # Stream for persistent history (with maxlen for memory management)
-                self.redis_client.xadd(
+                logger.info(f"[DEBUG] Adding to stream={self.stream_key}")
+                stream_id = self.redis_client.xadd(
                     self.stream_key, {"event": event_json}, maxlen=10000  # Keep last 10k events
                 )
+                logger.info(f"[DEBUG] Stream ID: {stream_id}")
             except Exception as e:
-                logger.debug(f"Failed to publish routing event: {e}")
+                logger.error(f"Failed to publish routing event: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
 
     def _print_event(self, event: Dict[str, Any]):
         """Print event to console with color coding."""
@@ -330,6 +340,7 @@ class RoutingEventLogger:
 
     def log_ollama_node_selected(self, node_url: str, reason: str, model: str, **metadata):
         """Log Ollama node selection."""
+        logger.info(f"[DEBUG] log_ollama_node_selected called: node_url={node_url}, model={model}")
         event = self._create_event(
             self.OLLAMA_NODE_SELECTED,
             backend="ollama",
@@ -338,7 +349,9 @@ class RoutingEventLogger:
             reason=reason,
             **metadata,
         )
+        logger.info(f"[DEBUG] Event created, calling _publish_event...")
         self._publish_event(event)
+        logger.info(f"[DEBUG] _publish_event returned")
 
 
 # Global routing logger instance

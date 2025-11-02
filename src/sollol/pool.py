@@ -2737,6 +2737,15 @@ class OllamaPool:
             flush=True,
         )
 
+        # Update stats for dashboard (CRITICAL: async path was missing this!)
+        success_count = sum(1 for r in results if r is not None)
+        error_count = batch_size - success_count
+
+        with self._lock:
+            self.stats["total_requests"] += batch_size
+            self.stats["successful_requests"] += success_count
+            self.stats["failed_requests"] += error_count
+
         return results
 
         def process_node_batch(node_idx: int, node_texts: List[str], node_indices: List[int]):

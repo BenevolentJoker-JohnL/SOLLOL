@@ -341,9 +341,9 @@ class DashboardService:
         self.redis_pubsub_client = redis.from_url(redis_url, decode_responses=True)
 
         # In-memory buffers for WebSocket streaming
-        self.log_buffer = deque(maxlen=1000)
-        self.ollama_activity_buffer = deque(maxlen=500)
-        self.rpc_activity_buffer = deque(maxlen=500)
+        self.log_buffer = deque(maxlen=5000)  # Increased for distributed traces correlation
+        self.ollama_activity_buffer = deque(maxlen=5000)  # Increased to hold REQUEST+RESPONSE pairs
+        self.rpc_activity_buffer = deque(maxlen=5000)
 
         # Background threads
         self.pubsub = None

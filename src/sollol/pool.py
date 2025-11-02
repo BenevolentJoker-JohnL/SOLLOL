@@ -1122,6 +1122,7 @@ class OllamaPool:
                             model=model,
                             latency_ms=latency_ms,
                             status_code=response.status_code,
+                            operation=operation,
                         )
 
                         # Record performance for router learning
@@ -1291,6 +1292,7 @@ class OllamaPool:
                             model=model,
                             latency_ms=latency_ms,
                             status_code=response.status_code,
+                            operation=operation,
                             streaming=True,
                         )
 
@@ -1362,6 +1364,7 @@ class OllamaPool:
                             model=model,
                             latency_ms=latency_ms,
                             status_code=response.status_code,
+                            operation=operation,
                             streaming=True,
                         )
 
@@ -2205,6 +2208,7 @@ class OllamaPool:
                     model=model,
                     latency_ms=embed_latency_ms,
                     status_code=200,
+                    operation="embed",
                 )
 
                 # Progress logging every 50 items
@@ -2665,7 +2669,8 @@ class OllamaPool:
                                 backend=node_key,
                                 model=model,
                                 latency_ms=latency_ms,
-                                status_code=response.status_code
+                                status_code=response.status_code,
+                                operation="embed"
                             )
 
                             return idx, response.json(), None, latency_ms
@@ -3239,6 +3244,7 @@ class OllamaPool:
                     model=model,
                     latency_ms=latency_ms,
                     status_code=response.status_code,
+                    operation=operation,
                     async_io=True,
                 )
 

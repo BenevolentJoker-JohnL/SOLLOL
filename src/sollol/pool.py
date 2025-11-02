@@ -2624,7 +2624,7 @@ class OllamaPool:
 
                 my_chunks = chunks_per_node[node_idx]
                 if not my_chunks:
-                    return
+                    return []  # Return empty latencies list
 
                 # Log routing decision for this batch to dashboard
                 self.routing_logger.log_ollama_node_selected(
@@ -2668,7 +2668,7 @@ class OllamaPool:
                                 status_code=response.status_code
                             )
 
-                            return idx, response.json(), None
+                            return idx, response.json(), None, latency_ms
                         except Exception as e:
                             latency_ms = (time_module.time() - start_time) * 1000
 
@@ -2680,20 +2680,23 @@ class OllamaPool:
                                 latency_ms=latency_ms
                             )
 
-                            return idx, None, e
+                            return idx, None, e, latency_ms
 
                     # Fire off ALL requests at once! (dcb46ae behavior - FAST!)
                     tasks = [embed_one(idx, text) for idx, text in my_chunks]
 
                     # Collect responses as they complete (any order)
                     completed = 0
+                    latencies_collected = []  # Track latencies for P50/P95/P99
+
                     for coro in asyncio.as_completed(tasks):
-                        idx, result, error = await coro
+                        idx, result, error, latency_ms = await coro
 
                         # Update results - keep lock scope minimal, NO I/O while holding lock
                         with results_lock:
                             if not error:
                                 results[idx] = result
+                            latencies_collected.append(latency_ms)
                             completed_count[0] += 1
                             completed += 1
                             current_progress = completed_count[0]
@@ -2713,6 +2716,8 @@ class OllamaPool:
                 full_node_display = f"http://{node['host']}:{node['port']}"
                 print(f"      ✅ Node {full_node_display} completed {len(my_chunks)} chunks", file=sys.stderr, flush=True)
 
+                return latencies_collected  # Return latencies for P50/P95/P99 calculation
+
             # Create tasks for all nodes with work
             node_tasks = []
             for node_idx in range(num_nodes):
@@ -2720,7 +2725,16 @@ class OllamaPool:
                     node_tasks.append(process_node(node_idx))
 
             # Run all node tasks concurrently in the same event loop
-            await asyncio.gather(*node_tasks)
+            # Each node returns its collected latencies
+            all_node_latencies = await asyncio.gather(*node_tasks)
+
+            # Merge all latencies from all nodes
+            all_latencies = []
+            for node_latencies in all_node_latencies:
+                if node_latencies:  # Skip empty lists
+                    all_latencies.extend(node_latencies)
+
+            return all_latencies
 
         # Run all nodes in a single event loop (fixes deadlock from multiple asyncio.run() calls)
         print(
@@ -2729,7 +2743,7 @@ class OllamaPool:
             flush=True,
         )
 
-        asyncio.run(submit_all_nodes_async())
+        all_latencies = asyncio.run(submit_all_nodes_async())
 
         print(
             f"   ✅ Async batch complete: {completed_count[0]}/{batch_size} chunks",
@@ -2745,6 +2759,9 @@ class OllamaPool:
             self.stats["total_requests"] += batch_size
             self.stats["successful_requests"] += success_count
             self.stats["failed_requests"] += error_count
+
+            # Record latencies for P50/P95/P99 calculation
+            self._latency_buffer.extend(all_latencies)
 
         return results
 

@@ -102,7 +102,7 @@ from sollol.tasks import DistributedTask, ExecutionResult, TaskResult
 # Monitoring & Dashboards
 from sollol.unified_dashboard import UnifiedDashboard, run_unified_dashboard
 
-__version__ = "0.9.65"
+__version__ = "0.9.66"
 __all__ = [
     # Core
     "OllamaPool",

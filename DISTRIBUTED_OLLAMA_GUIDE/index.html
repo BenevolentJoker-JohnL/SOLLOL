@@ -1,0 +1,3087 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Production-ready intelligent load balancing for Ollama clusters">
+      
+      
+        <meta name="author" content="BenevolentJoker-JohnL">
+      
+      
+        <link rel="canonical" href="https://benevolentjoker-johnl.github.io/SOLLOL/DISTRIBUTED_OLLAMA_GUIDE/">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.6.23">
+    
+    
+      
+        <title>Building Distributed AI Applications with SOLLOL - SOLLOL Documentation</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.84d31ad4.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+  
+
+
+  
+  
+
+<script id="__analytics">function __md_analytics(){function e(){dataLayer.push(arguments)}window.dataLayer=window.dataLayer||[],e("js",new Date),e("config",""),document.addEventListener("DOMContentLoaded",(function(){document.forms.search&&document.forms.search.query.addEventListener("blur",(function(){this.value&&e("event","search",{search_term:this.value})}));document$.subscribe((function(){var t=document.forms.feedback;if(void 0!==t)for(var a of t.querySelectorAll("[type=submit]"))a.addEventListener("click",(function(a){a.preventDefault();var n=document.location.pathname,d=this.getAttribute("data-md-value");e("event","feedback",{page:n,data:d}),t.firstElementChild.disabled=!0;var r=t.querySelector(".md-feedback__note [data-md-value='"+d+"']");r&&(r.hidden=!1)})),t.hidden=!1})),location$.subscribe((function(t){e("config","",{page_path:t.pathname})}))}));var t=document.createElement("script");t.async=!0,t.src="https://www.googletagmanager.com/gtag/js?id=",document.getElementById("__analytics").insertAdjacentElement("afterEnd",t)}</script>
+  
+    <script>"undefined"!=typeof __md_analytics&&__md_analytics()</script>
+  
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#building-distributed-ai-applications-with-sollol" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="SOLLOL Documentation" class="md-header__button md-logo" aria-label="SOLLOL Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            SOLLOL Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Building Distributed AI Applications with SOLLOL
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/BenevolentJoker-JohnL/SOLLOL" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BenevolentJoker-JohnL/SOLLOL
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/quick-start/" class="md-tabs__link">
+          
+  
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/overview.md" class="md-tabs__link">
+          
+  
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../deployment/docker.md" class="md-tabs__link">
+          
+  
+  
+  Deployment
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../features/routing/" class="md-tabs__link">
+          
+  
+  
+  Features
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../benchmarks/overview.md" class="md-tabs__link">
+          
+  
+  
+  Benchmarks
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/rest.md" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../contributing/guidelines.md" class="md-tabs__link">
+          
+  
+  
+  Contributing
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../enterprise/roadmap/" class="md-tabs__link">
+          
+  
+  
+  Enterprise
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="SOLLOL Documentation" class="md-nav__button md-logo" aria-label="SOLLOL Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    SOLLOL Documentation
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/BenevolentJoker-JohnL/SOLLOL" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    BenevolentJoker-JohnL/SOLLOL
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Home
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Getting Started
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/quick-start/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Quick Start
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/installation.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Installation
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/configuration.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Configuration
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Architecture
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/overview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/routing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intelligent Routing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/priority.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Priority System
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/failover.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Failover & Recovery
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Deployment
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Deployment
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/docker.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Docker
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/kubernetes.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Kubernetes
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../deployment/cloud.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Cloud (AWS/GCP/Azure)
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Features
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Features
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/routing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Intelligent Routing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/observability.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Observability
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/security.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Security
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../features/performance.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Performance
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Benchmarks
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Benchmarks
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/overview.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Overview
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/running.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Running Tests
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Results
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    API Reference
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/rest.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    REST API
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/python-sdk.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Python SDK
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/cli.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    CLI
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Contributing
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/guidelines.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Guidelines
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/setup.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Development Setup
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/testing.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Testing
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    Enterprise
+    
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            Enterprise
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise/roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Roadmap
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../enterprise/sponsorship.md" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Sponsorship
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#table-of-contents" class="md-nav__link">
+    <span class="md-ellipsis">
+      Table of Contents
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#introduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      Introduction
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-you-need-distributed-ollama" class="md-nav__link">
+    <span class="md-ellipsis">
+      When You Need Distributed Ollama
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="When You Need Distributed Ollama">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#you-should-distribute-when" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ You should distribute when:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#single-node-is-better-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      ❌ Single node is better for:
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Architecture Patterns
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-1-batch-processing-flockparser" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pattern 1: Batch Processing (FlockParser)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pattern 1: Batch Processing (FlockParser)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#real-performance-data-flockparser-2025-11-02" class="md-nav__link">
+    <span class="md-ellipsis">
+      Real Performance Data (FlockParser, 2025-11-02)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to Use
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-2-multi-agent-orchestration-synapticllamas" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pattern 2: Multi-Agent Orchestration (SynapticLlamas)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pattern 2: Multi-Agent Orchestration (SynapticLlamas)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-we-know-no-performance-data-yet" class="md-nav__link">
+    <span class="md-ellipsis">
+      What We Know (No Performance Data Yet)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-example_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-features_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to Use
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-3-code-synthesis-hydra" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pattern 3: Code Synthesis (Hydra)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pattern 3: Code Synthesis (Hydra)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#routing-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Routing Modes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#code-example_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-features_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to Use
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pattern-4-distributed-training-llamaforge" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pattern 4: Distributed Training (LlamaForge)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Pattern 4: Distributed Training (LlamaForge)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#code-example_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code Example
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-features_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      Key Features
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-to-use_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      When to Use
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start-5-lines-to-distributed-ollama" class="md-nav__link">
+    <span class="md-ellipsis">
+      Quick Start (5 Lines to Distributed Ollama)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#core-concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Core Concepts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Core Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-auto-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Auto-Discovery
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-intelligent-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Intelligent Routing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-adaptive-parallelism" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Adaptive Parallelism
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-work-stealing" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Work Stealing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-tuning" class="md-nav__link">
+    <span class="md-ellipsis">
+      Performance Tuning
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Tuning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#for-batch-processing-embeddings-etc" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Batch Processing (Embeddings, etc.)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for-interactive-chat" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Interactive Chat
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for-mixed-workloads" class="md-nav__link">
+    <span class="md-ellipsis">
+      For Mixed Workloads
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#production-best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      Production Best Practices
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Production Best Practices">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-observability-setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Observability Setup
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-environment-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Environment Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-health-monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Health Monitoring
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      4. Error Handling
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-configuration-persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      5. Configuration Persistence
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      Troubleshooting
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Troubleshooting">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#issue-lost-chunks-in-batch-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issue: Lost chunks in batch processing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-models-loading-on-cpu-instead-of-gpu" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issue: Models loading on CPU instead of GPU
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-auto-discovery-not-finding-nodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issue: Auto-discovery not finding nodes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-dashboard-shows-no-activity" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issue: Dashboard shows no activity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#issue-performance-degradation-over-time" class="md-nav__link">
+    <span class="md-ellipsis">
+      Issue: Performance degradation over time
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#honest-assessment-whats-proven-vs-aspirational" class="md-nav__link">
+    <span class="md-ellipsis">
+      ⚠️ Honest Assessment: What's Proven vs Aspirational
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="⚠️ Honest Assessment: What&#39;s Proven vs Aspirational">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#production-proven-battle-tested" class="md-nav__link">
+    <span class="md-ellipsis">
+      ✅ Production-Proven (Battle-Tested)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#experimental-works-needs-more-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      🔬 Experimental (Works, Needs More Testing)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conceptual-not-production-ready" class="md-nav__link">
+    <span class="md-ellipsis">
+      🚧 Conceptual (Not Production-Ready)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#case-studies-with-honest-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      Case Studies (With Honest Data)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Case Studies (With Honest Data)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#flockparser-pdf-processing-at-scale-proven" class="md-nav__link">
+    <span class="md-ellipsis">
+      FlockParser: PDF Processing at Scale ✅ PROVEN
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#synapticllamas-multi-agent-research-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      SynapticLlamas: Multi-Agent Research ⚠️ EXPERIMENTAL
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hydra-autonomous-code-synthesis-experimental" class="md-nav__link">
+    <span class="md-ellipsis">
+      Hydra: Autonomous Code Synthesis ⚠️ EXPERIMENTAL
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#llamaforge-distributed-training-proven-discovery-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      LlamaForge: Distributed Training ✅ PROVEN (Discovery Only)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Next Steps
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-resources" class="md-nav__link">
+    <span class="md-ellipsis">
+      Additional Resources
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/BenevolentJoker-JohnL/SOLLOL/edit/main/docs/DISTRIBUTED_OLLAMA_GUIDE.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="building-distributed-ai-applications-with-sollol">Building Distributed AI Applications with SOLLOL<a class="headerlink" href="#building-distributed-ai-applications-with-sollol" title="Permanent link">&para;</a></h1>
+<p><strong>A practical guide to creating production-grade distributed Ollama applications</strong></p>
+<hr />
+<h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#when-you-need-distributed-ollama">When You Need Distributed Ollama</a></li>
+<li><a href="#architecture-patterns">Architecture Patterns</a></li>
+<li><a href="#pattern-1-batch-processing-flockparser">Pattern 1: Batch Processing</a></li>
+<li><a href="#pattern-2-multi-agent-orchestration-synapticllamas">Pattern 2: Multi-Agent Orchestration</a></li>
+<li><a href="#pattern-3-code-synthesis-hydra">Pattern 3: Code Synthesis</a></li>
+<li><a href="#pattern-4-distributed-training-llamaforge">Pattern 4: Distributed Training</a></li>
+<li><a href="#quick-start-5-lines-to-distributed-ollama">Quick Start</a></li>
+<li><a href="#core-concepts">Core Concepts</a></li>
+<li><a href="#performance-tuning">Performance Tuning</a></li>
+<li><a href="#production-best-practices">Production Best Practices</a></li>
+<li><a href="#troubleshooting">Troubleshooting</a></li>
+</ul>
+<hr />
+<h2 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h2>
+<p><strong>SOLLOL</strong> (Super Ollama Load Balancer &amp; Orchestration Layer) is a production-ready framework for building distributed AI applications with Ollama. Unlike basic load balancers, SOLLOL provides:</p>
+<ul>
+<li><strong>Intelligent routing</strong> that learns which nodes work best for each task</li>
+<li><strong>Auto-discovery</strong> of Ollama nodes across your network</li>
+<li><strong>Adaptive parallelism</strong> for optimal throughput</li>
+<li><strong>Built-in observability</strong> with real-time dashboard</li>
+<li><strong>Automatic failover</strong> and health monitoring</li>
+</ul>
+<p>This guide shows you how to build distributed applications using proven patterns from real-world projects.</p>
+<hr />
+<h2 id="when-you-need-distributed-ollama">When You Need Distributed Ollama<a class="headerlink" href="#when-you-need-distributed-ollama" title="Permanent link">&para;</a></h2>
+<h3 id="you-should-distribute-when">✅ You should distribute when:<a class="headerlink" href="#you-should-distribute-when" title="Permanent link">&para;</a></h3>
+<ol>
+<li><strong>Processing large batches</strong> (embeddings, summarization, classification)</li>
+<li>Example: RAG document ingestion, semantic search indexing</li>
+<li>
+<p>Benefit: 2-3x speedup with multiple nodes</p>
+</li>
+<li>
+<p><strong>Running multiple GPUs across machines</strong></p>
+</li>
+<li>Example: Different models on different GPUs</li>
+<li>
+<p>Benefit: Specialized hardware for specialized tasks</p>
+</li>
+<li>
+<p><strong>Multi-agent workloads</strong> (parallel AI agents)</p>
+</li>
+<li>Example: Research assistant with planning/execution/review agents</li>
+<li>
+<p>Benefit: Run agents concurrently instead of serially</p>
+</li>
+<li>
+<p><strong>High availability requirements</strong></p>
+</li>
+<li>Example: Production chatbot that can't go down</li>
+<li>
+<p>Benefit: Automatic failover to backup nodes</p>
+</li>
+<li>
+<p><strong>CPU + GPU hybrid clusters</strong></p>
+</li>
+<li>Example: Fast queries on GPU, bulk processing on CPU</li>
+<li>Benefit: Maximize utilization across heterogeneous hardware</li>
+</ol>
+<h3 id="single-node-is-better-for">❌ Single node is better for:<a class="headerlink" href="#single-node-is-better-for" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Interactive chat (low latency critical)</li>
+<li>Small workloads (&lt;10 requests)</li>
+<li>Single powerful GPU</li>
+<li>Development/testing</li>
+</ul>
+<hr />
+<h2 id="architecture-patterns">Architecture Patterns<a class="headerlink" href="#architecture-patterns" title="Permanent link">&para;</a></h2>
+<p>Here are four proven patterns from production SOLLOL applications:</p>
+<h3 id="pattern-1-batch-processing-flockparser">Pattern 1: Batch Processing (FlockParser)<a class="headerlink" href="#pattern-1-batch-processing-flockparser" title="Permanent link">&para;</a></h3>
+<p><strong>Use Case</strong>: RAG document ingestion, bulk embeddings, semantic search indexing</p>
+<p><strong>Problem</strong>: Processing thousands of PDF pages into vector embeddings takes hours on a single node.</p>
+<p><strong>Solution</strong>: Distribute embeddings across multiple nodes with adaptive parallelism.</p>
+<h4 id="real-performance-data-flockparser-2025-11-02">Real Performance Data (FlockParser, 2025-11-02)<a class="headerlink" href="#real-performance-data-flockparser-2025-11-02" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Single Node (10.9.66.154 - slow CPU):
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>- 298 chunks in 1656s = 0.18 chunks/sec
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>SOLLOL (2 nodes - .15 + .154):
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>- 298 chunks in 301s = 1.0 chunks/sec
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>- 5.5x speedup achieved
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>Note: Speedup depends heavily on node performance difference.
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>With 2 identical slow nodes, speedup would be ~2x, not 5.5x.
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>This case benefits from one fast node (0.5 c/s) + one slow node (0.18 c/s).
+</code></pre></div>
+<h4 id="code-example">Code Example<a class="headerlink" href="#code-example" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol</span><span class="w"> </span><span class="kn">import</span> <span class="n">OllamaPool</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1"># Auto-discover nodes on network</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="o">.</span><span class="n">auto_configure</span><span class="p">()</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># Batch embed 10,000 documents</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">texts</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Document content...&quot;</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10000</span><span class="p">)]</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">embeddings</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">embed_batch</span><span class="p">(</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;mxbai-embed-large&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="n">inputs</span><span class="o">=</span><span class="n">texts</span><span class="p">,</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">priority</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>  <span class="c1"># High priority</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="n">use_adaptive</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Let SOLLOL decide parallel vs sequential</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="p">)</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="c1"># SOLLOL automatically:</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># - Distributes work across nodes based on measured throughput</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="c1"># - Uses work stealing when fast nodes finish early</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="c1"># - Retries failed chunks with lower concurrency</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># - Publishes metrics to dashboard</span>
+</code></pre></div>
+<h4 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Adaptive concurrency</strong>: Fast nodes get more parallel requests</li>
+<li><strong>Work stealing</strong>: Idle nodes take work from busy nodes</li>
+<li><strong>Automatic retry</strong>: Failed chunks retried on fastest node</li>
+<li><strong>Performance tracking</strong>: Learns node throughput over time</li>
+</ul>
+<h4 id="when-to-use">When to Use<a class="headerlink" href="#when-to-use" title="Permanent link">&para;</a></h4>
+<ul>
+<li>✅ &gt;100 items to process</li>
+<li>✅ CPU-bound operations (embeddings, summarization)</li>
+<li>✅ Can tolerate 1-2 minute startup overhead</li>
+<li>❌ Real-time/streaming requirements</li>
+</ul>
+<hr />
+<h3 id="pattern-2-multi-agent-orchestration-synapticllamas">Pattern 2: Multi-Agent Orchestration (SynapticLlamas)<a class="headerlink" href="#pattern-2-multi-agent-orchestration-synapticllamas" title="Permanent link">&para;</a></h3>
+<p><strong>Use Case</strong>: Parallel AI agents for research, planning, code review</p>
+<p><strong>Problem</strong>: Running 3-5 AI agents serially takes 5-10 minutes. Agents often wait for models to load on GPU.</p>
+<p><strong>Solution</strong>: Intelligent routing with GPU control to ensure models stay on GPU.</p>
+<p><strong>Status</strong>: ⚠️ EXPERIMENTAL - Functional but not benchmarked</p>
+<h4 id="what-we-know-no-performance-data-yet">What We Know (No Performance Data Yet)<a class="headerlink" href="#what-we-know-no-performance-data-yet" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Theory:
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>- Serial execution: N agents × T seconds each = N×T total
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>- Parallel execution: max(agent_times) ≈ T seconds
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>- Expected speedup: ~N× (if enough nodes)
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>Reality:
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>- Code exists and works
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>- GPU controller prevents CPU slowdown
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>- No comprehensive benchmarks yet
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>- Your mileage may vary - gather your own data
+</code></pre></div>
+<h4 id="code-example_1">Code Example<a class="headerlink" href="#code-example_1" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.intelligence</span><span class="w"> </span><span class="kn">import</span> <span class="n">IntelligentRouter</span><span class="p">,</span> <span class="n">TaskContext</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.gpu_controller</span><span class="w"> </span><span class="kn">import</span> <span class="n">SOLLOLGPUController</span><span class="p">,</span> <span class="n">integrate_with_router</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.hedging</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaptiveHedging</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c1"># Initialize with GPU control</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">router</span> <span class="o">=</span> <span class="n">IntelligentRouter</span><span class="p">()</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">gpu_controller</span> <span class="o">=</span> <span class="n">SOLLOLGPUController</span><span class="p">(</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">pool</span><span class="o">=</span><span class="n">pool</span><span class="p">,</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="n">priority_models</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span> <span class="s2">&quot;qwen2.5-coder:7b&quot;</span><span class="p">]</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">)</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1"># Integrate GPU controller</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">integrate_with_router</span><span class="p">(</span><span class="n">router</span><span class="p">,</span> <span class="n">gpu_controller</span><span class="p">)</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="c1"># Optional: Enable hedging for low latency</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="n">hedging</span> <span class="o">=</span> <span class="n">AdaptiveHedging</span><span class="p">(</span><span class="n">num_hedges</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="c1"># Route requests with task context</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="n">task</span> <span class="o">=</span> <span class="n">TaskContext</span><span class="p">(</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;code_generation&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="n">complexity</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>  <span class="c1"># 1-10 scale</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    <span class="n">priority</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>    <span class="n">requires_gpu</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="p">)</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a><span class="n">response</span> <span class="o">=</span> <span class="n">router</span><span class="o">.</span><span class="n">route_request</span><span class="p">(</span>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-coder:7b&quot;</span><span class="p">,</span>
+<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Write a FastAPI endpoint&quot;</span><span class="p">}],</span>
+<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>    <span class="n">task_context</span><span class="o">=</span><span class="n">task</span>
+<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a><span class="p">)</span>
+<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>
+<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a><span class="c1"># SOLLOL automatically:</span>
+<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a><span class="c1"># - Routes to node with model already on GPU</span>
+<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a><span class="c1"># - Forces model to GPU if found on CPU</span>
+<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a><span class="c1"># - Uses hedging to race 2 nodes for fastest response</span>
+<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a><span class="c1"># - Publishes decision reasoning to dashboard</span>
+</code></pre></div>
+<h4 id="key-features_1">Key Features<a class="headerlink" href="#key-features_1" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>GPU-aware routing</strong>: Models stay on GPU, avoid 20x CPU slowdown</li>
+<li><strong>Task classification</strong>: Auto-detects operation type (chat/code/summarize)</li>
+<li><strong>Hedging strategy</strong>: Race multiple nodes for lowest latency</li>
+<li><strong>Priority queue</strong>: Critical requests jump the queue</li>
+</ul>
+<h4 id="when-to-use_1">When to Use<a class="headerlink" href="#when-to-use_1" title="Permanent link">&para;</a></h4>
+<ul>
+<li>✅ Multiple concurrent agents</li>
+<li>✅ GPU resources available</li>
+<li>✅ Latency-sensitive operations</li>
+<li>✅ Mixed workloads (some GPU, some CPU)</li>
+</ul>
+<hr />
+<h3 id="pattern-3-code-synthesis-hydra">Pattern 3: Code Synthesis (Hydra)<a class="headerlink" href="#pattern-3-code-synthesis-hydra" title="Permanent link">&para;</a></h3>
+<p><strong>Use Case</strong>: Claude Code-style autonomous agent with multi-model consensus</p>
+<p><strong>Problem</strong>: Need different routing strategies for different phases (fast for planning, reliable for execution, async for batch tasks).</p>
+<p><strong>Solution</strong>: Three routing modes optimized for different scenarios.</p>
+<p><strong>Status</strong>: ⚠️ EXPERIMENTAL - Modes exist but lack benchmark data</p>
+<h4 id="routing-modes">Routing Modes<a class="headerlink" href="#routing-modes" title="Permanent link">&para;</a></h4>
+<p><strong>FAST Mode</strong> (GPU-first, &lt;2s latency)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.routing_modes</span><span class="w"> </span><span class="kn">import</span> <span class="n">RoutingMode</span><span class="p">,</span> <span class="n">TaskPriority</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol</span><span class="w"> </span><span class="kn">import</span> <span class="n">OllamaPool</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="o">.</span><span class="n">auto_configure</span><span class="p">()</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">FAST</span><span class="p">)</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Prefers: GPU nodes → Low latency nodes → Any available</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Use for: Interactive planning, quick decisions</span>
+</code></pre></div></p>
+<p><strong>RELIABLE Mode</strong> (99%+ uptime)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">RELIABLE</span><span class="p">)</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="c1"># Prefers: High success rate → Low failure rate → Proven nodes</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1"># Use for: Critical code generation, production deployments</span>
+</code></pre></div></p>
+<p><strong>ASYNC Mode</strong> (CPU-preferred, resource-efficient)
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">ASYNC</span><span class="p">)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="c1"># Prefers: CPU nodes → Background processing → Batch jobs</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1"># Use for: Documentation, tests, non-critical tasks</span>
+</code></pre></div></p>
+<h4 id="code-example_2">Code Example<a class="headerlink" href="#code-example_2" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol</span><span class="w"> </span><span class="kn">import</span> <span class="n">OllamaPool</span><span class="p">,</span> <span class="n">UnifiedDashboard</span><span class="p">,</span> <span class="n">run_unified_dashboard</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.routing_modes</span><span class="w"> </span><span class="kn">import</span> <span class="n">RoutingMode</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Start dashboard</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">dashboard_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">target</span><span class="o">=</span><span class="n">run_unified_dashboard</span><span class="p">,</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="mi">8080</span><span class="p">),</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="p">)</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="n">dashboard_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="c1"># Phase 1: Planning (FAST mode)</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">FAST</span><span class="p">)</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="n">plan</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Plan a REST API&quot;</span><span class="p">}],</span>
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>    <span class="n">priority</span><span class="o">=</span><span class="n">TaskPriority</span><span class="o">.</span><span class="n">HIGH</span>
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="p">)</span>
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>
+<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="c1"># Phase 2: Implementation (RELIABLE mode)</span>
+<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">RELIABLE</span><span class="p">)</span>
+<a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="n">code</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
+<a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-coder:7b&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-25" name="__codelineno-7-25" href="#__codelineno-7-25"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Implement: </span><span class="si">{</span><span class="n">plan</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}],</span>
+<a id="__codelineno-7-26" name="__codelineno-7-26" href="#__codelineno-7-26"></a>    <span class="n">priority</span><span class="o">=</span><span class="n">TaskPriority</span><span class="o">.</span><span class="n">CRITICAL</span>
+<a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a><span class="p">)</span>
+<a id="__codelineno-7-28" name="__codelineno-7-28" href="#__codelineno-7-28"></a>
+<a id="__codelineno-7-29" name="__codelineno-7-29" href="#__codelineno-7-29"></a><span class="c1"># Phase 3: Documentation (ASYNC mode)</span>
+<a id="__codelineno-7-30" name="__codelineno-7-30" href="#__codelineno-7-30"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">ASYNC</span><span class="p">)</span>
+<a id="__codelineno-7-31" name="__codelineno-7-31" href="#__codelineno-7-31"></a><span class="n">docs</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
+<a id="__codelineno-7-32" name="__codelineno-7-32" href="#__codelineno-7-32"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span>
+<a id="__codelineno-7-33" name="__codelineno-7-33" href="#__codelineno-7-33"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Document: </span><span class="si">{</span><span class="n">code</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">}],</span>
+<a id="__codelineno-7-34" name="__codelineno-7-34" href="#__codelineno-7-34"></a>    <span class="n">priority</span><span class="o">=</span><span class="n">TaskPriority</span><span class="o">.</span><span class="n">LOW</span>
+<a id="__codelineno-7-35" name="__codelineno-7-35" href="#__codelineno-7-35"></a><span class="p">)</span>
+<a id="__codelineno-7-36" name="__codelineno-7-36" href="#__codelineno-7-36"></a>
+<a id="__codelineno-7-37" name="__codelineno-7-37" href="#__codelineno-7-37"></a><span class="c1"># Dashboard live at http://localhost:8080</span>
+<a id="__codelineno-7-38" name="__codelineno-7-38" href="#__codelineno-7-38"></a><span class="c1"># - View routing decisions</span>
+<a id="__codelineno-7-39" name="__codelineno-7-39" href="#__codelineno-7-39"></a><span class="c1"># - See which mode was used</span>
+<a id="__codelineno-7-40" name="__codelineno-7-40" href="#__codelineno-7-40"></a><span class="c1"># - Monitor node health</span>
+</code></pre></div>
+<h4 id="key-features_2">Key Features<a class="headerlink" href="#key-features_2" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Mode switching</strong>: Change strategy based on task phase</li>
+<li><strong>VRAM-aware</strong>: Routes to nodes with sufficient GPU memory</li>
+<li><strong>Memory lifecycle</strong>: Proactive model unloading to prevent OOM</li>
+<li><strong>Dashboard integration</strong>: Real-time observability</li>
+</ul>
+<h4 id="when-to-use_2">When to Use<a class="headerlink" href="#when-to-use_2" title="Permanent link">&para;</a></h4>
+<ul>
+<li>✅ Multi-phase workflows</li>
+<li>✅ Mixed priority tasks</li>
+<li>✅ Need observability</li>
+<li>✅ Complex autonomous agents</li>
+</ul>
+<hr />
+<h3 id="pattern-4-distributed-training-llamaforge">Pattern 4: Distributed Training (LlamaForge)<a class="headerlink" href="#pattern-4-distributed-training-llamaforge" title="Permanent link">&para;</a></h3>
+<p><strong>Use Case</strong>: Fine-tuning LLMs across multiple machines with PyTorch DDP</p>
+<p><strong>Problem</strong>: Training data parallelism requires knowing which machines are unique (not localhost duplicates) and whether parallel execution is beneficial.</p>
+<p><strong>Solution</strong>: SOLLOL's discovery system finds physical machines and determines parallelization strategy.</p>
+<h4 id="code-example_3">Code Example<a class="headerlink" href="#code-example_3" title="Permanent link">&para;</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">discover_ollama_nodes</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol</span><span class="w"> </span><span class="kn">import</span> <span class="n">OllamaPool</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># Step 1: Discover all nodes on network</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="n">nodes</span> <span class="o">=</span> <span class="n">discover_ollama_nodes</span><span class="p">(</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">timeout</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">discover_all_nodes</span><span class="o">=</span><span class="kc">True</span>  <span class="c1"># Scan entire subnet</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="p">)</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Found </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">nodes</span><span class="p">)</span><span class="si">}</span><span class="s2"> Ollama nodes:&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - </span><span class="si">{</span><span class="n">node</span><span class="p">[</span><span class="s1">&#39;host&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">node</span><span class="p">[</span><span class="s1">&#39;port&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="c1"># Step 2: Create pool and check uniqueness</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="p">(</span><span class="n">nodes</span><span class="o">=</span><span class="n">nodes</span><span class="p">)</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="n">unique_hosts</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">count_unique_physical_hosts</span><span class="p">()</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a>
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unique physical machines: </span><span class="si">{</span><span class="n">unique_hosts</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a>
+<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="c1"># Step 3: Decide if parallelization is worth it</span>
+<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="n">num_training_jobs</span> <span class="o">=</span> <span class="mi">4</span>
+<a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a><span class="n">should_parallel</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">should_use_parallel_execution</span><span class="p">(</span>
+<a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a>    <span class="n">num_tasks</span><span class="o">=</span><span class="n">num_training_jobs</span>
+<a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a><span class="p">)</span>
+<a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a>
+<a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a><span class="k">if</span> <span class="n">should_parallel</span> <span class="ow">and</span> <span class="n">unique_hosts</span> <span class="o">&gt;=</span> <span class="mi">2</span><span class="p">:</span>
+<a id="__codelineno-8-27" name="__codelineno-8-27" href="#__codelineno-8-27"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;✅ Using distributed training&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-28" name="__codelineno-8-28" href="#__codelineno-8-28"></a>
+<a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a>    <span class="c1"># Get unique node IPs for PyTorch DDP</span>
+<a id="__codelineno-8-30" name="__codelineno-8-30" href="#__codelineno-8-30"></a>    <span class="n">master_node</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s1">&#39;host&#39;</span><span class="p">]</span>
+<a id="__codelineno-8-31" name="__codelineno-8-31" href="#__codelineno-8-31"></a>    <span class="n">worker_nodes</span> <span class="o">=</span> <span class="p">[</span><span class="n">n</span><span class="p">[</span><span class="s1">&#39;host&#39;</span><span class="p">]</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">pool</span><span class="o">.</span><span class="n">nodes</span><span class="p">[</span><span class="mi">1</span><span class="p">:]]</span>
+<a id="__codelineno-8-32" name="__codelineno-8-32" href="#__codelineno-8-32"></a>
+<a id="__codelineno-8-33" name="__codelineno-8-33" href="#__codelineno-8-33"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Master: </span><span class="si">{</span><span class="n">master_node</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-34" name="__codelineno-8-34" href="#__codelineno-8-34"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Workers: </span><span class="si">{</span><span class="n">worker_nodes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-35" name="__codelineno-8-35" href="#__codelineno-8-35"></a>
+<a id="__codelineno-8-36" name="__codelineno-8-36" href="#__codelineno-8-36"></a>    <span class="c1"># Launch PyTorch DDP training</span>
+<a id="__codelineno-8-37" name="__codelineno-8-37" href="#__codelineno-8-37"></a>    <span class="c1"># torchrun --nproc_per_node=1 --nnodes={unique_hosts} \</span>
+<a id="__codelineno-8-38" name="__codelineno-8-38" href="#__codelineno-8-38"></a>    <span class="c1">#   --node_rank=0 --master_addr={master_node} \</span>
+<a id="__codelineno-8-39" name="__codelineno-8-39" href="#__codelineno-8-39"></a>    <span class="c1">#   --master_port=29500 train.py</span>
+<a id="__codelineno-8-40" name="__codelineno-8-40" href="#__codelineno-8-40"></a><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-8-41" name="__codelineno-8-41" href="#__codelineno-8-41"></a>    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;⚠️  Using single-node training&quot;</span><span class="p">)</span>
+<a id="__codelineno-8-42" name="__codelineno-8-42" href="#__codelineno-8-42"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Reason: </span><span class="si">{</span><span class="n">unique_hosts</span><span class="si">}</span><span class="s2"> unique hosts &lt; 2 minimum&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h4 id="key-features_3">Key Features<a class="headerlink" href="#key-features_3" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>Physical host deduplication</strong>: Resolves localhost → real IP</li>
+<li><strong>Subnet scanning</strong>: Discovers nodes in ~500ms</li>
+<li><strong>Decision logic</strong>: Recommends parallel vs serial based on overhead</li>
+<li><strong>No server needed</strong>: Discovery is client-side only</li>
+</ul>
+<h4 id="when-to-use_3">When to Use<a class="headerlink" href="#when-to-use_3" title="Permanent link">&para;</a></h4>
+<ul>
+<li>✅ PyTorch DDP or similar frameworks</li>
+<li>✅ Need to find available compute nodes</li>
+<li>✅ Want intelligent parallelization decisions</li>
+<li>❌ Don't need SOLLOL for actual inference routing</li>
+</ul>
+<hr />
+<h2 id="quick-start-5-lines-to-distributed-ollama">Quick Start (5 Lines to Distributed Ollama)<a class="headerlink" href="#quick-start-5-lines-to-distributed-ollama" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol</span><span class="w"> </span><span class="kn">import</span> <span class="n">OllamaPool</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c1"># 1. Auto-discover and configure</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="o">.</span><span class="n">auto_configure</span><span class="p">()</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># 2. That&#39;s it! Use pool just like Ollama client</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="n">response</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Hello!&quot;</span><span class="p">}]</span>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="p">)</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="nb">print</span><span class="p">(</span><span class="n">response</span><span class="p">[</span><span class="s1">&#39;message&#39;</span><span class="p">][</span><span class="s1">&#39;content&#39;</span><span class="p">])</span>
+</code></pre></div>
+<p><strong>What just happened?</strong>
+- ✅ Auto-discovered all Ollama nodes on your network
+- ✅ Intelligently routed to best available node
+- ✅ Automatic failover if node fails
+- ✅ Performance tracking for future requests</p>
+<hr />
+<h2 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h2>
+<h3 id="1-auto-discovery">1. Auto-Discovery<a class="headerlink" href="#1-auto-discovery" title="Permanent link">&para;</a></h3>
+<p>SOLLOL finds Ollama nodes without configuration:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">discover_ollama_nodes</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="c1"># Discover all nodes on local network</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="n">nodes</span> <span class="o">=</span> <span class="n">discover_ollama_nodes</span><span class="p">(</span><span class="n">timeout</span><span class="o">=</span><span class="mf">2.0</span><span class="p">)</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1"># Result:</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="c1"># [</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="c1">#   {&#39;host&#39;: &#39;10.9.66.15&#39;, &#39;port&#39;: 11434},</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="c1">#   {&#39;host&#39;: &#39;10.9.66.154&#39;, &#39;port&#39;: 11434},</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1">#   {&#39;host&#39;: &#39;192.168.1.100&#39;, &#39;port&#39;: 11434}</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="c1"># ]</span>
+</code></pre></div>
+<p><strong>How it works:</strong>
+- Scans your subnet (10.9.66.0/24 if your IP is 10.9.66.x)
+- Tests each IP for Ollama on port 11434
+- Resolves localhost/127.0.0.1 to real IPs
+- Returns list of responding nodes in ~500ms</p>
+<h3 id="2-intelligent-routing">2. Intelligent Routing<a class="headerlink" href="#2-intelligent-routing" title="Permanent link">&para;</a></h3>
+<p>SOLLOL analyzes each request and routes optimally:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># SOLLOL sees this</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">messages</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Summarize this article...&quot;</span><span class="p">}]</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Automatically detects:</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="c1"># - Operation: summarization (not code/chat)</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="c1"># - Complexity: medium (based on input length)</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># - Best node: One that previously succeeded at summarization</span>
+<a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="c1"># - Fallbacks: 2-3 backup nodes ranked by success rate</span>
+</code></pre></div>
+<h3 id="3-adaptive-parallelism">3. Adaptive Parallelism<a class="headerlink" href="#3-adaptive-parallelism" title="Permanent link">&para;</a></h3>
+<p>SOLLOL measures node performance and adapts:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Initial state (no data)</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="c1"># Node A: unknown speed → 5 concurrent requests (conservative)</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="c1"># Node B: unknown speed → 5 concurrent requests (conservative)</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="c1"># After 100 requests:</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="c1"># Node A: 1.0 chunks/s → 20 concurrent requests</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="c1"># Node B: 0.18 chunks/s → 5 concurrent requests (slow node, keep low)</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="c1"># Result: Fast nodes process more, slow nodes don&#39;t get overwhelmed</span>
+</code></pre></div>
+<h3 id="4-work-stealing">4. Work Stealing<a class="headerlink" href="#4-work-stealing" title="Permanent link">&para;</a></h3>
+<p>When nodes finish early, they steal work:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># Batch of 625 chunks distributed:</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="c1"># - Node A (fast): 460 chunks assigned</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="c1"># - Node B (slow): 165 chunks assigned</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="c1"># What happens:</span>
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="c1"># 1. Node A completes 368 assigned chunks</span>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># 2. Node A steals 73 chunks from Node B&#39;s queue</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="c1"># 3. Node B completes 92 chunks</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="c1"># 4. Total: 625/625 chunks processed</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="c1"># Without stealing:</span>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="c1"># - Node A finishes in 460s, sits idle</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="c1"># - Node B takes 917s to finish</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="c1"># - Total time: 917s</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>
+<a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="c1"># With stealing:</span>
+<a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="c1"># - Both nodes finish around 500-550s</span>
+<a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a><span class="c1"># - Total time: ~550s (40% faster!)</span>
+</code></pre></div>
+<hr />
+<h2 id="performance-tuning">Performance Tuning<a class="headerlink" href="#performance-tuning" title="Permanent link">&para;</a></h2>
+<h3 id="for-batch-processing-embeddings-etc">For Batch Processing (Embeddings, etc.)<a class="headerlink" href="#for-batch-processing-embeddings-etc" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="c1"># Let SOLLOL decide (recommended)</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">embed_batch</span><span class="p">(</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;mxbai-embed-large&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">inputs</span><span class="o">=</span><span class="n">texts</span><span class="p">,</span>
+<a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">use_adaptive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>  <span class="c1"># SOLLOL analyzes cluster state</span>
+<a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="n">priority</span><span class="o">=</span><span class="mi">7</span>
+<a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a><span class="p">)</span>
+<a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>
+<a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a><span class="c1"># Manual control (if you know better)</span>
+<a id="__codelineno-14-10" name="__codelineno-14-10" href="#__codelineno-14-10"></a><span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">embed_batch</span><span class="p">(</span>
+<a id="__codelineno-14-11" name="__codelineno-14-11" href="#__codelineno-14-11"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;mxbai-embed-large&quot;</span><span class="p">,</span>
+<a id="__codelineno-14-12" name="__codelineno-14-12" href="#__codelineno-14-12"></a>    <span class="n">inputs</span><span class="o">=</span><span class="n">texts</span><span class="p">,</span>
+<a id="__codelineno-14-13" name="__codelineno-14-13" href="#__codelineno-14-13"></a>    <span class="n">use_adaptive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<a id="__codelineno-14-14" name="__codelineno-14-14" href="#__codelineno-14-14"></a>    <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>  <span class="c1"># Force 4 parallel workers</span>
+<a id="__codelineno-14-15" name="__codelineno-14-15" href="#__codelineno-14-15"></a>    <span class="n">priority</span><span class="o">=</span><span class="mi">7</span>
+<a id="__codelineno-14-16" name="__codelineno-14-16" href="#__codelineno-14-16"></a><span class="p">)</span>
+</code></pre></div>
+<p><strong>Tuning parameters:</strong>
+- <code>use_adaptive=True</code>: Let SOLLOL decide based on node speeds
+- <code>max_workers</code>: Number of parallel requests (default: nodes × 2)
+- <code>priority</code>: 1-10, higher = processes first</p>
+<h3 id="for-interactive-chat">For Interactive Chat<a class="headerlink" href="#for-interactive-chat" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Minimize latency with hedging</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.hedging</span><span class="w"> </span><span class="kn">import</span> <span class="n">AdaptiveHedging</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="n">hedging</span> <span class="o">=</span> <span class="n">AdaptiveHedging</span><span class="p">(</span><span class="n">num_hedges</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">response</span> <span class="o">=</span> <span class="n">hedging</span><span class="o">.</span><span class="n">request_with_hedging</span><span class="p">(</span>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a>    <span class="n">pool</span><span class="o">=</span><span class="n">pool</span><span class="p">,</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Quick question&quot;</span><span class="p">}]</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="p">)</span>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="c1"># Races 2 nodes, returns first response</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="c1"># Typical latency: 50-70% of single node</span>
+</code></pre></div>
+<h3 id="for-mixed-workloads">For Mixed Workloads<a class="headerlink" href="#for-mixed-workloads" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="c1"># Use priority to ensure critical tasks go first</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">pool</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
+<a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;qwen2.5-coder:7b&quot;</span><span class="p">,</span>
+<a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
+<a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>    <span class="n">priority</span><span class="o">=</span><span class="mi">10</span>  <span class="c1"># CRITICAL - jump to front of queue</span>
+<a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a><span class="p">)</span>
+<a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a>
+<a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="n">pool</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
+<a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span>
+<a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
+<a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a>    <span class="n">priority</span><span class="o">=</span><span class="mi">5</span>  <span class="c1"># NORMAL - standard processing</span>
+<a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="p">)</span>
+<a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a>
+<a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="n">pool</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
+<a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span>
+<a id="__codelineno-16-16" name="__codelineno-16-16" href="#__codelineno-16-16"></a>    <span class="n">messages</span><span class="o">=</span><span class="p">[</span><span class="o">...</span><span class="p">],</span>
+<a id="__codelineno-16-17" name="__codelineno-16-17" href="#__codelineno-16-17"></a>    <span class="n">priority</span><span class="o">=</span><span class="mi">1</span>  <span class="c1"># LOW - process when idle</span>
+<a id="__codelineno-16-18" name="__codelineno-16-18" href="#__codelineno-16-18"></a><span class="p">)</span>
+</code></pre></div>
+<hr />
+<h2 id="production-best-practices">Production Best Practices<a class="headerlink" href="#production-best-practices" title="Permanent link">&para;</a></h2>
+<h3 id="1-observability-setup">1. Observability Setup<a class="headerlink" href="#1-observability-setup" title="Permanent link">&para;</a></h3>
+<p>Enable the unified dashboard for production monitoring:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol</span><span class="w"> </span><span class="kn">import</span> <span class="n">OllamaPool</span><span class="p">,</span> <span class="n">run_unified_dashboard</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="o">.</span><span class="n">auto_configure</span><span class="p">()</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="c1"># Start dashboard in background</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="n">dashboard_thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>    <span class="n">target</span><span class="o">=</span><span class="n">run_unified_dashboard</span><span class="p">,</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">pool</span><span class="p">,</span> <span class="mi">8080</span><span class="p">),</span>  <span class="c1"># Port 8080</span>
+<a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="n">daemon</span><span class="o">=</span><span class="kc">True</span>
+<a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="p">)</span>
+<a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a><span class="n">dashboard_thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+<a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>
+<a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a><span class="c1"># Dashboard now live at http://localhost:8080</span>
+<a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a><span class="c1"># - Real-time routing decisions</span>
+<a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a><span class="c1"># - Node health status</span>
+<a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a><span class="c1"># - Performance metrics</span>
+<a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a><span class="c1"># - Request logs</span>
+</code></pre></div>
+<h3 id="2-environment-configuration">2. Environment Configuration<a class="headerlink" href="#2-environment-configuration" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Set application context for logs</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SOLLOL_APP_NAME</span><span class="o">=</span><span class="s2">&quot;MyApp&quot;</span>
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="c1"># Control observability overhead</span>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SOLLOL_OBSERVER_SAMPLING</span><span class="o">=</span><span class="nb">true</span><span class="w">  </span><span class="c1"># Enable sampling (recommended)</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="c1"># OR</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SOLLOL_OBSERVER_SAMPLING</span><span class="o">=</span><span class="nb">false</span><span class="w">  </span><span class="c1"># Disable for max performance</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="c1"># Redis configuration (optional)</span>
+<a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SOLLOL_REDIS_URL</span><span class="o">=</span>redis://localhost:6379
+<a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SOLLOL_REDIS_HOST</span><span class="o">=</span>localhost
+<a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SOLLOL_REDIS_PORT</span><span class="o">=</span><span class="m">6379</span>
+</code></pre></div>
+<h3 id="3-health-monitoring">3. Health Monitoring<a class="headerlink" href="#3-health-monitoring" title="Permanent link">&para;</a></h3>
+<p>SOLLOL automatically monitors node health:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Get cluster statistics</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">stats</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">get_stats</span><span class="p">()</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Total requests: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;total_requests&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Success rate: </span><span class="si">{</span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;successful_requests&#39;</span><span class="p">]</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">stats</span><span class="p">[</span><span class="s1">&#39;total_requests&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>
+<a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="c1"># Node-level performance</span>
+<a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a><span class="k">for</span> <span class="n">node_key</span><span class="p">,</span> <span class="n">perf</span> <span class="ow">in</span> <span class="n">stats</span><span class="p">[</span><span class="s1">&#39;node_performance&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+<a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{</span><span class="n">node_key</span><span class="si">}</span><span class="s2">:&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Latency: </span><span class="si">{</span><span class="n">perf</span><span class="p">[</span><span class="s1">&#39;latency_ms&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2">ms&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Success rate: </span><span class="si">{</span><span class="n">perf</span><span class="p">[</span><span class="s1">&#39;success_rate&#39;</span><span class="p">]</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a>    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Throughput: </span><span class="si">{</span><span class="n">perf</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;batch_throughput&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> chunks/s&quot;</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="4-error-handling">4. Error Handling<a class="headerlink" href="#4-error-handling" title="Permanent link">&para;</a></h3>
+<p>SOLLOL provides automatic retry with fallback:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>    <span class="n">response</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>        <span class="n">model</span><span class="o">=</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>        <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;Hello&quot;</span><span class="p">}]</span>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>    <span class="p">)</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="k">except</span> <span class="ne">RuntimeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>    <span class="c1"># This only raises if ALL nodes failed</span>
+<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>    <span class="n">logger</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cluster unavailable: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>
+<a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>    <span class="c1"># SOLLOL already tried:</span>
+<a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>    <span class="c1"># 1. Primary node</span>
+<a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>    <span class="c1"># 2. Fallback nodes (ranked by success rate)</span>
+<a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a>    <span class="c1"># 3. Retry on fastest node</span>
+<a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>
+<a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a>    <span class="c1"># If you&#39;re here, the entire cluster is down</span>
+<a id="__codelineno-20-16" name="__codelineno-20-16" href="#__codelineno-20-16"></a>    <span class="c1"># Take appropriate action (alert, use backup cluster, etc.)</span>
+</code></pre></div>
+<h3 id="5-configuration-persistence">5. Configuration Persistence<a class="headerlink" href="#5-configuration-persistence" title="Permanent link">&para;</a></h3>
+<p>Save pool configuration for reuse:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="c1"># Save nodes to file</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;nodes.json&#39;</span><span class="p">,</span> <span class="s1">&#39;w&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">([</span>
+<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>        <span class="sa">f</span><span class="s2">&quot;http://</span><span class="si">{</span><span class="n">n</span><span class="p">[</span><span class="s1">&#39;host&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">n</span><span class="p">[</span><span class="s1">&#39;port&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span>
+<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>        <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">pool</span><span class="o">.</span><span class="n">nodes</span>
+<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a>    <span class="p">],</span> <span class="n">f</span><span class="p">)</span>
+<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a>
+<a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="c1"># Load nodes later</span>
+<a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s1">&#39;nodes.json&#39;</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a>    <span class="n">node_urls</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+<a id="__codelineno-21-13" name="__codelineno-21-13" href="#__codelineno-21-13"></a>
+<a id="__codelineno-21-14" name="__codelineno-21-14" href="#__codelineno-21-14"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="p">(</span><span class="n">nodes</span><span class="o">=</span><span class="p">[</span>
+<a id="__codelineno-21-15" name="__codelineno-21-15" href="#__codelineno-21-15"></a>    <span class="p">{</span><span class="s1">&#39;host&#39;</span><span class="p">:</span> <span class="n">url</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;//&#39;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span>
+<a id="__codelineno-21-16" name="__codelineno-21-16" href="#__codelineno-21-16"></a>     <span class="s1">&#39;port&#39;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">url</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">])}</span>
+<a id="__codelineno-21-17" name="__codelineno-21-17" href="#__codelineno-21-17"></a>    <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">node_urls</span>
+<a id="__codelineno-21-18" name="__codelineno-21-18" href="#__codelineno-21-18"></a><span class="p">])</span>
+</code></pre></div>
+<hr />
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<h3 id="issue-lost-chunks-in-batch-processing">Issue: Lost chunks in batch processing<a class="headerlink" href="#issue-lost-chunks-in-batch-processing" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>📞 embed_batch with 625 chunks → 552 results (73 LOST!)
+</code></pre></div></p>
+<p><strong>Cause</strong>: Too many concurrent requests overwhelming slow nodes</p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># Disable observability sampling (reduces overhead)</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">export</span> <span class="n">SOLLOL_OBSERVER_SAMPLING</span><span class="o">=</span><span class="n">false</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="c1"># Restart application to pick up changes</span>
+<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="c1"># SOLLOL now uses adaptive concurrency (fixed in v0.9.61+)</span>
+<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a><span class="c1"># - Fast nodes: 20 concurrent requests</span>
+<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="c1"># - Slow nodes: 5 concurrent requests</span>
+<a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a><span class="c1"># - Automatic retry of failed chunks</span>
+</code></pre></div></p>
+<h3 id="issue-models-loading-on-cpu-instead-of-gpu">Issue: Models loading on CPU instead of GPU<a class="headerlink" href="#issue-models-loading-on-cpu-instead-of-gpu" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: 45s response time instead of 2s</p>
+<p><strong>Cause</strong>: Model not loaded on GPU when request arrives</p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.gpu_controller</span><span class="w"> </span><span class="kn">import</span> <span class="n">SOLLOLGPUController</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="c1"># Enable GPU controller</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="n">gpu_controller</span> <span class="o">=</span> <span class="n">SOLLOLGPUController</span><span class="p">(</span>
+<a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>    <span class="n">pool</span><span class="o">=</span><span class="n">pool</span><span class="p">,</span>
+<a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>    <span class="n">priority_models</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;llama3.2&quot;</span><span class="p">,</span> <span class="s2">&quot;qwen2.5-coder:7b&quot;</span><span class="p">]</span>
+<a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a><span class="p">)</span>
+<a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>
+<a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a><span class="c1"># Now models are forced to GPU before routing</span>
+</code></pre></div></p>
+<h3 id="issue-auto-discovery-not-finding-nodes">Issue: Auto-discovery not finding nodes<a class="headerlink" href="#issue-auto-discovery-not-finding-nodes" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom:</strong>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>Found 0 nodes
+</code></pre></div></p>
+<p><strong>Cause</strong>: Firewall blocking port 11434 or nodes on different subnet</p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Test connectivity</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>curl<span class="w"> </span>http://10.9.66.15:11434/api/tags
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
+<a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># If that works, manually add nodes</span>
+</code></pre></div></p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="p">()</span>
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="n">pool</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="s2">&quot;10.9.66.15&quot;</span><span class="p">,</span> <span class="mi">11434</span><span class="p">)</span>
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="n">pool</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="s2">&quot;10.9.66.154&quot;</span><span class="p">,</span> <span class="mi">11434</span><span class="p">)</span>
+<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="n">pool</span><span class="o">.</span><span class="n">add_node</span><span class="p">(</span><span class="s2">&quot;192.168.1.100&quot;</span><span class="p">,</span> <span class="mi">11434</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="issue-dashboard-shows-no-activity">Issue: Dashboard shows no activity<a class="headerlink" href="#issue-dashboard-shows-no-activity" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: Dashboard loads but shows 0 requests</p>
+<p><strong>Cause</strong>: Redis not configured or observer disabled</p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="c1"># Install Redis</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>sudo<span class="w"> </span>apt<span class="w"> </span>install<span class="w"> </span>redis-server
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>redis
+<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>
+<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a><span class="c1"># Enable observer sampling</span>
+<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SOLLOL_OBSERVER_SAMPLING</span><span class="o">=</span><span class="nb">true</span>
+<a id="__codelineno-28-7" name="__codelineno-28-7" href="#__codelineno-28-7"></a>
+<a id="__codelineno-28-8" name="__codelineno-28-8" href="#__codelineno-28-8"></a><span class="c1"># Restart application</span>
+</code></pre></div></p>
+<h3 id="issue-performance-degradation-over-time">Issue: Performance degradation over time<a class="headerlink" href="#issue-performance-degradation-over-time" title="Permanent link">&para;</a></h3>
+<p><strong>Symptom</strong>: First 100 requests fast, then slows down</p>
+<p><strong>Cause</strong>: Observability overhead accumulating</p>
+<p><strong>Solution</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="c1"># Use 10% sampling instead of 100%</span>
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="c1"># Edit /home/joker/SOLLOL/src/sollol/network_observer.py</span>
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="c1"># Change line ~90:</span>
+<a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>self.sample_rate<span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span>.1<span class="w">  </span><span class="c1"># Was 1.0 (100%)</span>
+<a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a>
+<a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a><span class="c1"># OR disable observability entirely</span>
+<a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">SOLLOL_OBSERVER_SAMPLING</span><span class="o">=</span><span class="nb">false</span>
+</code></pre></div></p>
+<hr />
+<hr />
+<h2 id="honest-assessment-whats-proven-vs-aspirational">⚠️ Honest Assessment: What's Proven vs Aspirational<a class="headerlink" href="#honest-assessment-whats-proven-vs-aspirational" title="Permanent link">&para;</a></h2>
+<p>Before diving into case studies, here's an honest breakdown of SOLLOL's maturity:</p>
+<h3 id="production-proven-battle-tested">✅ Production-Proven (Battle-Tested)<a class="headerlink" href="#production-proven-battle-tested" title="Permanent link">&para;</a></h3>
+<p><strong>Batch Processing (FlockParser)</strong>
+- <strong>Status</strong>: Live in production, processing real documents
+- <strong>Evidence</strong>: Actual performance logs from 2025-11-02
+- <strong>Metrics</strong>: 5.5x speedup (298 chunks: 1656s → 301s)
+- <strong>Known Issues</strong>: Fixed concurrency bugs on 2025-11-02 (adaptive concurrency + retry logic)
+- <strong>Recommendation</strong>: ✅ Use in production with observability disabled for max performance</p>
+<p><strong>Auto-Discovery</strong>
+- <strong>Status</strong>: Mature, used across all projects
+- <strong>Evidence</strong>: Discovers 2-3 nodes in ~500ms consistently
+- <strong>Known Issues</strong>: Requires port 11434 accessible, same subnet
+- <strong>Recommendation</strong>: ✅ Use in production</p>
+<p><strong>Dashboard &amp; Observability</strong>
+- <strong>Status</strong>: Functional, real-time metrics work
+- <strong>Evidence</strong>: Live dashboard at :8080 shows routing decisions
+- <strong>Known Issues</strong>: 100% sampling adds 50% overhead (use 10% or disable)
+- <strong>Recommendation</strong>: ✅ Use for development, 10% sampling for production</p>
+<h3 id="experimental-works-needs-more-testing">🔬 Experimental (Works, Needs More Testing)<a class="headerlink" href="#experimental-works-needs-more-testing" title="Permanent link">&para;</a></h3>
+<p><strong>Intelligent Routing (SynapticLlamas pattern)</strong>
+- <strong>Status</strong>: Alpha, functional but not battle-tested at scale
+- <strong>Evidence</strong>: Code exists, integration works, limited production data
+- <strong>Known Issues</strong>: No long-term performance data (days/weeks)
+- <strong>Recommendation</strong>: ⚠️ Use for development, monitor closely in production</p>
+<p><strong>GPU Controller</strong>
+- <strong>Status</strong>: Alpha, prevents CPU slowdown
+- <strong>Evidence</strong>: Forces models to GPU successfully
+- <strong>Known Issues</strong>: Ollama may unload models unexpectedly
+- <strong>Recommendation</strong>: ⚠️ Works but needs monitoring</p>
+<p><strong>Hedging Strategy</strong>
+- <strong>Status</strong>: Proof-of-concept, limited testing
+- <strong>Evidence</strong>: Code implementation exists
+- <strong>Known Issues</strong>: No production latency data, may waste resources
+- <strong>Recommendation</strong>: ⚠️ Test thoroughly before production</p>
+<p><strong>Multi-Mode Routing (Hydra pattern)</strong>
+- <strong>Status</strong>: Alpha, mode switching works
+- <strong>Evidence</strong>: Modes implemented, no comprehensive benchmarks
+- <strong>Known Issues</strong>: Optimal mode selection criteria unclear
+- <strong>Recommendation</strong>: ⚠️ Experimental, gather your own benchmarks</p>
+<h3 id="conceptual-not-production-ready">🚧 Conceptual (Not Production-Ready)<a class="headerlink" href="#conceptual-not-production-ready" title="Permanent link">&para;</a></h3>
+<p><strong>Distributed Inference (llama.cpp RPC)</strong>
+- <strong>Status</strong>: Experimental proof-of-concept
+- <strong>Evidence</strong>: Works for 13B models, 5x slower than local
+- <strong>Known Issues</strong>: High latency, version-sensitive, manual setup
+- <strong>Recommendation</strong>: ❌ Research only, not for production</p>
+<p><strong>Distributed Training Orchestration (LlamaForge)</strong>
+- <strong>Status</strong>: Discovery works, full orchestration incomplete
+- <strong>Evidence</strong>: Can find nodes and deduplicate hosts
+- <strong>Known Issues</strong>: PyTorch DDP integration is manual, SOLLOL just helps discovery
+- <strong>Recommendation</strong>: ⚠️ Use discovery feature, handle DDP yourself</p>
+<hr />
+<h2 id="case-studies-with-honest-data">Case Studies (With Honest Data)<a class="headerlink" href="#case-studies-with-honest-data" title="Permanent link">&para;</a></h2>
+<h3 id="flockparser-pdf-processing-at-scale-proven">FlockParser: PDF Processing at Scale ✅ PROVEN<a class="headerlink" href="#flockparser-pdf-processing-at-scale-proven" title="Permanent link">&para;</a></h3>
+<p><strong>Challenge</strong>: Process 21 PDFs (6.5 million characters total) into vector embeddings</p>
+<p><strong>Solution</strong>: SOLLOL batch processing with adaptive parallelism</p>
+<p><strong>Real Performance Data</strong> (from actual logs, 2025-11-02):
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>Before SOLLOL (single node - 10.9.66.154):
+<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>- 298 chunks in 1656s = 0.18 chunks/sec
+<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>
+<a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a>After SOLLOL (2 nodes - .15 + .154):
+<a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>- 298 chunks in 301s = 1.0 chunks/sec
+<a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a>- 5.5x speedup achieved
+<a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a>
+<a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a>Observed issues (now fixed):
+<a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a>- 1703 chunks → 1588 results (115 lost, 6.7% failure)
+<a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a>- 625 chunks → 552 results (73 lost, 11.7% failure)
+<a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a>- Root cause: 100 concurrent requests overwhelming slow nodes
+<a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a>
+<a id="__codelineno-30-13" name="__codelineno-30-13" href="#__codelineno-30-13"></a>Fix applied (2025-11-02):
+<a id="__codelineno-30-14" name="__codelineno-30-14" href="#__codelineno-30-14"></a>- Adaptive concurrency: slow nodes get 5 concurrent, fast nodes get 20
+<a id="__codelineno-30-15" name="__codelineno-30-15" href="#__codelineno-30-15"></a>- Automatic retry: failed chunks retried on fastest node
+<a id="__codelineno-30-16" name="__codelineno-30-16" href="#__codelineno-30-16"></a>- Result: 0% chunk loss after fix
+</code></pre></div></p>
+<p><strong>Key Code</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="o">.</span><span class="n">auto_configure</span><span class="p">()</span>
+<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="n">embeddings</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">embed_batch</span><span class="p">(</span>
+<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>    <span class="n">model</span><span class="o">=</span><span class="s2">&quot;mxbai-embed-large&quot;</span><span class="p">,</span>
+<a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>    <span class="n">inputs</span><span class="o">=</span><span class="n">document_chunks</span><span class="p">,</span>  <span class="c1"># 2453 chunks total across 21 PDFs</span>
+<a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>    <span class="n">use_adaptive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a>    <span class="n">priority</span><span class="o">=</span><span class="mi">7</span>
+<a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="p">)</span>
+</code></pre></div></p>
+<p><strong>Takeaway</strong>: Batch processing with SOLLOL is production-ready. The adaptive concurrency and retry logic (added 2025-11-02) solves the lost chunk problem. Disable observability sampling for max performance.</p>
+<hr />
+<h3 id="synapticllamas-multi-agent-research-experimental">SynapticLlamas: Multi-Agent Research ⚠️ EXPERIMENTAL<a class="headerlink" href="#synapticllamas-multi-agent-research-experimental" title="Permanent link">&para;</a></h3>
+<p><strong>Challenge</strong>: Run 5 AI agents in parallel instead of serially</p>
+<p><strong>Solution</strong>: SOLLOL parallel execution with GPU-aware routing</p>
+<p><strong>Honest Assessment</strong>:
+- <strong>Status</strong>: Functional integration, limited production data
+- <strong>Evidence</strong>: Code exists, agents can run in parallel, GPU controller works
+- <strong>Missing</strong>: No comprehensive benchmarks comparing serial vs parallel
+- <strong>Known Issue</strong>: No data proving hedging reduces latency</p>
+<p><strong>What We Know Works</strong>:
+- GPU controller forces models to GPU (prevents 20x CPU slowdown)
+- Intelligent routing selects appropriate nodes
+- Dashboard shows routing decisions</p>
+<p><strong>What We Don't Know Yet</strong>:
+- Actual speedup in production (no benchmark data)
+- Long-term stability (days/weeks)
+- Optimal configuration for different agent types</p>
+<p><strong>Key Code</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.gpu_controller</span><span class="w"> </span><span class="kn">import</span> <span class="n">SOLLOLGPUController</span><span class="p">,</span> <span class="n">integrate_with_router</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="n">integrate_with_router</span><span class="p">(</span><span class="n">router</span><span class="p">,</span> <span class="n">gpu_controller</span><span class="p">)</span>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="c1"># GPU controller ensures models stay on GPU</span>
+<a id="__codelineno-32-6" name="__codelineno-32-6" href="#__codelineno-32-6"></a><span class="c1"># Intelligent routing picks best node per agent</span>
+</code></pre></div></p>
+<p><strong>Takeaway</strong>: Works for development and testing. Gather your own benchmarks before production use.</p>
+<hr />
+<h3 id="hydra-autonomous-code-synthesis-experimental">Hydra: Autonomous Code Synthesis ⚠️ EXPERIMENTAL<a class="headerlink" href="#hydra-autonomous-code-synthesis-experimental" title="Permanent link">&para;</a></h3>
+<p><strong>Challenge</strong>: Different workflow phases need different routing strategies</p>
+<p><strong>Solution</strong>: Mode switching (FAST/RELIABLE/ASYNC)</p>
+<p><strong>Honest Assessment</strong>:
+- <strong>Status</strong>: Mode switching implemented, no benchmarks
+- <strong>Evidence</strong>: Modes exist, routing behavior differs
+- <strong>Missing</strong>: Benchmark data comparing modes
+- <strong>Missing</strong>: Guidance on when to use each mode</p>
+<p><strong>What We Know Works</strong>:
+- Three distinct routing modes exist
+- Can switch modes programmatically
+- VRAM-aware routing works</p>
+<p><strong>What We Don't Know Yet</strong>:
+- Actual performance difference between modes
+- Optimal mode for each task type
+- Production stability</p>
+<p><strong>Key Code</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.routing_modes</span><span class="w"> </span><span class="kn">import</span> <span class="n">RoutingMode</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">FAST</span><span class="p">)</span>  <span class="c1"># Planning phase</span>
+<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">RELIABLE</span><span class="p">)</span>  <span class="c1"># Implementation</span>
+<a id="__codelineno-33-5" name="__codelineno-33-5" href="#__codelineno-33-5"></a><span class="n">pool</span><span class="o">.</span><span class="n">set_routing_mode</span><span class="p">(</span><span class="n">RoutingMode</span><span class="o">.</span><span class="n">ASYNC</span><span class="p">)</span>  <span class="c1"># Documentation</span>
+</code></pre></div></p>
+<p><strong>Takeaway</strong>: Conceptually sound, but gather your own benchmarks. Mode selection criteria need real-world testing.</p>
+<hr />
+<h3 id="llamaforge-distributed-training-proven-discovery-only">LlamaForge: Distributed Training ✅ PROVEN (Discovery Only)<a class="headerlink" href="#llamaforge-distributed-training-proven-discovery-only" title="Permanent link">&para;</a></h3>
+<p><strong>Challenge</strong>: Identify unique physical machines for PyTorch DDP</p>
+<p><strong>Solution</strong>: SOLLOL auto-discovery with deduplication</p>
+<p><strong>Real Data</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>Network scan:
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a>- Found: 10.9.66.15, 10.9.66.154, localhost
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a>- Deduplicated: 10.9.66.15, 10.9.66.154 (2 unique hosts)
+<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a>- Recommendation: Use distributed training
+<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a>- Scan time: ~500ms
+</code></pre></div></p>
+<p><strong>Honest Assessment</strong>:
+- <strong>Status</strong>: Discovery proven, full training orchestration manual
+- <strong>Evidence</strong>: Auto-discovery works reliably
+- <strong>What SOLLOL provides</strong>: Node discovery, deduplication, decision logic
+- <strong>What SOLLOL doesn't provide</strong>: PyTorch DDP setup, model distribution</p>
+<p><strong>Key Code</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sollol.discovery</span><span class="w"> </span><span class="kn">import</span> <span class="n">discover_ollama_nodes</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="n">nodes</span> <span class="o">=</span> <span class="n">discover_ollama_nodes</span><span class="p">(</span><span class="n">discover_all_nodes</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="n">pool</span> <span class="o">=</span> <span class="n">OllamaPool</span><span class="p">(</span><span class="n">nodes</span><span class="o">=</span><span class="n">nodes</span><span class="p">)</span>
+<a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a>
+<a id="__codelineno-35-6" name="__codelineno-35-6" href="#__codelineno-35-6"></a><span class="n">unique</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">count_unique_physical_hosts</span><span class="p">()</span>  <span class="c1"># Returns: 2</span>
+<a id="__codelineno-35-7" name="__codelineno-35-7" href="#__codelineno-35-7"></a><span class="n">should_parallel</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">should_use_parallel_execution</span><span class="p">(</span><span class="n">num_tasks</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>  <span class="c1"># Returns: True</span>
+<a id="__codelineno-35-8" name="__codelineno-35-8" href="#__codelineno-35-8"></a>
+<a id="__codelineno-35-9" name="__codelineno-35-9" href="#__codelineno-35-9"></a><span class="c1"># You still manually setup PyTorch DDP with these nodes</span>
+<a id="__codelineno-35-10" name="__codelineno-35-10" href="#__codelineno-35-10"></a><span class="c1"># torchrun --nproc_per_node=1 --nnodes=2 \</span>
+<a id="__codelineno-35-11" name="__codelineno-35-11" href="#__codelineno-35-11"></a><span class="c1">#   --master_addr=10.9.66.15 --master_port=29500 train.py</span>
+</code></pre></div></p>
+<p><strong>Takeaway</strong>: Discovery feature is production-ready. Use it to find nodes, then setup PyTorch DDP yourself.</p>
+<hr />
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Try Quick Start</strong>: Get distributed Ollama running in 5 lines</li>
+<li><strong>Pick a Pattern</strong>: Choose the pattern matching your use case</li>
+<li><strong>Enable Dashboard</strong>: Monitor your cluster in real-time</li>
+<li><strong>Tune Performance</strong>: Use adaptive parallelism and priority</li>
+<li><strong>Read Code Examples</strong>: Check projects in /home/joker:</li>
+<li><code>FlockParser/</code> - Batch processing</li>
+<li><code>SynapticLlamas/</code> - Multi-agent</li>
+<li><code>hydra/</code> - Code synthesis</li>
+<li><code>LlamaForge/</code> - Distributed training</li>
+<li><strong>📊 Share Your Benchmarks</strong>: Help move features from EXPERIMENTAL → PROVEN</li>
+<li>See <a href="../CONTRIBUTING_BENCHMARKS/">CONTRIBUTING_BENCHMARKS.md</a></li>
+<li>Use our templates for easy submission</li>
+<li>Get recognized for your contributions</li>
+</ol>
+<hr />
+<h2 id="additional-resources">Additional Resources<a class="headerlink" href="#additional-resources" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>SOLLOL Documentation</strong>: /home/joker/SOLLOL/docs/</li>
+<li><strong>Architecture Guide</strong>: ARCHITECTURE.md</li>
+<li><strong>Configuration</strong>: SOLLOL_CONFIGURATION_GUIDE.md</li>
+<li><strong>Observability</strong>: UNIFIED_OBSERVABILITY.md</li>
+<li><strong>API Reference</strong>: /home/joker/SOLLOL/src/sollol/</li>
+</ul>
+<hr />
+<p><strong>Questions?</strong> Check the SOLLOL dashboard at <code>http://localhost:8080</code> for live metrics and routing decisions.</p>
+<p><strong>Found a bug?</strong> The async work stealing code is brand new - we fixed concurrency and retry issues on 2025-11-02. Report issues to improve SOLLOL for everyone!</p>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2025 14:55:23 UTC">November 3, 2025</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"/></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 3, 2025 14:55:23 UTC">November 3, 2025</span>
+  </span>
+
+    
+    
+    
+  </aside>
+
+
+  
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2025 BenevolentJoker-JohnL. Licensed under MIT.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/BenevolentJoker-JohnL/SOLLOL" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/sollol" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      <script id="__config" type="application/json">{"base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.expand", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.973d3a69.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.f55a23d4.min.js"></script>
+      
+    
+  </body>
+</html>

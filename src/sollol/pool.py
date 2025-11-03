@@ -2693,73 +2693,100 @@ class OllamaPool:
 
                             return idx, None, e, latency_ms
 
-                    # Work stealing: Process own queue, then steal from others
+                    # Work stealing: Process own queue with bounded concurrency, then steal from others
                     completed = 0
                     latencies_collected = []
-                    tasks = []  # Collect all active tasks
+                    tasks = set()  # Track active tasks
+                    assigned_count = len(chunks_per_node[node_idx])
+                    completed_assigned = 0  # Track how much of our assigned work we've done
+                    max_concurrent = 100  # Limit concurrent tasks to prevent memory issues
 
                     while True:
-                        work_item = None
-                        stolen_from = None
+                        # Create new tasks up to the concurrency limit
+                        while len(tasks) < max_concurrent:
+                            work_item = None
+                            stolen_from = None
 
-                        # Try to get from own queue first
-                        try:
-                            work_item = my_queue.get_nowait()
-                        except asyncio.QueueEmpty:
-                            # Own queue empty - try stealing from others
-                            for other_idx in range(num_nodes):
-                                if other_idx == node_idx:
-                                    continue
-                                try:
-                                    work_item = node_queues[other_idx].get_nowait()
-                                    stolen_from = other_idx
+                            # Try to get from own queue first
+                            try:
+                                work_item = my_queue.get_nowait()
+                            except asyncio.QueueEmpty:
+                                # Own queue empty - only steal if we've completed 80% of assigned work
+                                # This prevents premature stealing while tasks are still in-flight
+                                if assigned_count > 0 and completed_assigned >= int(assigned_count * 0.8):
+                                    # Try stealing from others
+                                    for other_idx in range(num_nodes):
+                                        if other_idx == node_idx:
+                                            continue
+                                        try:
+                                            work_item = node_queues[other_idx].get_nowait()
+                                            stolen_from = other_idx
 
-                                    # Log stealing event
-                                    async with steal_lock:
-                                        steal_stats[node_idx]["stolen"] += 1
-                                        steal_stats[other_idx]["stolen_from"] += 1
+                                            # Log stealing event
+                                            async with steal_lock:
+                                                steal_stats[node_idx]["stolen"] += 1
+                                                steal_stats[other_idx]["stolen_from"] += 1
 
-                                    other_node = self.nodes[other_idx]
-                                    other_display = f"http://{other_node['host']}:{other_node['port']}"
-                                    print(
-                                        f"      🎯 Node {full_node_display} stole work from {other_display}",
-                                        file=sys.stderr,
-                                        flush=True
-                                    )
-                                    break
-                                except asyncio.QueueEmpty:
-                                    continue
+                                            other_node = self.nodes[other_idx]
+                                            other_display = f"http://{other_node['host']}:{other_node['port']}"
+                                            print(
+                                                f"      🎯 Node {full_node_display} stole work from {other_display} "
+                                                f"(after completing {completed_assigned}/{assigned_count} assigned)",
+                                                file=sys.stderr,
+                                                flush=True
+                                            )
+                                            break
+                                        except asyncio.QueueEmpty:
+                                            continue
 
-                        if work_item is None:
-                            # All queues empty - done
+                            if work_item is None:
+                                # No more work available
+                                break
+
+                            # Process the work item
+                            idx, text = work_item
+                            task = asyncio.create_task(embed_one(idx, text))
+                            tasks.add(task)
+
+                            # Track whether this was assigned or stolen
+                            if stolen_from is None:
+                                task._is_assigned = True
+                            else:
+                                task._is_assigned = False
+
+                        # If no active tasks and no work items, we're done
+                        if not tasks:
                             break
 
-                        # Process the work item
-                        idx, text = work_item
-                        task = asyncio.create_task(embed_one(idx, text))
-                        tasks.append(task)
+                        # Wait for at least one task to complete
+                        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                        tasks = pending  # Update active tasks
 
-                    # Wait for all spawned tasks to complete
-                    for coro in asyncio.as_completed(tasks):
-                        idx, result, error, latency_ms = await coro
+                        # Process completed tasks
+                        for task in done:
+                            idx, result, error, latency_ms = await task
 
-                        # Update results - keep lock scope minimal
-                        with results_lock:
-                            if not error:
-                                results[idx] = result
-                            latencies_collected.append(latency_ms)
-                            completed_count[0] += 1
-                            completed += 1
-                            current_progress = completed_count[0]
+                            # Track assigned vs stolen completion
+                            if getattr(task, '_is_assigned', False):
+                                completed_assigned += 1
 
-                        # Global progress reporting (not per-node during stealing)
-                        if current_progress % 10 == 0 or current_progress == batch_size:
-                            progress_pct = (current_progress * 100) // batch_size
-                            print(
-                                f"      📊 Global progress: {current_progress}/{batch_size} ({progress_pct}%)",
-                                file=sys.stderr,
-                                flush=True
-                            )
+                            # Update results - keep lock scope minimal
+                            with results_lock:
+                                if not error:
+                                    results[idx] = result
+                                latencies_collected.append(latency_ms)
+                                completed_count[0] += 1
+                                completed += 1
+                                current_progress = completed_count[0]
+
+                            # Global progress reporting (not per-node during stealing)
+                            if current_progress % 10 == 0 or current_progress == batch_size:
+                                progress_pct = (current_progress * 100) // batch_size
+                                print(
+                                    f"      📊 Global progress: {current_progress}/{batch_size} ({progress_pct}%)",
+                                    file=sys.stderr,
+                                    flush=True
+                                )
 
                 # Log completion for dashboard and terminal visibility
                 async with steal_lock:

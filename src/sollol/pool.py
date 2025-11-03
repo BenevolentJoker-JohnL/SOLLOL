@@ -2535,18 +2535,17 @@ class OllamaPool:
             node_percentages = [1.0 / num_nodes for _ in range(num_nodes)]
 
         # PER-NODE QUEUES with cross-node work stealing when done
-        # Each node gets its own queue, workers share their node's queue
-        # When a node finishes, its workers help other nodes
-        import queue as queue_module
+        # Each node gets its own async queue
+        # When a node finishes its queue, it steals from other nodes
         import threading
 
         print(
-            f"   ⚡ Per-node queues with cross-node stealing: {batch_size} chunks",
+            f"   ⚡ Per-node async queues with work stealing: {batch_size} chunks",
             file=sys.stderr,
             flush=True,
         )
 
-        # Distribute chunks to per-node queues based on weights
+        # Distribute chunks to per-node lists (will populate queues in async context)
         chunks_per_node = [[] for _ in range(num_nodes)]
         indices_per_node = [[] for _ in range(num_nodes)]
 
@@ -2561,14 +2560,6 @@ class OllamaPool:
                     break
             chunks_per_node[node_idx].append((idx, text))
             indices_per_node[node_idx].append(idx)
-
-        # Create per-node queues
-        node_queues = []
-        for i, node in enumerate(self.nodes):
-            node_queue = queue_module.Queue()
-            for idx, text in chunks_per_node[i]:
-                node_queue.put((idx, text))
-            node_queues.append(node_queue)
 
         # Log ESTIMATED distribution
         import sys
@@ -2614,38 +2605,53 @@ class OllamaPool:
         # (No longer spawning workers - using async instead)
 
         async def submit_all_nodes_async():
-            """Submit ALL chunks for ALL nodes async in a single event loop"""
+            """Submit ALL chunks for ALL nodes async with work stealing"""
             import asyncio
             import time as time_module
 
             import httpx
 
+            # Create async queues for each node
+            node_queues = []
+            for i in range(num_nodes):
+                q = asyncio.Queue()
+                for idx, text in chunks_per_node[i]:
+                    await q.put((idx, text))
+                node_queues.append(q)
+
+            # Shared stealing statistics
+            steal_stats = {i: {"assigned": len(chunks_per_node[i]), "stolen": 0, "stolen_from": 0}
+                          for i in range(num_nodes)}
+            steal_lock = asyncio.Lock()
+
             async def process_node(node_idx: int):
-                """Process all chunks for a single node"""
+                """Process chunks from own queue, then steal from others when done"""
                 node = self.nodes[node_idx]
                 node_key = f"{node['host']}:{node['port']}"
                 node_url = f"http://{node['host']}:{node['port']}"
 
-                my_chunks = chunks_per_node[node_idx]
-                if not my_chunks:
+                my_queue = node_queues[node_idx]
+                initial_size = len(chunks_per_node[node_idx])
+
+                if initial_size == 0:
                     return []  # Return empty latencies list
 
-                # Log routing decision for this batch to dashboard
+                # Log initial routing decision
                 self.routing_logger.log_ollama_node_selected(
                     node_url=node_url,
                     model=model,
-                    reason=f"Async batch: {len(my_chunks)} embeddings ({len(my_chunks)*100//batch_size}% of batch)",
+                    reason=f"Async batch: {initial_size} embeddings assigned ({initial_size*100//batch_size}%)",
                     priority=priority
                 )
 
                 full_node_display = f"http://{node['host']}:{node['port']}"
                 print(
-                    f"      🚀 Node {full_node_display} submitting {len(my_chunks)} chunks async",
+                    f"      🚀 Node {full_node_display} starting with {initial_size} chunks",
                     file=sys.stderr,
                     flush=True,
                 )
 
-                # Create client for this node
+                # Create client for this node - keep alive for stealing
                 async with httpx.AsyncClient(timeout=300.0) as client:
 
                     async def embed_one(idx, text):
@@ -2687,17 +2693,57 @@ class OllamaPool:
 
                             return idx, None, e, latency_ms
 
-                    # Fire off ALL requests at once! (dcb46ae behavior - FAST!)
-                    tasks = [embed_one(idx, text) for idx, text in my_chunks]
-
-                    # Collect responses as they complete (any order)
+                    # Work stealing: Process own queue, then steal from others
                     completed = 0
-                    latencies_collected = []  # Track latencies for P50/P95/P99
+                    latencies_collected = []
+                    tasks = []  # Collect all active tasks
 
+                    while True:
+                        work_item = None
+                        stolen_from = None
+
+                        # Try to get from own queue first
+                        try:
+                            work_item = my_queue.get_nowait()
+                        except asyncio.QueueEmpty:
+                            # Own queue empty - try stealing from others
+                            for other_idx in range(num_nodes):
+                                if other_idx == node_idx:
+                                    continue
+                                try:
+                                    work_item = node_queues[other_idx].get_nowait()
+                                    stolen_from = other_idx
+
+                                    # Log stealing event
+                                    async with steal_lock:
+                                        steal_stats[node_idx]["stolen"] += 1
+                                        steal_stats[other_idx]["stolen_from"] += 1
+
+                                    other_node = self.nodes[other_idx]
+                                    other_display = f"http://{other_node['host']}:{other_node['port']}"
+                                    print(
+                                        f"      🎯 Node {full_node_display} stole work from {other_display}",
+                                        file=sys.stderr,
+                                        flush=True
+                                    )
+                                    break
+                                except asyncio.QueueEmpty:
+                                    continue
+
+                        if work_item is None:
+                            # All queues empty - done
+                            break
+
+                        # Process the work item
+                        idx, text = work_item
+                        task = asyncio.create_task(embed_one(idx, text))
+                        tasks.append(task)
+
+                    # Wait for all spawned tasks to complete
                     for coro in asyncio.as_completed(tasks):
                         idx, result, error, latency_ms = await coro
 
-                        # Update results - keep lock scope minimal, NO I/O while holding lock
+                        # Update results - keep lock scope minimal
                         with results_lock:
                             if not error:
                                 results[idx] = result
@@ -2706,20 +2752,25 @@ class OllamaPool:
                             completed += 1
                             current_progress = completed_count[0]
 
-                        # Progress every 10 chunks - frequent updates without flooding logs
+                        # Global progress reporting (not per-node during stealing)
                         if current_progress % 10 == 0 or current_progress == batch_size:
                             progress_pct = (current_progress * 100) // batch_size
-                            # Force full IP display with explicit formatting
-                            full_node_display = f"http://{node['host']}:{node['port']}"
                             print(
-                                f"      📊 Progress: {current_progress}/{batch_size} ({progress_pct}%) - Node: {full_node_display}",
+                                f"      📊 Global progress: {current_progress}/{batch_size} ({progress_pct}%)",
                                 file=sys.stderr,
                                 flush=True
                             )
 
                 # Log completion for dashboard and terminal visibility
+                async with steal_lock:
+                    stats = steal_stats[node_idx]
                 full_node_display = f"http://{node['host']}:{node['port']}"
-                print(f"      ✅ Node {full_node_display} completed {len(my_chunks)} chunks", file=sys.stderr, flush=True)
+                print(
+                    f"      ✅ Node {full_node_display} completed: {stats['assigned']} assigned, "
+                    f"{stats['stolen']} stolen from others, {stats['stolen_from']} stolen by others",
+                    file=sys.stderr,
+                    flush=True
+                )
 
                 return latencies_collected  # Return latencies for P50/P95/P99 calculation
 

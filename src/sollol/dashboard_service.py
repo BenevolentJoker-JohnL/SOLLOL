@@ -312,7 +312,9 @@ class DashboardService:
                 try:
                     logger.info("🔍 Attempting to connect to existing Ray cluster...")
                     ray.init(address="auto", ignore_reinit_error=True, logging_level=logging.ERROR)
-                    logger.info(f"✅ Connected to existing Ray cluster at {ray.get_address_info()['address']}")
+                    logger.info(
+                        f"✅ Connected to existing Ray cluster at {ray.get_address_info()['address']}"
+                    )
                     self.ray_initialized = True
                 except Exception as e:
                     # No existing cluster, start new one
@@ -325,7 +327,9 @@ class DashboardService:
                         dashboard_port=ray_dashboard_port,
                         include_dashboard=True,
                     )
-                    logger.info(f"✅ Ray initialized with dashboard at http://127.0.0.1:{ray_dashboard_port}")
+                    logger.info(
+                        f"✅ Ray initialized with dashboard at http://127.0.0.1:{ray_dashboard_port}"
+                    )
                     self.ray_initialized = True
             except ImportError:
                 logger.warning("⚠️  Ray not installed, dashboard will not show Ray metrics")
@@ -396,8 +400,16 @@ class DashboardService:
         if latencies:
             sorted_latencies = sorted(latencies)
             p50 = statistics.median(sorted_latencies)
-            p95 = statistics.quantiles(sorted_latencies, n=20)[18] if len(sorted_latencies) >= 20 else sorted_latencies[-1]
-            p99 = statistics.quantiles(sorted_latencies, n=100)[98] if len(sorted_latencies) >= 100 else sorted_latencies[-1]
+            p95 = (
+                statistics.quantiles(sorted_latencies, n=20)[18]
+                if len(sorted_latencies) >= 20
+                else sorted_latencies[-1]
+            )
+            p99 = (
+                statistics.quantiles(sorted_latencies, n=100)[98]
+                if len(sorted_latencies) >= 100
+                else sorted_latencies[-1]
+            )
             success_rate = successful_responses / total_responses if total_responses > 0 else 1.0
         else:
             p50 = p95 = p99 = 0
@@ -449,10 +461,12 @@ class DashboardService:
                     key = (backend, model, operation)
                     if key not in request_map:
                         request_map[key] = []
-                    request_map[key].append({
-                        "timestamp": timestamp,
-                        "event": event,
-                    })
+                    request_map[key].append(
+                        {
+                            "timestamp": timestamp,
+                            "event": event,
+                        }
+                    )
 
         # Second pass: match RESPONSE events to REQUEST events
         for event in self.ollama_activity_buffer:
@@ -476,7 +490,10 @@ class DashboardService:
                         for req in request_map[key]:
                             req_time = req["timestamp"]
                             # Response should be after request, within reasonable latency window (< 60 seconds)
-                            if req_time < response_timestamp and (response_timestamp - req_time) < 60:
+                            if (
+                                req_time < response_timestamp
+                                and (response_timestamp - req_time) < 60
+                            ):
                                 matching_request = req
                                 break
 
@@ -486,17 +503,19 @@ class DashboardService:
 
                             # Create trace
                             trace_id = f"{backend}_{model}_{int(response_timestamp * 1000)}"
-                            traces.append({
-                                "trace_id": trace_id,
-                                "backend": backend,
-                                "model": model,
-                                "operation": operation,
-                                "request_time": matching_request["timestamp"],
-                                "response_time": response_timestamp,
-                                "latency_ms": round(latency_ms, 2),
-                                "status": "success" if status_code == 200 else "error",
-                                "status_code": status_code,
-                            })
+                            traces.append(
+                                {
+                                    "trace_id": trace_id,
+                                    "backend": backend,
+                                    "model": model,
+                                    "operation": operation,
+                                    "request_time": matching_request["timestamp"],
+                                    "response_time": response_timestamp,
+                                    "latency_ms": round(latency_ms, 2),
+                                    "status": "success" if status_code == 200 else "error",
+                                    "status_code": status_code,
+                                }
+                            )
 
         # Sort by response_time descending (most recent first) and limit
         traces.sort(key=lambda t: t["response_time"], reverse=True)
@@ -508,11 +527,12 @@ class DashboardService:
         @self.app.route("/")
         def index():
             from flask import make_response
+
             response = make_response(render_template_string(self._get_dashboard_html()))
             # Prevent browser caching to ensure users always get the latest code
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
             return response
 
         @self.app.route("/api/metrics")
@@ -976,9 +996,7 @@ class DashboardService:
 
                 # Get activity from Redis list (stored newest first)
                 raw_events = self.redis_client.lrange(
-                    "sollol:dashboard:ollama:activity:history",
-                    offset,
-                    offset + limit - 1
+                    "sollol:dashboard:ollama:activity:history", offset, offset + limit - 1
                 )
 
                 events = []
@@ -997,13 +1015,15 @@ class DashboardService:
                             continue
 
                         # Format for API response
-                        events.append({
-                            "timestamp": event.get("timestamp", 0),
-                            "backend": event.get("backend", "unknown"),
-                            "event_type": event.get("event_type", "unknown"),
-                            "severity": event.get("severity", "info"),
-                            "details": event.get("details", {}),
-                        })
+                        events.append(
+                            {
+                                "timestamp": event.get("timestamp", 0),
+                                "backend": event.get("backend", "unknown"),
+                                "event_type": event.get("event_type", "unknown"),
+                                "severity": event.get("severity", "info"),
+                                "details": event.get("details", {}),
+                            }
+                        )
                     except Exception as e:
                         logger.debug(f"Failed to parse activity event: {e}")
                         continue
@@ -1011,12 +1031,14 @@ class DashboardService:
                 # Get total count from Redis
                 total = self.redis_client.llen("sollol:dashboard:ollama:activity:history")
 
-                return jsonify({
-                    "activity": events,
-                    "total": total,
-                    "limit": limit,
-                    "offset": offset,
-                })
+                return jsonify(
+                    {
+                        "activity": events,
+                        "total": total,
+                        "limit": limit,
+                        "offset": offset,
+                    }
+                )
             except Exception as e:
                 logger.error(f"Error getting activity: {e}")
                 return jsonify({"error": str(e), "activity": [], "total": 0}), 500
@@ -1247,9 +1269,11 @@ class DashboardService:
                         try:
                             self.redis_client.lpush(
                                 "sollol:dashboard:ollama:activity:history",
-                                json.dumps(activity_data)
+                                json.dumps(activity_data),
                             )
-                            self.redis_client.ltrim("sollol:dashboard:ollama:activity:history", 0, 999)
+                            self.redis_client.ltrim(
+                                "sollol:dashboard:ollama:activity:history", 0, 999
+                            )
                         except Exception as e:
                             logger.debug(f"Failed to persist activity: {e}")
 
@@ -1751,9 +1775,11 @@ class DashboardService:
                         try:
                             self.redis_client.lpush(
                                 "sollol:dashboard:ollama:activity:history",
-                                json.dumps(activity_data)
+                                json.dumps(activity_data),
                             )
-                            self.redis_client.ltrim("sollol:dashboard:ollama:activity:history", 0, 999)
+                            self.redis_client.ltrim(
+                                "sollol:dashboard:ollama:activity:history", 0, 999
+                            )
                         except Exception as e:
                             logger.debug(f"Failed to persist activity: {e}")
 

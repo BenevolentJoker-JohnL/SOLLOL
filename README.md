@@ -2,6 +2,9 @@
 
 <div align="center">
 
+<sup>Maintained by [BenevolentJoker-JohnL](https://github.com/BenevolentJoker-JohnL)</sup>
+
+[![PyPI version](https://img.shields.io/pypi/v/sollol.svg)](https://pypi.org/project/sollol/)
 [![Development Status](https://img.shields.io/badge/status-alpha-orange.svg)](https://github.com/BenevolentJoker-JohnL/SOLLOL)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -12,7 +15,7 @@
 
 **Open-source orchestration framework that combines intelligent task routing with distributed model inference for local LLM clusters — designed for production scalability.**
 
-[Quick Start](#-quick-start) • [Features](#-why-sollol) • [Architecture](#-architecture) • [Documentation](#-documentation) • [Examples](#-integration-examples)
+[Quick Start](#-quick-start) • [**📚 Distributed Guide**](docs/DISTRIBUTED_OLLAMA_GUIDE.md) • [Features](#-why-sollol) • [Architecture](#-architecture) • [Documentation](#-documentation) • [Examples](#-integration-examples)
 
 </div>
 
@@ -44,6 +47,8 @@
 ## 🎯 What is SOLLOL?
 
 SOLLOL (Super Ollama Load balancer & Orchestration Layer) transforms your collection of Ollama nodes into an **intelligent AI cluster** with adaptive routing and automatic failover—all running on your own hardware.
+
+**Why Now?** As local LLM deployment becomes mainstream (Ollama, LM Studio, Kobold), SOLLOL bridges the gap between one-machine demos and real distributed compute — letting independent engineers orchestrate AI clusters without cloud dependency.
 
 ### The Problem
 
@@ -98,6 +103,39 @@ Hello! How can I help you today?
 
 **Next steps:**
 - Visit `http://localhost:8080` to see the dashboard
+- **📚 [Read the Distributed Ollama Guide](docs/DISTRIBUTED_OLLAMA_GUIDE.md)** - Learn how to build distributed AI applications with proven patterns
+
+---
+
+## 📚 Building Distributed Applications
+
+**New to distributed Ollama?** Read our comprehensive guide:
+
+### **[Distributed Ollama Guide](docs/DISTRIBUTED_OLLAMA_GUIDE.md)**
+
+Learn to build production-grade distributed AI applications with:
+- **4 proven architecture patterns** (batch processing, multi-agent, code synthesis, distributed training)
+- **Real performance data** from production applications (5.5x speedup on FlockParser)
+- **Honest assessment** of what's proven vs experimental
+- **Complete code examples** from real projects
+- **Performance tuning guide** for your workload
+- **Production best practices** and troubleshooting
+
+**Quick preview:**
+```python
+from sollol import OllamaPool
+
+# Auto-discover and distribute work across cluster
+pool = OllamaPool.auto_configure()
+
+# Batch process 10,000 embeddings with adaptive parallelism
+embeddings = pool.embed_batch(
+    model="mxbai-embed-large",
+    inputs=texts,
+    use_adaptive=True  # SOLLOL optimizes based on node speeds
+)
+# Automatic work stealing, retry logic, and real-time dashboard
+```
 
 ---
 
@@ -295,6 +333,34 @@ SOLLOL provides a **single pane of glass** to monitor every application and ever
 - ✅ **Zero-Config**: Applications automatically appear in the dashboard with no extra code required.
 
 This moves beyond per-application monitoring to provide true, centralized observability for your entire infrastructure.
+
+---
+
+### 5. **Technical Differentiation**
+
+#### SOLLOL vs. Simple Load Balancers
+
+| Feature | nginx/HAProxy | SOLLOL |
+|---------|--------------|---------|
+| Routing | Round-robin/random | Context-aware, adapts from history |
+| Resource awareness | None | GPU/CPU/memory-aware |
+| Failover | Manual config | Automatic detection & recovery |
+| Distributed Inference | ❌ | ✅ llama.cpp RPC integration |
+| Task prioritization | ❌ | ✅ Priority queue |
+| Observability | Basic | Rich metrics + dashboard |
+| Setup | Complex config | Auto-discover |
+
+#### SOLLOL vs. Kubernetes
+
+| Feature | Kubernetes | SOLLOL |
+|---------|-----------|---------|
+| **Complexity** | High - requires cluster setup | Low - pip install |
+| **AI-specific** | Generic container orchestration | Purpose-built for LLMs |
+| **Intelligence** | None | Task-aware routing |
+| **Distributed Inference** | Manual | Automatic via llama.cpp RPC |
+| **Best for** | Large-scale production | AI-focused teams |
+
+**Use both!** Deploy SOLLOL on Kubernetes for ultimate scalability.
 
 ---
 
@@ -2199,34 +2265,6 @@ priority = Priority.HIGH  # 7
 **SOLLOL Detection:**
 - `X-Powered-By: SOLLOL` header on all responses
 - `/api/health` endpoint returns `{"service": "SOLLOL", "version": "0.7.0"}`
-
----
-
-## 🆚 Comparison
-
-### SOLLOL vs. Simple Load Balancers
-
-| Feature | nginx/HAProxy | SOLLOL |
-|---------|--------------|---------|
-| Routing | Round-robin/random | Context-aware, adapts from history |
-| Resource awareness | None | GPU/CPU/memory-aware |
-| Failover | Manual config | Automatic detection & recovery |
-| Distributed Inference | ❌ | ✅ llama.cpp RPC integration |
-| Task prioritization | ❌ | ✅ Priority queue |
-| Observability | Basic | Rich metrics + dashboard |
-| Setup | Complex config | Auto-discover |
-
-### SOLLOL vs. Kubernetes
-
-| Feature | Kubernetes | SOLLOL |
-|---------|-----------|---------|
-| **Complexity** | High - requires cluster setup | Low - pip install |
-| **AI-specific** | Generic container orchestration | Purpose-built for LLMs |
-| **Intelligence** | None | Task-aware routing |
-| **Distributed Inference** | Manual | Automatic via llama.cpp RPC |
-| **Best for** | Large-scale production | AI-focused teams |
-
-**Use both!** Deploy SOLLOL on Kubernetes for ultimate scalability.
 
 ---
 

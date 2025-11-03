@@ -7,12 +7,13 @@ Provides three routing strategies optimized for different use cases:
 - ASYNC: Resource-efficient (CPU OK, queue OK, non-blocking)
 """
 
-from enum import Enum
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional
-from datetime import datetime
-import statistics
 import os
+import statistics
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Dict, List, Optional
+
 from loguru import logger
 
 # Bind app_name context to logger if SOLLOL_APP_NAME environment variable is set
@@ -29,9 +30,10 @@ class RoutingMode(Enum):
     RELIABLE: Optimize for success rate (proven stable nodes, even if slower)
     ASYNC: Optimize for resource efficiency (CPU OK, queue OK, non-blocking)
     """
-    FAST = "fast"           # Performance-first (current default)
-    RELIABLE = "reliable"   # Stability-first
-    ASYNC = "async"         # Resource-efficient, can use CPU
+
+    FAST = "fast"  # Performance-first (current default)
+    RELIABLE = "reliable"  # Stability-first
+    ASYNC = "async"  # Resource-efficient, can use CPU
 
 
 class TaskPriority(Enum):
@@ -40,16 +42,18 @@ class TaskPriority(Enum):
 
     Higher priority tasks get better resource allocation and preemption rights.
     """
-    URGENT = 10      # User waiting, real-time response needed
-    HIGH = 8         # Important but not blocking
-    NORMAL = 5       # Default priority
-    LOW = 2          # Background/batch processing
-    DEFERRED = 0     # Run when resources available
+
+    URGENT = 10  # User waiting, real-time response needed
+    HIGH = 8  # Important but not blocking
+    NORMAL = 5  # Default priority
+    LOW = 2  # Background/batch processing
+    DEFERRED = 0  # Run when resources available
 
 
 @dataclass
 class NodeStats:
     """Statistics for a single node"""
+
     node_id: str
     total_requests: int = 0
     successful: int = 0
@@ -134,11 +138,7 @@ class NodeReliabilityTracker:
         return self.node_stats[node_id]
 
     def record_request(
-        self,
-        node_id: str,
-        success: bool,
-        response_time: float,
-        is_timeout: bool = False
+        self, node_id: str, success: bool, response_time: float, is_timeout: bool = False
     ):
         """Record request outcome for a node"""
         stats = self.get_or_create_stats(node_id)
@@ -163,9 +163,7 @@ class NodeReliabilityTracker:
         return self.node_stats[node_id].success_rate
 
     def get_most_reliable_nodes(
-        self,
-        node_ids: List[str],
-        min_success_rate: float = 0.95
+        self, node_ids: List[str], min_success_rate: float = 0.95
     ) -> List[str]:
         """
         Get nodes sorted by reliability.
@@ -185,35 +183,37 @@ class NodeReliabilityTracker:
                 )
                 continue
 
-            candidates.append({
-                'node_id': node_id,
-                'success_rate': stats.success_rate,
-                'variance': stats.response_time_variance,
-                'avg_time': stats.avg_response_time
-            })
+            candidates.append(
+                {
+                    "node_id": node_id,
+                    "success_rate": stats.success_rate,
+                    "variance": stats.response_time_variance,
+                    "avg_time": stats.avg_response_time,
+                }
+            )
 
         # Sort by reliability metrics
         candidates.sort(
             key=lambda x: (
-                x['success_rate'],      # Higher success rate first
-                -x['variance'],         # Lower variance first (negative for DESC)
-                x['avg_time']           # Faster avg time first
+                x["success_rate"],  # Higher success rate first
+                -x["variance"],  # Lower variance first (negative for DESC)
+                x["avg_time"],  # Faster avg time first
             ),
-            reverse=True  # reverse=True makes success_rate DESC
+            reverse=True,  # reverse=True makes success_rate DESC
         )
 
-        return [c['node_id'] for c in candidates]
+        return [c["node_id"] for c in candidates]
 
     def get_stats_summary(self) -> Dict:
         """Get summary statistics for all nodes"""
         summary = {}
         for node_id, stats in self.node_stats.items():
             summary[node_id] = {
-                'success_rate': stats.success_rate,
-                'avg_response_time': stats.avg_response_time,
-                'variance': stats.response_time_variance,
-                'total_requests': stats.total_requests,
-                'uptime_hours': stats.uptime_hours
+                "success_rate": stats.success_rate,
+                "avg_response_time": stats.avg_response_time,
+                "variance": stats.response_time_variance,
+                "total_requests": stats.total_requests,
+                "uptime_hours": stats.uptime_hours,
             }
         return summary
 
@@ -231,6 +231,7 @@ class RoutingDecision:
 
     Provides transparency into why a particular node was selected.
     """
+
     selected_node_id: str
     routing_mode: RoutingMode
     priority: int
@@ -244,12 +245,7 @@ class RoutingDecision:
     node_type: Optional[str] = None  # 'gpu' or 'cpu'
 
 
-def get_routing_reason(
-    mode: RoutingMode,
-    node_id: str,
-    node_type: str,
-    **kwargs
-) -> str:
+def get_routing_reason(mode: RoutingMode, node_id: str, node_type: str, **kwargs) -> str:
     """
     Generate human-readable routing decision reason.
 
@@ -261,23 +257,23 @@ def get_routing_reason(
     """
     if mode == RoutingMode.FAST:
         reasons = [f"{node_type.upper()}-first routing"]
-        if kwargs.get('prefer_local'):
+        if kwargs.get("prefer_local"):
             reasons.append("local preference")
-        if kwargs.get('min_vram'):
+        if kwargs.get("min_vram"):
             reasons.append(f"min {kwargs['min_vram']}GB VRAM")
         return f"FAST mode: {', '.join(reasons)} → {node_id}"
 
     elif mode == RoutingMode.RELIABLE:
-        success_rate = kwargs.get('success_rate', 0)
+        success_rate = kwargs.get("success_rate", 0)
         reasons = [f"{success_rate:.1%} success rate"]
-        variance = kwargs.get('variance')
+        variance = kwargs.get("variance")
         if variance is not None:
             reasons.append(f"variance {variance:.2f}s")
         return f"RELIABLE mode: {', '.join(reasons)} → {node_id}"
 
     elif mode == RoutingMode.ASYNC:
         reasons = []
-        if kwargs.get('prefer_cpu'):
+        if kwargs.get("prefer_cpu"):
             reasons.append("CPU-preferred (GPU-saving)")
         reasons.append("background/queue OK")
         return f"ASYNC mode: {', '.join(reasons)} → {node_id} ({node_type})"
@@ -292,25 +288,21 @@ MODEL_SIZE_ESTIMATES = {
     "qwen3:1.7b": 2.0,
     "phi": 2.0,
     "tinyllama": 1.0,
-
     # Medium models (7-8B params)
     "llama3.1": 8.0,
     "llama3.2": 4.0,
     "mistral": 8.0,
     "qwen3:7b": 8.0,
     "qwen3:14b": 16.0,
-
     # Large models (13-20B)
     "gpt-oss:20b": 16.0,
     "wizard-math": 8.0,
-
     # Mixture of Experts (special case)
     "mixtral:8x7b": 28.0,  # ~47B total, ~13B active
     "qwen3:32b": 32.0,
     "qwq:32b": 32.0,
-
     # Default estimate (if not in list)
-    "default": 8.0
+    "default": 8.0,
 }
 
 
@@ -356,7 +348,7 @@ def can_model_fit_on_node(
     model_name: str,
     vram_available_mb: float,
     is_cpu: bool = False,
-    ram_available_gb: Optional[float] = None
+    ram_available_gb: Optional[float] = None,
 ) -> bool:
     """
     Check if model can fit on a node.

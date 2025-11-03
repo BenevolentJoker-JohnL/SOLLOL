@@ -198,7 +198,9 @@ class NetworkObserver:
             f"sampling={self.sample_rate:.0%}" if self.enable_sampling else "sampling=disabled"
         )
         batch_status = f"batch={self.batch_size} events/{self.batch_timeout}s"
-        logger.info(f"🔍 Network Observer initialized (event-driven monitoring, {sampling_status}, {batch_status})")
+        logger.info(
+            f"🔍 Network Observer initialized (event-driven monitoring, {sampling_status}, {batch_status})"
+        )
 
     def log_event(
         self,
@@ -368,7 +370,9 @@ class NetworkObserver:
 
         # Add event to batch buffer
         self.dashboard_batch.append(event)
-        logger.debug(f"📝 Added {event.event_type.value} to dashboard batch (size: {len(self.dashboard_batch)})")
+        logger.debug(
+            f"📝 Added {event.event_type.value} to dashboard batch (size: {len(self.dashboard_batch)})"
+        )
 
         # Flush if batch size reached
         if len(self.dashboard_batch) >= self.batch_size:

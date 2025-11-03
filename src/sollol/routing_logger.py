@@ -147,11 +147,15 @@ class RoutingEventLogger:
             self._print_event(event)
 
         # Publish to Redis if available
-        logger.info(f"[DEBUG] redis_available={self.redis_available}, redis_client={self.redis_client is not None}")
+        logger.info(
+            f"[DEBUG] redis_available={self.redis_available}, redis_client={self.redis_client is not None}"
+        )
         if self.redis_available and self.redis_client:
             try:
                 # Pub/sub for real-time monitoring
-                logger.info(f"[DEBUG] Publishing to channel={self.channel}, event_type={event.get('event_type')}")
+                logger.info(
+                    f"[DEBUG] Publishing to channel={self.channel}, event_type={event.get('event_type')}"
+                )
                 pub_result = self.redis_client.publish(self.channel, event_json)
                 logger.info(f"[DEBUG] Publish result: {pub_result} subscribers received")
 
@@ -164,6 +168,7 @@ class RoutingEventLogger:
             except Exception as e:
                 logger.error(f"Failed to publish routing event: {e}")
                 import traceback
+
                 logger.error(traceback.format_exc())
 
     def _print_event(self, event: Dict[str, Any]):

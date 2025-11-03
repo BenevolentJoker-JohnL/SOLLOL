@@ -65,7 +65,9 @@ except ValueError:
     request_counter = REGISTRY._names_to_collectors.get("sollol_dashboard_requests_total")
     if request_counter is None:
         request_counter = Counter(
-            "sollol_dashboard_requests_total", "Total dashboard requests processed", ["model", "status", "backend"]
+            "sollol_dashboard_requests_total",
+            "Total dashboard requests processed",
+            ["model", "status", "backend"],
         )
 
 try:
@@ -84,7 +86,9 @@ except ValueError:
     active_pools = REGISTRY._names_to_collectors.get("sollol_active_pools")
 
 try:
-    gpu_utilization = Gauge("sollol_gpu_utilization", "GPU utilization per node", ["node", "gpu_id"])
+    gpu_utilization = Gauge(
+        "sollol_gpu_utilization", "GPU utilization per node", ["node", "gpu_id"]
+    )
 except ValueError:
     gpu_utilization = REGISTRY._names_to_collectors.get("sollol_gpu_utilization")
 
@@ -124,6 +128,7 @@ class UnifiedDashboard:
         self.redis_client = None
         try:
             import redis
+
             redis_url = os.getenv("SOLLOL_REDIS_URL", "redis://localhost:6379")
             self.redis_client = redis.from_url(redis_url, decode_responses=True)
             logger.info(f"✅ Connected to Redis at {redis_url}")
@@ -742,9 +747,7 @@ class UnifiedDashboard:
                     if self.redis_client:
                         try:
                             streams = self.redis_client.xread(
-                                {"sollol:dashboard:log_stream": last_log_id},
-                                count=5,
-                                block=1000
+                                {"sollol:dashboard:log_stream": last_log_id}, count=5, block=1000
                             )
 
                             if streams:
@@ -966,18 +969,26 @@ class UnifiedDashboard:
 
             if not self.redis_client:
                 logger.error("Redis client not available - observer events unavailable")
-                ws.send(json.dumps({
-                    "type": "error",
-                    "message": "Redis not configured - observer events unavailable"
-                }))
+                ws.send(
+                    json.dumps(
+                        {
+                            "type": "error",
+                            "message": "Redis not configured - observer events unavailable",
+                        }
+                    )
+                )
                 return
 
             # Send immediate connection confirmation
-            ws.send(json.dumps({
-                "type": "connected",
-                "timestamp": time.time(),
-                "message": "🔌 Connected to Ollama activity stream",
-            }))
+            ws.send(
+                json.dumps(
+                    {
+                        "type": "connected",
+                        "timestamp": time.time(),
+                        "message": "🔌 Connected to Ollama activity stream",
+                    }
+                )
+            )
 
             # Subscribe to the observer events channel
             pubsub = self.redis_client.pubsub()
@@ -987,40 +998,44 @@ class UnifiedDashboard:
 
             try:
                 for message in pubsub.listen():
-                    if message['type'] == 'message':
+                    if message["type"] == "message":
                         try:
                             # Parse the JSON event from observer
-                            event_data = json.loads(message['data'])
+                            event_data = json.loads(message["data"])
 
                             # Format message based on event type
-                            event_type = event_data.get('event_type', 'unknown')
-                            backend = event_data.get('backend', 'unknown')
-                            details = event_data.get('details', {})
-                            model = details.get('model', '')
+                            event_type = event_data.get("event_type", "unknown")
+                            backend = event_data.get("backend", "unknown")
+                            details = event_data.get("details", {})
+                            model = details.get("model", "")
 
-                            if event_type == 'ollama_request':
-                                operation = details.get('operation', '')
+                            if event_type == "ollama_request":
+                                operation = details.get("operation", "")
                                 formatted_msg = f"→ REQUEST to {backend}: {model} ({operation})"
-                            elif event_type == 'ollama_response':
-                                latency = details.get('latency_ms', 0)
-                                status = details.get('status_code', 200)
+                            elif event_type == "ollama_response":
+                                latency = details.get("latency_ms", 0)
+                                status = details.get("status_code", 200)
                                 formatted_msg = f"← RESPONSE from {backend}: {model} ({int(latency)}ms, {status})"
-                            elif event_type == 'ollama_error':
-                                error = details.get('error', 'unknown error')
+                            elif event_type == "ollama_error":
+                                error = details.get("error", "unknown error")
                                 formatted_msg = f"✗ ERROR from {backend}: {model} - {error}"
                             else:
                                 formatted_msg = f"{event_type}: {backend}"
 
                             # Forward to WebSocket client
-                            ws.send(json.dumps({
-                                "type": event_type,
-                                "timestamp": event_data.get("timestamp", time.time()),
-                                "event": event_data,
-                                "message": formatted_msg
-                            }))
+                            ws.send(
+                                json.dumps(
+                                    {
+                                        "type": event_type,
+                                        "timestamp": event_data.get("timestamp", time.time()),
+                                        "event": event_data,
+                                        "message": formatted_msg,
+                                    }
+                                )
+                            )
                         except json.JSONDecodeError as e:
                             logger.error(f"Failed to parse observer event: {e}")
-                    elif message['type'] == 'subscribe':
+                    elif message["type"] == "subscribe":
                         logger.debug(f"Subscribed to channel: {message['channel']}")
             except Exception as e:
                 logger.error(f"Ollama activity WebSocket error: {e}")
@@ -1291,10 +1306,14 @@ class UnifiedDashboard:
 
             if not self.redis_client:
                 logger.error("Redis client not available - routing events unavailable")
-                ws.send(json.dumps({
-                    "type": "error",
-                    "message": "Redis not configured - routing events unavailable"
-                }))
+                ws.send(
+                    json.dumps(
+                        {
+                            "type": "error",
+                            "message": "Redis not configured - routing events unavailable",
+                        }
+                    )
+                )
                 return
 
             # Track last seen ID for streaming new events
@@ -1306,7 +1325,7 @@ class UnifiedDashboard:
                     streams = self.redis_client.xread(
                         {"sollol:routing_stream": last_id},
                         count=10,
-                        block=2000  # Block for 2 seconds
+                        block=2000,  # Block for 2 seconds
                     )
 
                     if streams:
@@ -1320,17 +1339,18 @@ class UnifiedDashboard:
                                     event_data = json.loads(data["event"])
 
                                     # Send to WebSocket client
-                                    ws.send(json.dumps({
-                                        "type": "routing_decision",
-                                        "timestamp": event_data.get("timestamp"),
-                                        "event": event_data
-                                    }))
+                                    ws.send(
+                                        json.dumps(
+                                            {
+                                                "type": "routing_decision",
+                                                "timestamp": event_data.get("timestamp"),
+                                                "event": event_data,
+                                            }
+                                        )
+                                    )
                     else:
                         # No new events - send heartbeat
-                        ws.send(json.dumps({
-                            "type": "heartbeat",
-                            "timestamp": time.time()
-                        }))
+                        ws.send(json.dumps({"type": "heartbeat", "timestamp": time.time()}))
 
                 except Exception as e:
                     logger.error(f"Routing events WebSocket error: {e}")

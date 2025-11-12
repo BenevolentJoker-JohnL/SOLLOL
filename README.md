@@ -2,13 +2,13 @@
 
 <div align="center">
 
-<sup>Maintained by [BenevolentJoker-JohnL](https://github.com/BenevolentJoker-JohnL)</sup>
+<sup>Maintained by [B-A-M-N](https://github.com/B-A-M-N)</sup>
 
 [![PyPI version](https://img.shields.io/pypi/v/sollol.svg)](https://pypi.org/project/sollol/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://github.com/BenevolentJoker-JohnL/SOLLOL/actions/workflows/tests.yml/badge.svg)](https://github.com/BenevolentJoker-JohnL/SOLLOL/actions/workflows/tests.yml)
-[![codecov](https://codecov.io/gh/BenevolentJoker-JohnL/SOLLOL/branch/main/graph/badge.svg)](https://codecov.io/gh/BenevolentJoker-JohnL/SOLLOL)
+[![Tests](https://github.com/B-A-M-N/SOLLOL/actions/workflows/tests.yml/badge.svg)](https://github.com/B-A-M-N/SOLLOL/actions/workflows/tests.yml)
+[![codecov](https://codecov.io/gh/B-A-M-N/SOLLOL/branch/main/graph/badge.svg)](https://codecov.io/gh/B-A-M-N/SOLLOL)
 [![Ollama](https://img.shields.io/badge/Ollama-Compatible-green.svg)](https://ollama.ai/)
 
 **Transform your Ollama nodes into a production AI cluster with adaptive routing that learns which nodes work best for each task, plus unified observability across all applications.**
@@ -174,7 +174,7 @@ responses = await asyncio.gather(*[
 
 SOLLOL powers production-ready applications that leverage its intelligent routing and task distribution:
 
-### [FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser)
+### [FlockParser](https://github.com/B-A-M-N/FlockParser)
 **Distributed PDF Processing & RAG System**
 - ✅ Production-stable document parsing and embedding
 - ✅ Distributed vector search across Ollama cluster
@@ -182,7 +182,7 @@ SOLLOL powers production-ready applications that leverage its intelligent routin
 - ✅ Real-time monitoring via SOLLOL dashboard
 - **Use Case**: Enterprise document processing, RAG pipelines, knowledge base systems
 
-### [SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)
+### [SynapticLlamas](https://github.com/B-A-M-N/SynapticLlamas)
 **Multi-Agent Collaboration Framework**
 - ✅ Production-stable parallel agent execution
 - ✅ Collaborative workflow orchestration (research → critique → synthesis)
@@ -270,7 +270,7 @@ pip install sollol
 
 ### From Source
 ```bash
-git clone https://github.com/BenevolentJoker-JohnL/SOLLOL.git
+git clone https://github.com/B-A-M-N/SOLLOL.git
 cd SOLLOL
 pip install -e .
 ```
@@ -805,12 +805,12 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Credits
 
-Created by [BenevolentJoker-JohnL](https://github.com/BenevolentJoker-JohnL)
+Created by [B-A-M-N](https://github.com/B-A-M-N)
 
 **Part of the Complete AI Ecosystem:**
-- **[SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)** - Multi-Agent Orchestration
-- **[FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser)** - Document RAG Intelligence
-- **[SOLLOL](https://github.com/BenevolentJoker-JohnL/SOLLOL)** - Distributed Inference Platform (this project)
+- **[SynapticLlamas](https://github.com/B-A-M-N/SynapticLlamas)** - Multi-Agent Orchestration
+- **[FlockParser](https://github.com/B-A-M-N/FlockParser)** - Document RAG Intelligence
+- **[SOLLOL](https://github.com/B-A-M-N/SOLLOL)** - Distributed Inference Platform (this project)
 
 **Special Thanks:**
 - **[Dallan Loomis](https://github.com/DallanL)** - For always providing invaluable support, feedback, and guidance throughout development
@@ -834,6 +834,6 @@ Built with: Ray, Dask, FastAPI, llama.cpp, Ollama
 
 **Stop manually managing your LLM cluster. Let SOLLOL optimize it for you.**
 
-[Get Started](#-quickstart-3-commands) • [View on GitHub](https://github.com/BenevolentJoker-JohnL/SOLLOL) • [Report Issue](https://github.com/BenevolentJoker-JohnL/SOLLOL/issues)
+[Get Started](#-quickstart-3-commands) • [View on GitHub](https://github.com/B-A-M-N/SOLLOL) • [Report Issue](https://github.com/B-A-M-N/SOLLOL/issues)
 
 </div>

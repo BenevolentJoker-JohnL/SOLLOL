@@ -322,4 +322,4 @@ For automatic startup, see the systemd service templates in [INSTALLATION.md](..
 
 ## Support
 
-Report issues: https://github.com/BenevolentJoker-JohnL/SOLLOL/issues
+Report issues: https://github.com/B-A-M-N/SOLLOL/issues

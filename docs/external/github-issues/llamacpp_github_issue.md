@@ -79,9 +79,9 @@ Many teams are running hybrid infrastructure with both llama.cpp RPC backends (f
 
 ### Links
 
-- **SOLLOL:** https://github.com/BenevolentJoker-JohnL/SOLLOL
-- **FlockParser** (document processing): https://github.com/BenevolentJoker-JohnL/FlockParser
-- **SynapticLlamas** (multi-agent): https://github.com/BenevolentJoker-JohnL/SynapticLlamas
+- **SOLLOL:** https://github.com/B-A-M-N/SOLLOL
+- **FlockParser** (document processing): https://github.com/B-A-M-N/FlockParser
+- **SynapticLlamas** (multi-agent): https://github.com/B-A-M-N/SynapticLlamas
 
 ### Screenshots
 

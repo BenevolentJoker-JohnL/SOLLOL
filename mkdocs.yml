@@ -1,10 +1,10 @@
 site_name: SOLLOL Documentation
 site_url: https://benevolentjoker-johnl.github.io/SOLLOL/
-site_author: BenevolentJoker-JohnL
+site_author: B-A-M-N
 site_description: Production-ready intelligent load balancing for Ollama clusters
 
-repo_name: BenevolentJoker-JohnL/SOLLOL
-repo_url: https://github.com/BenevolentJoker-JohnL/SOLLOL
+repo_name: B-A-M-N/SOLLOL
+repo_url: https://github.com/B-A-M-N/SOLLOL
 edit_uri: edit/main/docs/
 
 theme:
@@ -109,7 +109,7 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/BenevolentJoker-JohnL/SOLLOL
+      link: https://github.com/B-A-M-N/SOLLOL
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/sollol
   analytics:
@@ -118,4 +118,4 @@ extra:
   version:
     provider: mike
 
-copyright: Copyright &copy; 2025 BenevolentJoker-JohnL. Licensed under MIT.
+copyright: Copyright &copy; 2025 B-A-M-N. Licensed under MIT.

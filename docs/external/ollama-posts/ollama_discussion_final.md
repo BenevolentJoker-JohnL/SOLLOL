@@ -52,11 +52,11 @@ Most Ollama deployments are single-node, but many of us are running multi-node c
 
 The goal is to make distributed AI inference as easy as single-node.
 
-**Repo:** 🔗 [SOLLOL](https://github.com/BenevolentJoker-JohnL/SOLLOL)
+**Repo:** 🔗 [SOLLOL](https://github.com/B-A-M-N/SOLLOL)
 
 **Related projects using SOLLOL:**
-- [FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser) - Document processing pipeline
-- [SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas) - Multi-agent reasoning
+- [FlockParser](https://github.com/B-A-M-N/FlockParser) - Document processing pipeline
+- [SynapticLlamas](https://github.com/B-A-M-N/SynapticLlamas) - Multi-agent reasoning
 
 ---
 

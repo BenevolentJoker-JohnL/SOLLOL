@@ -2,14 +2,14 @@
 
 <div align="center" markdown>
 
-[![Tests Passing](https://img.shields.io/badge/tests-57%20passing-success?style=for-the-badge&logo=pytest)](https://github.com/BenevolentJoker-JohnL/SOLLOL/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](https://github.com/BenevolentJoker-JohnL/SOLLOL/blob/main/LICENSE)
+[![Tests Passing](https://img.shields.io/badge/tests-57%20passing-success?style=for-the-badge&logo=pytest)](https://github.com/B-A-M-N/SOLLOL/actions/workflows/tests.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=for-the-badge)](https://github.com/B-A-M-N/SOLLOL/blob/main/LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9%2B-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 
 **Hybrid Cluster Orchestrator: Task Routing + Distributed Model Inference**
 
 [Quick Start](getting-started/quick-start.md){ .md-button .md-button--primary }
-[View on GitHub](https://github.com/BenevolentJoker-JohnL/SOLLOL){ .md-button }
+[View on GitHub](https://github.com/B-A-M-N/SOLLOL){ .md-button }
 
 </div>
 
@@ -112,8 +112,8 @@ Enables running models that don't fit on a single machine via llama.cpp RPC:
 
 ## Community & Support
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/BenevolentJoker-JohnL/SOLLOL/issues)
-- **Discussions**: [Ask questions or share ideas](https://github.com/BenevolentJoker-JohnL/SOLLOL/discussions)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/B-A-M-N/SOLLOL/issues)
+- **Discussions**: [Ask questions or share ideas](https://github.com/B-A-M-N/SOLLOL/discussions)
 - **Contributing**: [See contribution guidelines](contributing/guidelines.md)
 - **Enterprise**: [Explore enterprise features](enterprise/roadmap.md)
 
@@ -121,9 +121,9 @@ Enables running models that don't fit on a single machine via llama.cpp RPC:
 
 <div align="center" markdown>
 
-**Built with :heart: by [BenevolentJoker-JohnL](https://github.com/BenevolentJoker-JohnL)**
+**Built with :heart: by [B-A-M-N](https://github.com/B-A-M-N)**
 
-[GitHub](https://github.com/BenevolentJoker-JohnL/SOLLOL){ .md-button }
-[Sponsor](https://github.com/sponsors/BenevolentJoker-JohnL){ .md-button .md-button--primary }
+[GitHub](https://github.com/B-A-M-N/SOLLOL){ .md-button }
+[Sponsor](https://github.com/sponsors/B-A-M-N){ .md-button .md-button--primary }
 
 </div>

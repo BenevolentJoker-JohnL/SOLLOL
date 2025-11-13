@@ -201,7 +201,7 @@ Changes made:
 +sollol>=0.3.6
 
 # README.md
-+**Note:** SynapticLlamas now uses [SOLLOL](https://github.com/BenevolentJoker-JohnL/SOLLOL)
++**Note:** SynapticLlamas now uses [SOLLOL](https://github.com/B-A-M-N/SOLLOL)
 +as a package dependency (v0.3.6+) for intelligent routing capabilities.
 
 # README_SOLLOL.md
@@ -333,7 +333,7 @@ Now users have multiple ways to install:
 pip install sollol
 
 # From GitHub (latest)
-pip install git+https://github.com/BenevolentJoker-JohnL/SOLLOL.git@main
+pip install git+https://github.com/B-A-M-N/SOLLOL.git@main
 
 # From local wheel
 pip install /path/to/sollol-0.3.6-py3-none-any.whl
@@ -493,8 +493,8 @@ tar -tzf dist/sollol-0.3.6.tar.gz | grep examples
 ### Online Resources
 
 - **PyPI:** https://pypi.org/project/sollol/0.3.6/
-- **GitHub:** https://github.com/BenevolentJoker-JohnL/SOLLOL
-- **Issues:** https://github.com/BenevolentJoker-JohnL/SOLLOL/issues
+- **GitHub:** https://github.com/B-A-M-N/SOLLOL
+- **Issues:** https://github.com/B-A-M-N/SOLLOL/issues
 
 ---
 
@@ -733,10 +733,10 @@ print(response['message']['content'])
 ```
 
 ### Next Steps
-1. Read the [Architecture Guide](https://github.com/BenevolentJoker-JohnL/SOLLOL/blob/main/ARCHITECTURE.md)
-2. Explore [Integration Examples](https://github.com/BenevolentJoker-JohnL/SOLLOL/tree/main/examples/integration)
+1. Read the [Architecture Guide](https://github.com/B-A-M-N/SOLLOL/blob/main/ARCHITECTURE.md)
+2. Explore [Integration Examples](https://github.com/B-A-M-N/SOLLOL/tree/main/examples/integration)
 3. Check the [PyPI page](https://pypi.org/project/sollol/0.3.6/)
-4. Join the [GitHub discussions](https://github.com/BenevolentJoker-JohnL/SOLLOL/discussions)
+4. Join the [GitHub discussions](https://github.com/B-A-M-N/SOLLOL/discussions)
 
 ---
 
@@ -803,8 +803,8 @@ pip install sollol  # Start using it now!
 **Thank you for your interest in SOLLOL!**
 
 For questions, issues, or contributions:
-- GitHub: https://github.com/BenevolentJoker-JohnL/SOLLOL
-- Issues: https://github.com/BenevolentJoker-JohnL/SOLLOL/issues
+- GitHub: https://github.com/B-A-M-N/SOLLOL
+- Issues: https://github.com/B-A-M-N/SOLLOL/issues
 - PyPI: https://pypi.org/project/sollol/
 
 ---

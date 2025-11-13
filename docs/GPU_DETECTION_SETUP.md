@@ -671,5 +671,5 @@ PYTHONPATH=src python3 -c "from sollol.rpc_discovery import auto_discover_rpc_ba
 ## Support
 
 For issues or questions:
-- GitHub Issues: https://github.com/BenevolentJoker-JohnL/SOLLOL/issues
-- Documentation: https://github.com/BenevolentJoker-JohnL/SOLLOL/tree/main/docs
+- GitHub Issues: https://github.com/B-A-M-N/SOLLOL/issues
+- Documentation: https://github.com/B-A-M-N/SOLLOL/tree/main/docs

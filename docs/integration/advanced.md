@@ -423,7 +423,7 @@ print(f"SOLLOL detected: {adapter.check_sollol_available()}")
 
 ## 🔗 Links
 
-- **GitHub Repository**: https://github.com/BenevolentJoker-JohnL/SOLLOL
+- **GitHub Repository**: https://github.com/B-A-M-N/SOLLOL
 - **SynapticLlamas Docs**: `/SynapticLlamas/README_SOLLOL.md`
 - **Architecture Docs**: `/SynapticLlamas/ARCHITECTURE.md`
 
@@ -434,4 +434,4 @@ print(f"SOLLOL detected: {adapter.check_sollol_available()}")
 All changes committed and pushed to GitHub:
 - Commit: `95e8fd4`
 - Branch: `main`
-- Repository: `BenevolentJoker-JohnL/SOLLOL`
+- Repository: `B-A-M-N/SOLLOL`

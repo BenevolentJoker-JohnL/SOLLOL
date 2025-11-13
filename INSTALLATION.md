@@ -65,7 +65,7 @@ python3 --version  # Should be 3.9+
 pip install sollol
 
 # OR from source
-git clone https://github.com/BenevolentJoker-JohnL/SOLLOL.git
+git clone https://github.com/B-A-M-N/SOLLOL.git
 cd SOLLOL
 pip install -e .
 ```

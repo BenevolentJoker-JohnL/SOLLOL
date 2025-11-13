@@ -92,4 +92,4 @@ See [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines.
 1. Check [Known Issues](troubleshooting/known-issues.md)
 2. Review [Limitations](troubleshooting/limitations.md)
 3. See [Installation Guide](../INSTALLATION.md) for setup help
-4. Report issues: https://github.com/BenevolentJoker-JohnL/SOLLOL/issues
+4. Report issues: https://github.com/B-A-M-N/SOLLOL/issues

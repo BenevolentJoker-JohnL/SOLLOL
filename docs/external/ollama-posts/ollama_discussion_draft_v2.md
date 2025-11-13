@@ -31,9 +31,9 @@ SOLLOL is intended as the *software layer* for AI infrastructure — handling or
 * Most bottlenecks trace back to Ollama connection overhead
 
 **Repos:**
-- 🔗 [SOLLOL](https://github.com/BenevolentJoker-JohnL/SOLLOL)
-- 🔗 [FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser)
-- 🔗 [SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)
+- 🔗 [SOLLOL](https://github.com/B-A-M-N/SOLLOL)
+- 🔗 [FlockParser](https://github.com/B-A-M-N/FlockParser)
+- 🔗 [SynapticLlamas](https://github.com/B-A-M-N/SynapticLlamas)
 
 Any feedback or insights from the Ollama devs or others doing distributed orchestration would be massively appreciated.
 

@@ -17,13 +17,13 @@ The features documented here are **experimental** and **not recommended for prod
 
 Before diving into experimental features, note that SOLLOL's **stable features** power two production-ready applications:
 
-### [FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser)
+### [FlockParser](https://github.com/B-A-M-N/FlockParser)
 **Distributed PDF Processing & RAG System**
 - Uses SOLLOL for distributed embedding generation
 - Load balances document processing across Ollama cluster
 - Production-stable, actively maintained
 
-### [SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)
+### [SynapticLlamas](https://github.com/B-A-M-N/SynapticLlamas)
 **Multi-Agent Collaboration Framework**
 - Uses SOLLOL for parallel agent execution
 - Distributes research, critique, and synthesis tasks

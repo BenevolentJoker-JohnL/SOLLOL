@@ -43,7 +43,7 @@ def install_rpc_service():
     service_content = f"""[Unit]
 Description=SOLLOL llama.cpp RPC Server
 After=network.target
-Documentation=https://github.com/BenevolentJoker-JohnL/SynapticLlamas
+Documentation=https://github.com/B-A-M-N/SynapticLlamas
 
 [Service]
 Type=simple

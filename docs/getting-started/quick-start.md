@@ -11,7 +11,7 @@ Get SOLLOL running in 5 minutes with Docker Compose.
 ## Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/BenevolentJoker-JohnL/SOLLOL.git
+git clone https://github.com/B-A-M-N/SOLLOL.git
 cd SOLLOL
 ```
 
@@ -127,4 +127,4 @@ Then uncomment GPU sections in `docker-compose.yml`.
 
 ## Support
 
-Need help? Open an issue on [GitHub](https://github.com/BenevolentJoker-JohnL/SOLLOL/issues).
+Need help? Open an issue on [GitHub](https://github.com/B-A-M-N/SOLLOL/issues).

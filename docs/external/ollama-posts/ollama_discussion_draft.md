@@ -64,8 +64,8 @@ with ThreadPoolExecutor(max_workers=node_count * 2) as executor:
 We're building this for **FlockParser** (document RAG pipeline) and **SOLLOL** (connection pool library). Both are open source and aim to make distributed Ollama deployments production-ready. Any guidance on scaling best practices would be incredibly helpful!
 
 **Repos:**
-- FlockParser: https://github.com/BenevolentJoker-JohnL/FlockParser
-- SOLLOL: https://github.com/BenevolentJoker-JohnL/SOLLOL
+- FlockParser: https://github.com/B-A-M-N/FlockParser
+- SOLLOL: https://github.com/B-A-M-N/SOLLOL
 
 ## What We've Learned
 

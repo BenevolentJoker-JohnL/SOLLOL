@@ -15,7 +15,7 @@ Guide for publishing new versions of SOLLOL to PyPI.
 1. Go to https://pypi.org/manage/account/publishing/
 2. Add a new pending publisher:
    - **PyPI Project Name**: `sollol`
-   - **Owner**: `BenevolentJoker-JohnL`
+   - **Owner**: `B-A-M-N`
    - **Repository name**: `SOLLOL`
    - **Workflow name**: `publish.yml`
    - **Environment name**: `pypi`

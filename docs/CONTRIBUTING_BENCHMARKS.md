@@ -541,7 +541,7 @@ print(f"Memory growth: {benchmark['results']['memory_growth_mb']:.1f} MB")
 
 1. Run benchmark using template above
 2. Save JSON file
-3. Create GitHub issue: https://github.com/BenevolentJoker-JohnL/SOLLOL/issues/new
+3. Create GitHub issue: https://github.com/B-A-M-N/SOLLOL/issues/new
 4. Title: `[Benchmark] Pattern Name - Your Use Case`
 5. Attach JSON file
 6. Add any additional context in description
@@ -618,7 +618,7 @@ We value your contributions! For high-quality benchmarks:
 - 💬 **Discord**: Join #benchmarks channel
 - 📧 **Email**: benchmarks@sollol.dev
 - 📝 **Docs**: See [DISTRIBUTED_OLLAMA_GUIDE.md](DISTRIBUTED_OLLAMA_GUIDE.md)
-- 🐛 **Issues**: https://github.com/BenevolentJoker-JohnL/SOLLOL/issues
+- 🐛 **Issues**: https://github.com/B-A-M-N/SOLLOL/issues
 
 ---
 

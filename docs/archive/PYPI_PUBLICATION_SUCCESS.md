@@ -198,9 +198,9 @@ pip install -r requirements.txt
 
 ### Online Resources
 - **PyPI Page:** https://pypi.org/project/sollol/0.3.6/
-- **GitHub:** https://github.com/BenevolentJoker-JohnL/SOLLOL
-- **Architecture Guide:** [ARCHITECTURE.md](https://github.com/BenevolentJoker-JohnL/SOLLOL/blob/main/ARCHITECTURE.md)
-- **Integration Examples:** [examples/integration/](https://github.com/BenevolentJoker-JohnL/SOLLOL/tree/main/examples/integration)
+- **GitHub:** https://github.com/B-A-M-N/SOLLOL
+- **Architecture Guide:** [ARCHITECTURE.md](https://github.com/B-A-M-N/SOLLOL/blob/main/ARCHITECTURE.md)
+- **Integration Examples:** [examples/integration/](https://github.com/B-A-M-N/SOLLOL/tree/main/examples/integration)
 
 ### Included Documentation
 The PyPI package includes:
@@ -396,14 +396,14 @@ priority = get_priority_for_role("your_agent_role")
 ## Contributing
 
 ### Report Issues
-https://github.com/BenevolentJoker-JohnL/SOLLOL/issues
+https://github.com/B-A-M-N/SOLLOL/issues
 
 ### Pull Requests
-https://github.com/BenevolentJoker-JohnL/SOLLOL/pulls
+https://github.com/B-A-M-N/SOLLOL/pulls
 
 ### Development Setup
 ```bash
-git clone https://github.com/BenevolentJoker-JohnL/SOLLOL.git
+git clone https://github.com/B-A-M-N/SOLLOL.git
 cd SOLLOL
 pip install -e .[dev]
 pytest tests/
@@ -450,7 +450,7 @@ MIT License - See LICENSE file in the repository
 
 1. **Install:** `pip install sollol`
 2. **Explore Examples:** Check `examples/integration/` directory
-3. **Read Docs:** https://github.com/BenevolentJoker-JohnL/SOLLOL
+3. **Read Docs:** https://github.com/B-A-M-N/SOLLOL
 4. **Join Community:** Report issues, suggest features, contribute!
 
 ---

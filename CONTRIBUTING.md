@@ -32,7 +32,7 @@ This project follows a simple code of conduct:
    ```
 3. **Add upstream remote**:
    ```bash
-   git remote add upstream https://github.com/BenevolentJoker-JohnL/SOLLOL.git
+   git remote add upstream https://github.com/B-A-M-N/SOLLOL.git
    ```
 4. **Create a feature branch**:
    ```bash

@@ -521,7 +521,7 @@ export SOLLOL_CONNECTION_TIMEOUT=30
 
 ### SynapticLlamas Integration
 
-SOLLOL has been tested in production as part of the [SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas) multi-agent framework:
+SOLLOL has been tested in production as part of the [SynapticLlamas](https://github.com/B-A-M-N/SynapticLlamas) multi-agent framework:
 
 - **Workload:** 3-10 concurrent agents
 - **Duration:** Several months
@@ -628,7 +628,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to help!
 4. **Follow Phase 1 roadmap** for production hardening
 5. **Contribute back** improvements to the community
 
-**Questions?** Open an issue: https://github.com/BenevolentJoker-JohnL/SOLLOL/issues
+**Questions?** Open an issue: https://github.com/B-A-M-N/SOLLOL/issues
 
 ---
 

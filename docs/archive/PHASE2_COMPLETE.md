@@ -34,8 +34,8 @@ Phase 2 successfully eliminated code duplication between SOLLOL and SynapticLlam
 + version = "0.3.6"
 
 # Corrected repository URLs
-- url = "https://github.com/BenevolentJoker-JohnL/SynapticLlamas"
-+ url = "https://github.com/BenevolentJoker-JohnL/SOLLOL"
+- url = "https://github.com/B-A-M-N/SynapticLlamas"
++ url = "https://github.com/B-A-M-N/SOLLOL"
 
 # Added missing dependencies
 + "fastapi>=0.104.0",
@@ -97,14 +97,14 @@ python -c "from sollol.sync_wrapper import OllamaPool; from sollol.priority_help
  pip install -r requirements.txt
  ```
 
-+**Note:** SynapticLlamas now uses [SOLLOL](https://github.com/BenevolentJoker-JohnL/SOLLOL) as a package dependency (v0.3.6+) for intelligent routing and distributed inference capabilities.
++**Note:** SynapticLlamas now uses [SOLLOL](https://github.com/B-A-M-N/SOLLOL) as a package dependency (v0.3.6+) for intelligent routing and distributed inference capabilities.
 ```
 
 #### README_SOLLOL.md
 ```diff
  # SynapticLlamas + SOLLOL Integration
 
-+> **Note:** As of v0.3.6, SynapticLlamas uses SOLLOL as a package dependency instead of an embedded copy. This eliminates code duplication and ensures bug fixes benefit both projects. See [SOLLOL on GitHub](https://github.com/BenevolentJoker-JohnL/SOLLOL).
++> **Note:** As of v0.3.6, SynapticLlamas uses SOLLOL as a package dependency instead of an embedded copy. This eliminates code duplication and ensures bug fixes benefit both projects. See [SOLLOL on GitHub](https://github.com/B-A-M-N/SOLLOL).
 ```
 
 **Files Deleted:**
@@ -316,7 +316,7 @@ pip install /home/joker/SOLLOL/dist/sollol-0.3.6-py3-none-any.whl
 
 **Option 2: From GitHub**
 ```bash
-pip install git+https://github.com/BenevolentJoker-JohnL/SOLLOL.git@main
+pip install git+https://github.com/B-A-M-N/SOLLOL.git@main
 ```
 
 **Option 3: From PyPI (Future)**

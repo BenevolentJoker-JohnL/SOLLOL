@@ -156,7 +156,7 @@ If you're evaluating SOLLOL:
 
 ```bash
 # Clone and set up
-git clone https://github.com/BenevolentJoker-JohnL/SOLLOL.git
+git clone https://github.com/B-A-M-N/SOLLOL.git
 cd SOLLOL
 
 # Quick single-node baseline (no Docker needed)

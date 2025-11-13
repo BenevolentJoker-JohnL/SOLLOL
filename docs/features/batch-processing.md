@@ -583,8 +583,8 @@ Planned features for future releases:
 
 For issues or questions:
 - 📖 [Main Documentation](README.md)
-- 🐛 [Report Issues](https://github.com/BenevolentJoker-JohnL/SOLLOL/issues)
-- 💬 [Discussions](https://github.com/BenevolentJoker-JohnL/SOLLOL/discussions)
+- 🐛 [Report Issues](https://github.com/B-A-M-N/SOLLOL/issues)
+- 💬 [Discussions](https://github.com/B-A-M-N/SOLLOL/discussions)
 
 ---
 

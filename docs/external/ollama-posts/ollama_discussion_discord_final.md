@@ -34,8 +34,8 @@ After seeing consistent 30–60× speed improvements across nodes, I extracted t
 
 ## Repos:
 
-* 🌟 [SOLLOL](https://github.com/BenevolentJoker-JohnL/SOLLOL)
-* ⚙️ [FlockParser](https://github.com/BenevolentJoker-JohnL/FlockParser)
-* 🧠 [SynapticLlamas](https://github.com/BenevolentJoker-JohnL/SynapticLlamas)
+* 🌟 [SOLLOL](https://github.com/B-A-M-N/SOLLOL)
+* ⚙️ [FlockParser](https://github.com/B-A-M-N/FlockParser)
+* 🧠 [SynapticLlamas](https://github.com/B-A-M-N/SynapticLlamas)
 
 Would love feedback or insights from anyone running multi-node or distributed Ollama setups.

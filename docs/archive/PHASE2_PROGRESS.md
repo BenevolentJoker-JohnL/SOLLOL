@@ -26,8 +26,8 @@ Phase 2 focuses on eliminating code duplication between SOLLOL and SynapticLlama
 - version = "0.3.5"
 + version = "0.3.6"
 
-- url = "https://github.com/BenevolentJoker-JohnL/SynapticLlamas"
-+ url = "https://github.com/BenevolentJoker-JohnL/SOLLOL"
+- url = "https://github.com/B-A-M-N/SynapticLlamas"
++ url = "https://github.com/B-A-M-N/SOLLOL"
 
 # Added missing dependencies
 + "fastapi>=0.104.0",
@@ -59,9 +59,9 @@ python -c "from sollol.sync_wrapper import OllamaPool; from sollol.priority_help
 ### 2. Repository URLs Corrected
 
 All package metadata now correctly points to SOLLOL repository instead of SynapticLlamas:
-- Homepage: `https://github.com/BenevolentJoker-JohnL/SOLLOL`
-- Documentation: `https://github.com/BenevolentJoker-JohnL/SOLLOL/blob/main/README.md`
-- Bug Tracker: `https://github.com/BenevolentJoker-JohnL/SOLLOL/issues`
+- Homepage: `https://github.com/B-A-M-N/SOLLOL`
+- Documentation: `https://github.com/B-A-M-N/SOLLOL/blob/main/README.md`
+- Bug Tracker: `https://github.com/B-A-M-N/SOLLOL/issues`
 
 ### 3. Git Commits
 
@@ -178,7 +178,7 @@ pip install sollol  # Instead of installing from GitHub
 
 However, for now we can test the migration using the local package or installing from GitHub:
 ```bash
-pip install git+https://github.com/BenevolentJoker-JohnL/SOLLOL.git@main
+pip install git+https://github.com/B-A-M-N/SOLLOL.git@main
 ```
 
 ---
@@ -250,7 +250,7 @@ pip install dist/sollol-0.3.6-py3-none-any.whl
 
 ### Install from GitHub
 ```bash
-pip install git+https://github.com/BenevolentJoker-JohnL/SOLLOL.git@main
+pip install git+https://github.com/B-A-M-N/SOLLOL.git@main
 ```
 
 ### Verify Installation

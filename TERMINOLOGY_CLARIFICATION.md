@@ -142,7 +142,7 @@ Python code uses `model_sharding_enabled` in variable names for backward compati
 
 **Related Issues:**
 - Coordinator memory requirements for large models
-- Future funding needed for true weight sharding implementation
+- Future research and development needed for true weight sharding implementation
 - See `distributed_pipeline.py` for research track
 
 **Last Updated:** October 20, 2025

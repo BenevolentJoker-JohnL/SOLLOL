@@ -24,7 +24,7 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
 
 **After:**
 - "⚠️ WARNING: Experimental only - 5x slower than local"
-- "Not recommended for production without funding for optimization"
+- "Not recommended for production - requires optimization work"
 - Clear list of known issues and limitations
 
 ### 3. Updated Terminology
@@ -45,7 +45,7 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
    - Realistic expectations ("grab coffee during 2-5min startup")
    - Known issues and limitations
    - Why it's not production-ready
-   - What would be needed for production ($50k-$100k Phase 1)
+   - What would be needed for production (Phase 1: optimization work)
    - Troubleshooting guide
 
 2. **TERMINOLOGY_CLARIFICATION.md** - Technical clarification
@@ -205,12 +205,12 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
 1. Continue using task distribution (no changes)
 2. Be aware distributed inference is experimental
 3. Don't expect production performance from RPC features
-4. Consider funding if you need production-ready distributed inference
+4. Be aware that production-ready distributed inference
 
-### For Potential Funders/Partners:
+### For Those Interested in Production-Ready Distributed Inference:
 1. See EXPERIMENTAL_FEATURES.md for optimization roadmap
-2. Phase 1: $50k-$100k for production-ready distributed inference
-3. Phase 2: $200k+ for true model weight sharding
+2. Phase 1: Dedicated engineering effort required for production-ready distributed inference
+3. Phase 2: Research and development needed for true model weight sharding
 4. Clear value proposition for sovereign AI infrastructure
 
 ---
@@ -220,7 +220,7 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
 **Positive:**
 - Increased credibility through honesty
 - Better user expectations
-- Clearer funding narrative
+- Clearer technical requirements
 - Focus on stable features
 
 **Trade-offs:**
@@ -243,7 +243,7 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
 ### Features
 - Focus development on stable features (task distribution, routing)
 - Maintain experimental features as-is without optimization
-- Only invest in distributed inference with funding
+- Only invest in distributed inference with dedicated engineering resources
 
 ### Community
 - Be transparent about limitations in issues/discussions

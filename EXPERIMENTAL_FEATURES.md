@@ -1,7 +1,7 @@
 # Experimental Features - Use at Your Own Risk
 
 **Last Updated:** October 20, 2025
-**Status:** Not production-ready, funding required for optimization
+**Status:** Not production-ready - requires optimization work
 
 ---
 
@@ -100,7 +100,7 @@ The distributed inference feature was implemented as a proof-of-concept to valid
 
 To make distributed inference production-ready would require:
 
-**Phase 1: Optimization (Estimated 2-3 months, funding required)**
+**Phase 1: Optimization (Estimated 2-3 months engineering effort)**
 - Performance tuning to reduce startup time from 2-5min to <30s
 - Inference optimization to match or exceed local performance
 - Automated version management and compatibility checking
@@ -109,12 +109,12 @@ To make distributed inference production-ready would require:
 - GPU backend validation
 - Load testing and stress testing
 
-**Phase 2: True Model Weight Sharding (Estimated 6-12 months, significant funding)**
+**Phase 2: True Model Weight Sharding (Estimated 6-12 months research and development)**
 - Eliminate coordinator memory bottleneck
 - Enable true distributed model loading (no single node needs full model)
 - See `distributed_pipeline.py` for research track
 
-**Cost Estimate:** $50k-$100k for Phase 1, $200k+ for Phase 2
+**Technical Requirements:** Dedicated cluster infrastructure for comprehensive testing and optimization across multiple node configurations
 
 ### How to Use (If You Insist)
 
@@ -171,7 +171,7 @@ To make distributed inference production-ready would require:
 
 **Slow performance:**
 - Expected - not optimized
-- No solution without funding for optimization work
+- Requires dedicated optimization work and multi-node test infrastructure
 
 **Connection refused:**
 - RPC server not running on worker node
@@ -219,22 +219,6 @@ responses = await asyncio.gather(*[
 
 ---
 
-## Funding & Partnership Opportunities
-
-If you're interested in funding the optimization and production readiness of distributed inference, or exploring true model weight sharding, please open an issue or contact via GitHub.
-
-**What funding would enable:**
-- Phase 1: Production-ready distributed inference ($50k-$100k)
-- Phase 2: True model weight sharding ($200k+)
-- Ongoing maintenance and support
-
-**Why this matters:**
-- Enables running frontier models (70B-405B) on consumer hardware clusters
-- Sovereign AI deployment without cloud dependencies
-- Local infrastructure for teams and organizations
-
----
-
 ## Summary
 
 **Use SOLLOL for:**
@@ -250,7 +234,7 @@ If you're interested in funding the optimization and production readiness of dis
 **The honest truth:**
 - Distributed inference works for demos and testing
 - It's not ready for real-world use
-- Optimization requires funding
+- Optimization requires dedicated engineering effort and multi-node test infrastructure
 - Task distribution is the stable, recommended approach
 
 For questions or to report issues with experimental features, open a GitHub issue with the `experimental` label.

@@ -73,7 +73,7 @@
 
 **v2.0 Goal:** Run 70B+ models with NO single node needing full model
 
-**Research Track (Funding/Partnership Required):**
+**Research Track (Dedicated Engineering Effort Required):**
 - [ ] **GGUF tensor-level distribution** - Split model weights across nodes
 - [ ] **Ray-based pipeline parallelism** - Activation passing via object store
 - [ ] **Quantization-aware sharding** - Smart layer distribution
@@ -128,7 +128,7 @@
 
 ## Community Priorities
 
-Vote on features via [GitHub Discussions](https://github.com/BenevolentJoker-JohnL/SOLLOL/discussions)
+Vote on features via [GitHub Discussions](https://github.com/B-A-M-N/SOLLOL/discussions)
 
 **Most Requested:**
 1. LangChain native integration
@@ -142,16 +142,9 @@ Vote on features via [GitHub Discussions](https://github.com/BenevolentJoker-Joh
 ## Contributing to the Roadmap
 
 **Want to influence direction?**
-- 💬 Join [Discussions](https://github.com/BenevolentJoker-JohnL/SOLLOL/discussions) for feature requests
-- 🐛 File [Issues](https://github.com/BenevolentJoker-JohnL/SOLLOL/issues) for bugs and improvements
+- 💬 Join [Discussions](https://github.com/B-A-M-N/SOLLOL/discussions) for feature requests
+- 🐛 File [Issues](https://github.com/B-A-M-N/SOLLOL/issues) for bugs and improvements
 - 🔧 Submit [Pull Requests](CONTRIBUTING.md) for implementations
-- 💼 Reach out for funding/partnership opportunities
-
-**Sponsorship/Partnership Opportunities:**
-- Advanced distributed inference R&D
-- Enterprise features (SSO, audit logs, compliance)
-- Cloud provider integrations
-- Professional support and consulting
 
 ---
 

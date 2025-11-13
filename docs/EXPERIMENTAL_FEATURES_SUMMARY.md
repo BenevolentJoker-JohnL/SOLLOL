@@ -18,7 +18,7 @@
 **Production-Ready Alternatives:**
 - Use task distribution (stable, fast, reliable)
 - Run models locally on your best node
-- Wait for funding to optimize RPC features
+- Wait for optimization work on RPC features
 
 **Recommendation:** Don't use distributed inference for production without dedicated engineering resources.
 

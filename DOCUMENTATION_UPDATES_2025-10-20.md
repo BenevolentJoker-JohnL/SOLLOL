@@ -63,7 +63,7 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
    - Development status section: Separated stable vs experimental features
    - Feature list: Production-ready features prominent, experimental clearly marked
    - Distributed inference section: Added prominent warnings
-   - Future work: Honest about funding requirements
+   - Future work: Honest about technical requirements
 
 2. **ARCHITECTURE.md**
    - "Model sharding" → "Distributed inference"
@@ -126,7 +126,7 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
 - **Before:** Energy spent supporting experimental features
 - **After:** Users focus on stable features (task distribution), get value faster
 
-### 3. Funding Path
+### 3. Technical Requirements Path
 - **Before:** Unclear why distributed inference isn't great
 - **After:** Clear articulation of what's needed ($50k-$100k optimization) and why
 
@@ -152,7 +152,7 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
 - 🔬 Distributed inference via llama.cpp RPC
   - ⚠️ WARNING: Experimental only - 5x slower than local
   - Works for testing only (13B models, 2-3 nodes)
-  - Funding required for production optimization
+  - Dedicated engineering effort required for production optimization
   - See EXPERIMENTAL_FEATURES.md for details
 ```
 
@@ -189,7 +189,7 @@ Updated all SOLLOL documentation to honestly represent the experimental nature o
 **Future Vision:**
 - Still documented in EXPERIMENTAL_FEATURES.md
 - Research track (`distributed_pipeline.py`) still exists
-- Funding path clearly articulated
+- Technical requirements clearly articulated
 
 ---
 

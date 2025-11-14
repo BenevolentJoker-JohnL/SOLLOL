@@ -183,7 +183,7 @@ deploy_to_node() {
 
     else
         echo "   📥 Cloning SOLLOL repository..."
-        ssh "$USER@$node" "git clone https://github.com/BenevolentJoker-JohnL/SOLLOL.git ~/SOLLOL"
+        ssh "$USER@$node" "git clone https://github.com/B-A-M-N/SOLLOL.git ~/SOLLOL"
 
         # Install
         echo "   🔧 Installing SOLLOL..."

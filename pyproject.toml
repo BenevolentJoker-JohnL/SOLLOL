@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "BenevolentJoker-JohnL", email = "benevolentjoker@gmail.com"}
+    {name = "B-A-M-N", email = "benevolentjoker@gmail.com"}
 ]
 keywords = ["ai", "llm", "distributed", "ollama", "load-balancing", "inference", "llama-cpp"]
 classifiers = [
@@ -64,10 +64,10 @@ metrics = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/BenevolentJoker-JohnL/SOLLOL"
-Documentation = "https://github.com/BenevolentJoker-JohnL/SOLLOL/blob/main/README.md"
-Repository = "https://github.com/BenevolentJoker-JohnL/SOLLOL"
-"Bug Tracker" = "https://github.com/BenevolentJoker-JohnL/SOLLOL/issues"
+Homepage = "https://github.com/B-A-M-N/SOLLOL"
+Documentation = "https://github.com/B-A-M-N/SOLLOL/blob/main/README.md"
+Repository = "https://github.com/B-A-M-N/SOLLOL"
+"Bug Tracker" = "https://github.com/B-A-M-N/SOLLOL/issues"
 
 [project.scripts]
 sollol = "sollol.cli:main"

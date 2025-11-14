@@ -1,7 +1,7 @@
 [Unit]
 Description=SOLLOL GPU Reporter Service
 After=network.target redis.service ollama.service
-Documentation=https://github.com/BenevolentJoker-JohnL/SOLLOL
+Documentation=https://github.com/B-A-M-N/SOLLOL
 Wants=redis.service ollama.service
 
 [Service]
